@@ -1,0 +1,19 @@
+on:
+  schedule:
+    - cron: '0 10 * * *'
+      timezone: 'Europe/Prague'
+  workflow_dispatch:
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Discord reminder
+        run: |
+          MESSAGES=(
+            "🌿 Pohyb čeká, kdyby byla chuť."
+            "🫧 Jen připomínka, že appka Pohyb tu je."
+            "✨ Co takhle dnes mrknout, co appka navrhne?"
+            "🪁 Appka Pohyb si říká o pozornost, žádný tlak."
+          )
+          MSG="${MESSAGES[$RANDOM % ${#MESSAGES[@]}]}"
+          curl -s -H "Content-Type: application/json" -d "{\"content\":\"$MSG\"}" "${{ secrets.DISCORD_WEBHOOK_URL }}"
