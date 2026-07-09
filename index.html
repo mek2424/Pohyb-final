@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#4FC3F7">
+<title>Pohyb — sportovní parťák</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<style>
+  :root{
+    --sky-light:#d6f4ff; --sky:#7fe0ff; --sky-mid:#4fc3f7; --aqua-deep:#0288d1; --aqua-deeper:#016aa8;
+    --leaf:#8fe3a5; --leaf-deep:#3fa96a; --sun:#ffd166; --sun-deep:#f4a93b;
+    --ink:#123a52; --ink-soft:#3a6480;
+    --glass:rgba(255,255,255,.5); --glass-strong:rgba(255,255,255,.78); --glass-border:rgba(255,255,255,.75);
+    --radius-lg:26px; --radius-md:18px; --radius-sm:12px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Nunito',sans-serif; color:var(--ink); min-height:100vh;
+    background:
+      radial-gradient(ellipse 80% 50% at 25% -5%, rgba(255,255,255,.85), transparent 60%),
+      linear-gradient(135deg, var(--sky-light) 0%, var(--sky) 32%, var(--sky-mid) 62%, var(--aqua-deep) 100%);
+    overflow-x:hidden; position:relative;
+  }
+  h1,h2,h3,.display{font-family:'Baloo 2',sans-serif;}
+  button{font-family:inherit;cursor:pointer;}
+  :focus-visible{outline:3px solid var(--sun-deep); outline-offset:2px; border-radius:8px;}
+
+  .bg-bubbles{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0;}
+  .bubble{position:absolute;border-radius:50%;background:radial-gradient(circle at 32% 28%, rgba(255,255,255,.95), rgba(255,255,255,.15) 55%, rgba(255,255,255,.05) 75%);box-shadow:0 0 18px rgba(255,255,255,.25);animation:float linear infinite;opacity:0;}
+  @keyframes float{0%{transform:translateY(0) translateX(0);opacity:0;}8%{opacity:.75;}92%{opacity:.5;}100%{transform:translateY(-115vh) translateX(var(--drift,20px));opacity:0;}}
+  @media (prefers-reduced-motion: reduce){.bubble{animation:none;display:none;} *{animation-duration:.001s !important; transition-duration:.15s !important;}}
+
+  .app{position:relative;z-index:1;max-width:460px;margin:0 auto;padding:22px 16px 160px;min-height:100vh;}
+  .view{display:none;animation:viewIn .35s ease;}
+  .view.active{display:block;}
+  @keyframes viewIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+  .top-greeting{color:var(--aqua-deeper);text-shadow:0 1px 0 rgba(255,255,255,.5);margin:2px 4px 18px;}
+  .top-greeting .sub{display:block;font-size:14px;color:var(--ink-soft);font-weight:600;margin-top:2px;}
+  .view-title{font-size:22px;margin:2px 4px 16px;color:var(--aqua-deeper);}
+
+  .glass{background:linear-gradient(160deg, var(--glass-strong), var(--glass));backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid var(--glass-border);border-radius:var(--radius-lg);box-shadow:0 10px 30px rgba(3,86,133,.18), inset 0 1px 0 rgba(255,255,255,.9);padding:20px;margin-bottom:16px;}
+  .glass.small{padding:14px 16px;border-radius:var(--radius-md);}
+
+  .orb-wrap{display:flex;flex-direction:column;align-items:center;margin:6px 0 18px;}
+  .orb{width:148px;height:148px;border-radius:50%;position:relative;overflow:hidden;background:radial-gradient(circle at 32% 26%, rgba(255,255,255,.65), rgba(255,255,255,.05) 45%), linear-gradient(160deg, #d6f4ff, #4fc3f7 70%);border:4px solid rgba(255,255,255,.8);box-shadow:0 14px 34px rgba(3,86,133,.35), inset 0 3px 10px rgba(255,255,255,.7);}
+  .orb-fill{position:absolute;bottom:0;left:0;right:0;height:0%;background:linear-gradient(180deg, rgba(143,227,165,.92), rgba(63,169,106,.95));transition:height 1s cubic-bezier(.34,1.4,.4,1);}
+  .orb-fill::after{content:'';position:absolute;top:-7px;left:-10%;right:-10%;height:16px;background:radial-gradient(ellipse at center, rgba(255,255,255,.55), transparent 70%);}
+  .orb-content{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:2;}
+  .orb-level-num{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:38px;color:#0d3a52;text-shadow:0 1px 0 rgba(255,255,255,.6);line-height:1;}
+  .orb-level-label{font-size:11px;font-weight:700;letter-spacing:.06em;color:#0d3a52;text-transform:uppercase;opacity:.75;}
+  .xp-caption{margin-top:10px;font-weight:700;color:var(--aqua-deeper);font-size:14px;}
+
+  .streak-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;}
+  .streak-head h3{margin:0;font-size:16px;color:var(--ink);}
+  .freeze-chip{display:flex;align-items:center;gap:5px;font-weight:700;font-size:13px;color:var(--aqua-deeper);background:rgba(255,255,255,.55);padding:4px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.8);}
+  .streak-dots{display:flex;gap:4px;width:100%;}
+  .dot{flex:1 1 0;min-width:0;max-width:24px;aspect-ratio:1/1;border-radius:50%;position:relative;}
+  .dot.active{background:linear-gradient(160deg,#b7f0c4,#4CAF6D);box-shadow:inset 0 1px 2px rgba(255,255,255,.7), 0 2px 5px rgba(30,110,60,.35);}
+  .dot.rest{background:linear-gradient(160deg,#cdeaff,#6fbeea);box-shadow:inset 0 1px 2px rgba(255,255,255,.7);}
+  .dot.frozen{background:repeating-linear-gradient(135deg, #e7f8ff, #e7f8ff 3px, #cdeef9 3px, #cdeef9 6px);border:1px solid #a9e0f4;}
+  .dot.empty{background:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.6);}
+  .dot.today{outline:2px solid var(--sun-deep);outline-offset:2px;}
+  .streak-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;font-size:11px;color:var(--ink-soft);font-weight:600;}
+  .streak-legend span{display:inline-flex;align-items:center;gap:4px;}
+  .legend-dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+
+  .btn{border:none;border-radius:999px;font-weight:800;font-family:'Baloo 2',sans-serif;letter-spacing:.01em;padding:15px 20px;font-size:16px;position:relative;overflow:hidden;transition:transform .15s ease;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;}
+  .btn:active{transform:translateY(1px) scale(.985);}
+  .btn-primary{color:#fff;background:linear-gradient(180deg,#7fe0ff 0%,#37acec 55%,#0288d1 100%);box-shadow:0 6px 16px rgba(2,136,209,.45), inset 0 1px 1px rgba(255,255,255,.7);}
+  .btn-primary::before{content:'';position:absolute;top:0;left:6%;right:6%;height:46%;background:linear-gradient(180deg, rgba(255,255,255,.65), rgba(255,255,255,0));border-radius:999px 999px 40% 40%;}
+  .btn-leaf{color:var(--leaf-deep);background:linear-gradient(160deg,rgba(255,255,255,.85),rgba(255,255,255,.55));border:1.5px solid rgba(63,169,106,.4);box-shadow:0 4px 12px rgba(63,169,106,.15), inset 0 1px 1px rgba(255,255,255,.8);}
+  .btn-sun{color:#a9720f;background:linear-gradient(160deg,rgba(255,255,255,.85),rgba(255,255,255,.55));border:1.5px solid rgba(244,169,59,.45);box-shadow:0 4px 12px rgba(244,169,59,.15), inset 0 1px 1px rgba(255,255,255,.8);}
+  .btn-ghost{background:rgba(255,255,255,.55);color:var(--aqua-deeper);box-shadow:inset 0 1px 1px rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.8);}
+  .btn-row{display:flex;flex-direction:column;gap:10px;margin-top:14px;}
+  .btn-sm{padding:9px 14px;font-size:13px;width:auto;border-radius:999px;}
+
+  .chip-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+  .chip{padding:10px 16px;border-radius:999px;background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.75);font-weight:700;font-size:14px;color:var(--ink-soft);box-shadow:inset 0 1px 1px rgba(255,255,255,.7);}
+  .chip.selected{background:linear-gradient(180deg,#7fe0ff,#0288d1);color:#fff;box-shadow:0 4px 10px rgba(2,136,209,.4), inset 0 1px 1px rgba(255,255,255,.6);}
+  .field-label{font-weight:800;font-family:'Baloo 2',sans-serif;color:var(--aqua-deeper);font-size:14px;margin:0 2px 8px;}
+
+  .results-area{margin-top:14px;}
+  .sugg-card{display:flex;align-items:center;gap:14px;padding:14px;border-radius:var(--radius-md);background:linear-gradient(160deg,rgba(255,255,255,.8),rgba(255,255,255,.5));border:1px solid rgba(255,255,255,.8);box-shadow:0 6px 16px rgba(3,86,133,.12);margin-bottom:12px;}
+  .mini-map{height:180px;border-radius:var(--radius-md);overflow:hidden;margin-bottom:12px;border:1px solid rgba(255,255,255,.8);}
+  .sugg-icon{width:48px;height:48px;border-radius:50%;background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.9),rgba(255,255,255,.2)),linear-gradient(160deg,#fff2c9,#ffd166);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;box-shadow:inset 0 1px 2px rgba(255,255,255,.8), 0 3px 8px rgba(244,169,59,.35);}
+  .sugg-info{flex:1;min-width:0;}
+  .sugg-info .name{font-family:'Baloo 2',sans-serif;font-weight:700;font-size:15px;color:var(--ink);}
+  .sugg-info .meta{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin-top:2px;}
+  .sugg-go{flex-shrink:0;background:linear-gradient(180deg,#8fe3a5,#3fa96a);color:#0f3d22;border:none;border-radius:999px;padding:10px 14px;font-weight:800;font-family:'Baloo 2',sans-serif;font-size:12.5px;box-shadow:0 4px 10px rgba(63,169,106,.4), inset 0 1px 1px rgba(255,255,255,.6);white-space:nowrap;}
+  .sugg-go.plan-btn{background:linear-gradient(180deg,#ffe9b0,#f4a93b);color:#5a3c0a;box-shadow:0 4px 10px rgba(244,169,59,.4), inset 0 1px 1px rgba(255,255,255,.6);}
+
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .act-card-wrap{position:relative;}
+  .act-card{width:100%;background:linear-gradient(160deg,rgba(255,255,255,.78),rgba(255,255,255,.48));border:1px solid rgba(255,255,255,.8);border-radius:var(--radius-md);padding:14px 10px;text-align:center;box-shadow:0 6px 14px rgba(3,86,133,.12);position:relative;transition:transform .15s ease;}
+  .act-card:active{transform:scale(.96);}
+  .act-card .icon{font-size:28px;display:block;margin-bottom:6px;}
+  .act-card .name{font-family:'Baloo 2',sans-serif;font-weight:700;font-size:12.5px;color:var(--ink);display:block;}
+  .act-card .last{font-size:10px;color:var(--ink-soft);font-weight:700;margin-top:4px;display:block;}
+  .act-card.add-card{background:rgba(255,255,255,.35);border:2px dashed rgba(255,255,255,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--aqua-deeper);}
+  .edit-fab{position:absolute;top:6px;right:6px;width:25px;height:25px;border-radius:50%;background:rgba(255,255,255,.92);border:1px solid rgba(255,255,255,.95);font-size:11px;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 2px 6px rgba(3,86,133,.25);z-index:2;}
+
+  .toast{position:fixed;top:18px;left:50%;transform:translateX(-50%) translateY(-160%);z-index:200;background:linear-gradient(160deg,#fff,rgba(255,255,255,.9));border:1px solid rgba(255,255,255,.9);border-radius:999px;padding:11px 16px;font-family:'Baloo 2',sans-serif;font-weight:700;color:var(--aqua-deeper);box-shadow:0 10px 26px rgba(3,86,133,.3);transition:transform .4s cubic-bezier(.34,1.56,.64,1);display:flex;align-items:center;gap:8px;white-space:nowrap;font-size:13.5px;max-width:92vw;min-width:180px;justify-content:center;}
+  .toast.show{transform:translateX(-50%) translateY(0);}
+  .toast-undo{background:var(--aqua-deep);color:#fff;border:none;border-radius:999px;padding:5px 12px;font-size:12px;font-weight:800;font-family:'Baloo 2',sans-serif;flex-shrink:0;}
+
+  .bottom-nav{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:3px;background:linear-gradient(160deg,rgba(255,255,255,.96),rgba(255,255,255,.85));backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:999px;padding:7px;border:1px solid rgba(255,255,255,.9);box-shadow:0 10px 28px rgba(3,86,133,.35);z-index:100;padding-bottom:calc(7px + env(safe-area-inset-bottom));}
+
+  .sticker-tray{display:flex;flex-wrap:wrap;gap:10px;min-height:74px;}
+  .sticker-chip{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 6px;border-radius:14px;width:62px;background:linear-gradient(160deg,rgba(255,255,255,.8),rgba(255,255,255,.5));border:1px solid rgba(255,255,255,.85);box-shadow:0 4px 10px rgba(3,86,133,.15);touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;}
+  .sticker-chip .semoji{font-size:26px;line-height:1;}
+  .sticker-chip .slabel{font-size:8.5px;font-weight:800;color:var(--ink-soft);text-align:center;}
+  .sticker-chip.dragging{position:fixed;z-index:300;opacity:.92;box-shadow:0 14px 28px rgba(3,86,133,.4);pointer-events:none;}
+  .journal-entry{background:linear-gradient(160deg,rgba(255,255,255,.75),rgba(255,255,255,.5));border-radius:var(--radius-sm);padding:11px 14px;margin-bottom:8px;border:1px solid rgba(255,255,255,.8);transition:outline-color .15s ease, background .15s ease;}
+  .journal-entry.drop-hover{outline:3px dashed var(--sun-deep);outline-offset:2px;background:rgba(255,209,102,.28);}
+  .journal-entry .jdate{font-size:10.5px;color:var(--ink-soft);font-weight:800;text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;gap:5px;}
+  .journal-entry .entry-sticker{font-size:16px;}
+  .journal-entry .jtext{font-size:13.5px;color:var(--ink);margin-top:3px;line-height:1.4;}
+  textarea.journal-input{width:100%;min-height:76px;padding:11px 14px;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,.9);background:rgba(255,255,255,.65);font-family:'Nunito',sans-serif;font-weight:600;color:var(--ink);margin-bottom:10px;resize:vertical;}
+
+  .burst-particle{position:absolute;left:0;top:0;animation:burstFly .9s ease-out forwards;}
+  @keyframes burstFly{
+    0%{transform:translate(0,0) scale(.4) rotate(0deg); opacity:0;}
+    15%{opacity:1; transform:translate(calc(var(--dx)*0.3), calc(var(--dy)*0.3)) scale(1.15) rotate(20deg);}
+    100%{transform:translate(var(--dx), var(--dy)) scale(.65) rotate(60deg); opacity:0;}
+  }
+  .nav-btn{width:56px;height:52px;border-radius:999px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:transparent;border:none;color:var(--ink-soft);font-size:20px;}
+  .nav-btn span.lbl{font-size:9.5px;font-weight:800;font-family:'Baloo 2',sans-serif;}
+  .nav-btn.active{background:linear-gradient(180deg,#7fe0ff,#0288d1);color:#fff;box-shadow:inset 0 1px 1px rgba(255,255,255,.6), 0 4px 12px rgba(2,136,209,.45);}
+
+  .empty-note{text-align:center;color:var(--ink-soft);font-weight:700;font-size:13.5px;padding:10px 4px;}
+  input[type=text],input[type=number],input[type=date],input[type=time]{width:100%;padding:11px 14px;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,.9);background:rgba(255,255,255,.65);font-family:'Nunito',sans-serif;font-weight:700;color:var(--ink);margin-bottom:10px;}
+  #undo-banner{margin-bottom:14px;}
+  .weather-caption{font-size:13px;font-weight:700;color:var(--aqua-deeper);margin:2px 2px 12px;min-height:18px;}
+  .location-note{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin-top:8px;text-align:center;}
+  .loc-picker-row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .loc-picker-row .loc-text{font-size:13px;font-weight:700;color:var(--ink-soft);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+  .modal-backdrop{display:none;position:fixed;inset:0;z-index:300;background:rgba(3,50,80,.45);backdrop-filter:blur(3px);padding:16px;overflow-y:auto;}
+  .modal-backdrop.show{display:block;}
+  .modal-card{max-width:440px;margin:30px auto;padding:20px;}
+  .search-result{padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.6);margin-bottom:6px;font-weight:700;font-size:13.5px;color:var(--ink);border:1px solid rgba(255,255,255,.7);}
+  .search-result:active{background:rgba(255,255,255,.9);}
+  #leaflet-map{height:230px;border-radius:18px;overflow:hidden;margin:12px 0;border:1px solid rgba(255,255,255,.8);}
+  .map-hint{font-size:11.5px;color:var(--ink-soft);font-weight:600;text-align:center;margin:-6px 0 10px;}
+</style>
+</head>
+<body>
+
+<div class="bg-bubbles" id="bubbles"></div>
+
+<div class="app">
+
+  <!-- ============ DASHBOARD ============ -->
+  <section class="view active" id="view-dashboard">
+    <div class="top-greeting display">
+      <h1 style="margin:0;font-size:22px;">Ahoj! 👋</h1>
+      <span class="sub" id="dash-subline">Podívej se, kde jsi.</span>
+    </div>
+
+    <div id="undo-banner"></div>
+
+    <div class="glass" style="text-align:center;">
+      <div class="orb-wrap">
+        <div class="orb"><div class="orb-fill" id="orb-fill"></div>
+          <div class="orb-content"><div class="orb-level-num" id="orb-level">1</div><div class="orb-level-label">level</div></div>
+        </div>
+        <div class="xp-caption" id="xp-caption">0 / 100 XP</div>
+      </div>
+    </div>
+
+    <div class="glass">
+      <div class="streak-head"><h3 class="display">Posledních 14 dní</h3><div class="freeze-chip">🧊 <span id="freeze-count">0</span></div></div>
+      <div class="streak-dots" id="streak-dots"></div>
+      <div class="streak-legend">
+        <span><i class="legend-dot" style="background:#4CAF6D"></i>aktivní</span>
+        <span><i class="legend-dot" style="background:#6fbeea"></i>odpočinek</span>
+        <span><i class="legend-dot" style="background:#cdeef9;border:1px solid #a9e0f4"></i>zamrazeno</span>
+        <span><i class="legend-dot" style="background:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.8)"></i>nic</span>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary display" onclick="goTo('suggest')">✨ Co mám dělat?</button>
+      <button class="btn btn-leaf display" onclick="goTo('activities')">📋 Zapsat aktivitu</button>
+      <button class="btn btn-ghost btn-sm display" style="align-self:center;" onclick="markRestDay()">😌 Dnes si dávám pauzu</button>
+    </div>
+  </section>
+
+  <!-- ============ SUGGEST ============ -->
+  <section class="view" id="view-suggest">
+    <h1 class="display view-title">Co mám dělat? ✨</h1>
+
+    <div class="glass small">
+      <div class="loc-picker-row">
+        <span class="loc-text">📍 <span id="location-label">Používá se aktuální GPS poloha</span></span>
+        <button class="btn btn-ghost btn-sm" onclick="openLocationPicker()">Změnit</button>
+      </div>
+    </div>
+
+    <div class="chip-row" id="mode-toggle">
+      <button class="chip selected" data-val="now">Teď</button>
+      <button class="chip" data-val="plan">Naplánovat dopředu</button>
+    </div>
+
+    <!-- ---- NOW panel ---- -->
+    <div id="panel-now">
+      <div class="glass">
+        <p class="field-label">Kolik máš času?</p>
+        <div class="chip-row" id="chips-time">
+          <button class="chip" data-val="15">15 min</button><button class="chip" data-val="30">30 min</button>
+          <button class="chip" data-val="60">1 hodina</button><button class="chip" data-val="240">Půl dne+</button>
+        </div>
+        <p class="field-label">Sám, nebo s partou?</p>
+        <div class="chip-row" id="chips-social">
+          <button class="chip" data-val="any">Nezáleží</button><button class="chip" data-val="solo">Radši sám</button><button class="chip" data-val="social">Otevřený partě</button>
+        </div>
+        <p class="field-label">Počasí</p>
+        <div class="chip-row" id="chips-weather">
+          <button class="chip" data-val="any">Nezáleží</button><button class="chip" data-val="outdoor">Venku pohoda</button><button class="chip" data-val="indoor">Radši uvnitř</button>
+        </div>
+        <button class="btn btn-primary display" onclick="runSuggest()">🔎 Najdi mi něco</button>
+      </div>
+      <div id="suggest-results" class="results-area"></div>
+
+      <div class="glass" style="margin-top:16px;">
+        <p class="field-label">Nebo podle toho, co je poblíž</p>
+        <button class="btn btn-sun display" onclick="runLocationSuggest()">📍 Podle okolí</button>
+        <div class="location-note">Potřebuje povolit polohu a internet. Hledá parky, lesy, hřiště, posilovny a bazény poblíž.</div>
+      </div>
+      <div id="location-results" class="results-area"></div>
+    </div>
+
+    <!-- ---- PLAN panel ---- -->
+    <div id="panel-plan" style="display:none;">
+      <div class="glass">
+        <p class="field-label">Který den?</p>
+        <input type="date" id="plan-date">
+        <p class="field-label">Kdy zhruba?</p>
+        <div class="chip-row" id="chips-plan-tod">
+          <button class="chip" data-val="09:00">Ráno</button><button class="chip selected" data-val="14:00">Odpoledne</button><button class="chip" data-val="19:00">Večer</button>
+        </div>
+        <input type="time" id="plan-time" value="14:00">
+        <p class="field-label">Kolik času?</p>
+        <div class="chip-row" id="chips-plan-time">
+          <button class="chip" data-val="30">30 min</button><button class="chip selected" data-val="60">1 hodina</button><button class="chip" data-val="240">Půl dne+</button>
+        </div>
+        <p class="field-label">Počasí</p>
+        <div class="chip-row" id="chips-plan-weather">
+          <button class="chip selected" data-val="any">Nezáleží</button><button class="chip" data-val="outdoor">Venku pohoda</button><button class="chip" data-val="indoor">Radši uvnitř</button>
+        </div>
+        <button class="btn btn-ghost display" onclick="checkPlanWeather()">🌤️ Zjistit skutečné počasí</button>
+        <div class="weather-caption" id="plan-weather-caption"></div>
+        <button class="btn btn-primary display" style="margin-top:10px;" onclick="runPlanSuggest()">Navrhnout</button>
+      </div>
+      <div id="plan-results" class="results-area"></div>
+
+      <div class="glass" style="margin-top:16px;">
+        <p class="field-label">Nebo podle toho, co bude poblíž zvolené polohy</p>
+        <button class="btn btn-sun display" onclick="runLocationSuggestPlan()">📍 Podle okolí (pro zvolený den)</button>
+        <div class="location-note">Použije polohu z karty nahoře — klidně tu, co sis vybral výše (třeba Nelahozeves), ne jen aktuální GPS.</div>
+      </div>
+      <div id="plan-location-results" class="results-area"></div>
+
+      <p class="location-note">Tip navrhne aktivity, tlačítko stáhne .ics soubor, který si otevřeš / naimportuješ do Google nebo Samsung kalendáře.</p>
+    </div>
+  </section>
+
+  <!-- ============ ACTIVITIES ============ -->
+  <section class="view" id="view-activities">
+    <h1 class="display view-title">Aktivity 📋</h1>
+    <p class="empty-note" style="margin-bottom:14px;">Klepni na aktivitu a rovnou se zapíše. Tužkou (✎) ji upravíš.</p>
+    <div class="grid-2" id="activity-grid"></div>
+    <div id="add-form-wrap" style="margin-top:18px;"></div>
+  </section>
+
+  <!-- ============ JOURNAL ============ -->
+  <section class="view" id="view-journal">
+    <h1 class="display view-title">Deníček 📔</h1>
+
+    <div class="glass">
+      <p class="field-label" style="margin-bottom:8px;">Nálepky za postup (každý 5. level)</p>
+      <div class="sticker-tray" id="sticker-tray"></div>
+      <p class="location-note">Přetáhni nálepku dolů na vzpomínku, ke které patří.</p>
+    </div>
+
+    <div class="glass">
+      <div class="loc-picker-row" style="margin-bottom:4px;">
+        <strong class="display" style="font-size:15px;color:var(--ink);">Vzpomínky</strong>
+        <button class="btn btn-ghost btn-sm" onclick="toggleJournalForm()">+ Nová</button>
+      </div>
+      <div id="journal-form-wrap"></div>
+      <div id="journal-list" class="results-area"></div>
+    </div>
+
+    <div class="glass small" style="opacity:.9;">
+      <div class="loc-picker-row"><span class="loc-text">💾 Záloha dat</span></div>
+      <p class="location-note" id="backup-status" style="text-align:left;margin-top:6px;">Ještě jsi nikdy nezálohoval.</p>
+      <div class="btn-row">
+        <button class="btn btn-leaf btn-sm" onclick="exportBackup()">⬇️ Exportovat JSON</button>
+        <button class="btn btn-ghost btn-sm" onclick="triggerImportPicker()">⬆️ Importovat zálohu</button>
+      </div>
+      <input type="file" id="import-file-input" accept="application/json,.json" style="display:none;" onchange="handleImportFile(event)">
+      <div id="import-confirm-wrap"></div>
+    </div>
+
+    <div class="glass small" style="opacity:.9;">
+      <div class="loc-picker-row">
+        <span class="loc-text">🎬 GIF oslava (volitelné)</span>
+        <button class="btn btn-ghost btn-sm" onclick="toggleGiphySettings()">Nastavit</button>
+      </div>
+      <div id="giphy-settings-wrap"></div>
+    </div>
+
+    <div class="glass small" style="opacity:.9;">
+      <div class="loc-picker-row">
+        <span class="loc-text">📨 Discord oznámení (volitelné)</span>
+        <button class="btn btn-ghost btn-sm" onclick="toggleDiscordSettings()">Nastavit</button>
+      </div>
+      <div id="discord-settings-wrap"></div>
+    </div>
+  </section>
+
+</div>
+
+<div class="modal-backdrop" id="location-modal">
+  <div class="glass modal-card">
+    <p class="field-label">Hledat místo</p>
+    <input type="text" id="location-search-input" placeholder="Např. Průhonice, chata Sedlčany…">
+    <button class="btn btn-ghost btn-sm" style="margin-bottom:12px;" onclick="doLocationSearch()">🔎 Hledat</button>
+    <div id="location-search-results"></div>
+
+    <div id="leaflet-map"></div>
+    <div class="map-hint">Klepnutím na mapu nebo přetažením špendlíku vybereš přesný bod.</div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary display" onclick="confirmManualLocation()">📍 Použít tuhle polohu</button>
+      <button class="btn btn-leaf display" onclick="useMyCurrentLocation()">🛰️ Použít aktuální GPS polohu</button>
+      <button class="btn btn-ghost btn-sm" style="align-self:center;" onclick="closeLocationPicker()">Zavřít</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">✓ Zapsáno</div>
+
+<nav class="bottom-nav">
+  <button class="nav-btn active" id="nav-dashboard" onclick="goTo('dashboard')">🏠<span class="lbl">Domů</span></button>
+  <button class="nav-btn" id="nav-suggest" onclick="goTo('suggest')">✨<span class="lbl">Návrh</span></button>
+  <button class="nav-btn" id="nav-activities" onclick="goTo('activities')">📋<span class="lbl">Aktivity</span></button>
+  <button class="nav-btn" id="nav-journal" onclick="goTo('journal')">📔<span class="lbl">Deníček</span></button>
+</nav>
+
+<script>
+/* ================= DATA ================= */
+const STORAGE_KEY = 'pohyb_app_state_v2';
+
+const DEFAULT_ACTIVITIES = [
+  {id:'home_routine', name:'Domácí rutina', icon:'🏠', xp:15, minMinutes:10, category:'solo_any', indoor:true, placeTags:['park','anywhere']},
+  {id:'jumprope', name:'Švihadlo venku', icon:'🪢', xp:15, minMinutes:15, category:'solo_any', indoor:false, placeTags:['park','anywhere']},
+  {id:'longboard', name:'Longboard', icon:'🛹', xp:15, minMinutes:15, category:'solo_any', indoor:false, placeTags:['anywhere']},
+  {id:'walk', name:'Procházka', icon:'🚶', xp:8, minMinutes:15, category:'solo_any', indoor:false, placeTags:['park','wood','anywhere']},
+  {id:'run', name:'Běh', icon:'🏃', xp:20, minMinutes:20, category:'solo_out', indoor:false, placeTags:['wood','park']},
+  {id:'gym', name:'Posilovna', icon:'🏋️', xp:25, minMinutes:45, category:'solo_out', indoor:true, placeTags:['sports_centre']},
+  {id:'beach', name:'Beach volejbal', icon:'🏐', xp:30, minMinutes:60, category:'social', indoor:false, placeTags:['pitch']},
+  {id:'volleyball_doubles', name:'Volejbal. deblíky', icon:'🏐', xp:30, minMinutes:60, category:'social', indoor:false, placeTags:['pitch']},
+  {id:'swim', name:'Plavání', icon:'🏊', xp:22, minMinutes:30, category:'solo_out', indoor:true, placeTags:['pool']},
+  {id:'yoga', name:'Jóga / strečink', icon:'🧘', xp:12, minMinutes:10, category:'solo_any', indoor:true, placeTags:['anywhere','park']},
+  {id:'calisthenics', name:'Kalistenika na hřišti', icon:'🤸', xp:20, minMinutes:20, category:'solo_any', indoor:false, placeTags:['park']},
+  {id:'hike', name:'Túra', icon:'🥾', xp:28, minMinutes:60, category:'solo_out', indoor:false, placeTags:['wood']},
+  {id:'pickup', name:'Míčové hry s partou', icon:'⚽', xp:28, minMinutes:45, category:'social', indoor:false, placeTags:['pitch']},
+  {id:'bike', name:'Výlet na kole', icon:'🚲', xp:20, minMinutes:30, category:'solo_out', indoor:false, placeTags:['wood','anywhere']}
+];
+
+function getDefaultState(){
+  return {
+    activities: JSON.parse(JSON.stringify(DEFAULT_ACTIVITIES)),
+    logs: [], restDays: [], frozenDays: [], freezesUsed: 0,
+    lastReconciled: todayStr(), lastAction: null,
+    stickers: [], journal: [], giphyKey: null, discordWebhook: null, lastBackupAt: null
+  };
+}
+
+/* ================= DATE HELPERS ================= */
+function pad(n){return n<10?'0'+n:''+n;}
+function formatDate(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function todayStr(){return formatDate(new Date());}
+function nowTimeStr(){const d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes());}
+function daysBetween(a,b){const da=new Date(a+'T00:00:00'), db=new Date(b+'T00:00:00'); return Math.round((db-da)/86400000);}
+function formatICSDate(d){return ''+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'T'+pad(d.getHours())+pad(d.getMinutes())+'00';}
+function escapeICS(s){return String(s).replace(/([,;])/g,'\\$1').replace(/\n/g,'\\n');}
+function escapeHTML(s){const d=document.createElement('div'); d.textContent=s; return d.innerHTML;}
+function escapeAttr(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+
+/* ================= STATE PERSISTENCE ================= */
+let state = loadState();
+let lastKnownPosition = null;
+let manualLocation = null; // {lat, lon, label} - session-only override, resets on reload
+let pendingLocation = null, pendingLabel = null, leafletMap = null, leafletMarker = null;
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return getDefaultState();
+    const parsed = JSON.parse(raw);
+    return Object.assign(getDefaultState(), parsed, {
+      activities: parsed.activities && parsed.activities.length ? parsed.activities : getDefaultState().activities
+    });
+  }catch(e){ console.warn('Nepodařilo se načíst uložená data, začínám nanovo.', e); return getDefaultState(); }
+}
+function saveState(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){ console.warn('Nepodařilo se uložit data.', e); } }
+
+/* ================= FREEZE / STREAK LOGIC ================= */
+function countActiveDaysTotal(){ return new Set(state.logs.map(l=>l.date)).size; }
+function freezesAvailable(){ const earned=Math.floor(countActiveDaysTotal()/5); return Math.max(0, Math.min(3, earned-state.freezesUsed)); }
+
+function reconcileFreezes(){
+  let cursor = new Date((state.lastReconciled||todayStr())+'T00:00:00');
+  cursor.setDate(cursor.getDate()+1);
+  const today = todayStr(); let guard=0;
+  while(formatDate(cursor) < today && guard<60){
+    const ds = formatDate(cursor);
+    const hasLog = state.logs.some(l=>l.date===ds);
+    const isRest = state.restDays.includes(ds);
+    if(!hasLog && !isRest && !state.frozenDays.includes(ds) && freezesAvailable()>0){ state.frozenDays.push(ds); state.freezesUsed++; }
+    cursor.setDate(cursor.getDate()+1); guard++;
+  }
+  state.lastReconciled = today;
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-45);
+  const cutoffStr = formatDate(cutoff);
+  state.restDays = state.restDays.filter(d=>d>=cutoffStr);
+  state.frozenDays = state.frozenDays.filter(d=>d>=cutoffStr);
+  saveState();
+}
+
+function getDayStatuses(n){
+  const today=new Date(); const out=[];
+  for(let i=n-1;i>=0;i--){
+    const d=new Date(today); d.setDate(d.getDate()-i); const ds=formatDate(d);
+    const hasLog=state.logs.some(l=>l.date===ds), isRest=state.restDays.includes(ds), isFrozen=state.frozenDays.includes(ds);
+    let status='empty'; if(hasLog) status='active'; else if(isRest) status='rest'; else if(isFrozen) status='frozen';
+    out.push({date:ds, status, isToday:i===0});
+  }
+  return out;
+}
+
+/* ================= XP / LEVEL ================= */
+function totalXP(){return state.logs.reduce((s,l)=>s+l.xp,0);}
+function levelInfo(xp){let level=1, need=100, remaining=xp; while(remaining>=need){remaining-=need; level++; need=Math.round(need*1.25);} return {level, into:remaining, need, progress:remaining/need};}
+
+/* ================= LOGGING (with undo support) ================= */
+function logActivity(activityId){
+  const act = state.activities.find(a=>a.id===activityId);
+  if(!act) return;
+  const oldXP = totalXP();
+  const date=todayStr(), time=nowTimeStr(), logId='l'+Date.now();
+  state.logs.push({id:logId, activityId, date, time, xp:act.xp});
+  state.lastAction = {type:'log', logId, date, label:act.icon+' '+act.name};
+  checkLevelStickers(oldXP, totalXP());
+  saveState();
+  celebrate();
+  sendDiscordWebhook(act.icon+' **'+act.name+'** — +'+act.xp+' XP (level '+levelInfo(totalXP()).level+')');
+  showUndoToast('✓ '+act.name+'  +'+act.xp+' XP');
+  renderAll();
+}
+function markRestDay(){
+  const ds=todayStr();
+  if(!state.restDays.includes(ds)){ state.restDays.push(ds); state.lastAction={type:'rest', date:ds, label:'😌 odpočinek'}; saveState(); showUndoToast('😌 Dnešek je odpočinkový'); }
+  else { showToast('Dnešek už je odpočinkový'); }
+  renderAll();
+}
+function undoLast(){
+  const a = state.lastAction;
+  if(!a){ showToast('Není co vracet'); return; }
+  if(a.type==='log'){ state.logs=state.logs.filter(l=>l.id!==a.logId); }
+  else if(a.type==='rest'){ state.restDays=state.restDays.filter(d=>d!==a.date); }
+  state.lastAction=null; saveState(); showToast('↩ Vráceno: '+(a.label||'')); renderAll();
+}
+
+/* ================= SUGGESTION ENGINE ================= */
+function lastDoneDays(activityId){
+  const logsForAct = state.logs.filter(l=>l.activityId===activityId);
+  if(!logsForAct.length) return 999;
+  const last = logsForAct.reduce((a,b)=> a.date>b.date ? a : b);
+  return daysBetween(last.date, todayStr());
+}
+function filterActivities({minutes, social, weather}){
+  return state.activities.filter(a=>{
+    if(a.minMinutes>minutes) return false;
+    if(social==='solo' && a.category==='social') return false;
+    if(weather==='indoor' && !a.indoor) return false;
+    return true;
+  });
+}
+function suggestActivities(opts){
+  let pool = filterActivities(opts);
+  if(!pool.length) pool = filterActivities(Object.assign({}, opts, {weather:'any'}));
+  if(!pool.length) pool = filterActivities(Object.assign({}, opts, {weather:'any', social:'any'}));
+  if(!pool.length) pool = state.activities.slice();
+  const scored = pool.map(a=>({...a, score: lastDoneDays(a.id) + Math.random()*2.5}));
+  scored.sort((x,y)=>y.score-x.score);
+  return scored.slice(0,3);
+}
+
+/* ================= LOCATION SUGGESTIONS (OpenStreetMap Overpass) ================= */
+function haversine(lat1,lon1,lat2,lon2){
+  const R=6371000, toRad=x=>x*Math.PI/180;
+  const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+  const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+function classifyPlace(tags){
+  if(!tags) return null;
+  if(tags.leisure==='park') return 'park';
+  if(tags.natural==='wood' || tags.landuse==='forest') return 'wood';
+  if(tags.leisure==='pitch') return 'pitch';
+  if(tags.leisure==='sports_centre') return 'sports_centre';
+  if(tags.leisure==='swimming_pool') return 'pool';
+  return null;
+}
+function kindLabel(kind){ return {park:'Park',wood:'Les',pitch:'Sportoviště',sports_centre:'Sportovní centrum',pool:'Bazén'}[kind]||'Místo'; }
+function bestActivityForKind(kind){
+  const matches = state.activities.filter(a=>(a.placeTags||[]).includes(kind));
+  const pool = matches.length ? matches : state.activities.filter(a=>(a.placeTags||[]).includes('anywhere'));
+  if(!pool.length) return null;
+  const scored = pool.map(a=>({a, score: lastDoneDays(a.id)+Math.random()*2}));
+  scored.sort((x,y)=>y.score-x.score);
+  return scored[0].a;
+}
+async function fetchNearbyPlaces(lat, lon){
+  const radius=2000;
+  const query = `[out:json][timeout:15];(`+
+    `node["leisure"="park"](around:${radius},${lat},${lon});way["leisure"="park"](around:${radius},${lat},${lon});`+
+    `node["natural"="wood"](around:${radius},${lat},${lon});way["natural"="wood"](around:${radius},${lat},${lon});way["landuse"="forest"](around:${radius},${lat},${lon});`+
+    `node["leisure"="pitch"](around:${radius},${lat},${lon});way["leisure"="pitch"](around:${radius},${lat},${lon});`+
+    `node["leisure"="sports_centre"](around:${radius},${lat},${lon});way["leisure"="sports_centre"](around:${radius},${lat},${lon});`+
+    `node["leisure"="swimming_pool"](around:${radius},${lat},${lon});way["leisure"="swimming_pool"](around:${radius},${lat},${lon});`+
+    `);out center 40;`;
+  const res = await fetch('https://overpass-api.de/api/interpreter', {method:'POST', body:'data='+encodeURIComponent(query)});
+  if(!res.ok) throw new Error('overpass fail');
+  const data = await res.json();
+  return data.elements || [];
+}
+async function runLocationSuggestGeneric(resultsElId, mode, dateStr, timeVal){
+  const resultsEl = document.getElementById(resultsElId);
+  resultsEl.innerHTML = '<p class="empty-note">📍 Zjišťuju polohu…</p>';
+  try{
+    const pos = await ensurePosition();
+    resultsEl.innerHTML = '<p class="empty-note">🔎 Hledám místa poblíž…</p>';
+    const elements = await fetchNearbyPlaces(pos.lat, pos.lon);
+    const places = elements.map(el=>{
+      const kind = classifyPlace(el.tags);
+      if(!kind) return null;
+      const lat = el.lat ?? (el.center && el.center.lat);
+      const lon = el.lon ?? (el.center && el.center.lon);
+      if(lat==null||lon==null) return null;
+      const dist = haversine(pos.lat, pos.lon, lat, lon);
+      const name = (el.tags && el.tags.name) || kindLabel(kind);
+      return {kind, name, dist, lat, lon};
+    }).filter(Boolean).sort((a,b)=>a.dist-b.dist);
+
+    const seen=new Set(); const picked=[];
+    for(const p of places){ if(!seen.has(p.kind)){ seen.add(p.kind); picked.push(p); } if(picked.length>=4) break; }
+
+    if(!picked.length){ resultsEl.innerHTML = '<p class="empty-note">Poblíž jsem nic výrazného nenašel v OSM datech — zkus obecný návrh výše.</p>'; return; }
+
+    const mapId = resultsElId+'-map';
+    resultsEl.innerHTML = '<p class="field-label" style="margin-top:2px;">📍 Poblíž zvolené polohy</p>'
+      + `<div id="${mapId}" class="mini-map"></div>`
+      + picked.map(p=>{
+        const act = bestActivityForKind(p.kind);
+        if(!act) return '';
+        const distTxt = p.dist<1000 ? Math.round(p.dist)+' m' : (p.dist/1000).toFixed(1)+' km';
+        const btn = mode==='plan'
+          ? `<button class="sugg-go plan-btn" onclick="planActivity('${act.id}','${dateStr}','${timeVal}')">📅 Přidat</button>`
+          : `<button class="sugg-go" onclick="logActivity('${act.id}')">Beru</button>`;
+        return `<div class="sugg-card"><div class="sugg-icon">${act.icon}</div>
+          <div class="sugg-info"><div class="name">${escapeHTML(act.name)}</div><div class="meta">📍 ${escapeHTML(p.name)} · ${distTxt}</div></div>
+          ${btn}</div>`;
+      }).join('');
+
+    ensureLeafletIcons();
+    const miniMap = L.map(mapId, {zoomControl:false, attributionControl:false}).setView([pos.lat,pos.lon], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19}).addTo(miniMap);
+    L.circleMarker([pos.lat,pos.lon], {radius:8, color:'#0288d1', fillColor:'#7fe0ff', fillOpacity:1, weight:2}).addTo(miniMap).bindPopup('Zvolená poloha');
+    picked.forEach(p=>{ L.marker([p.lat,p.lon]).addTo(miniMap).bindPopup(escapeHTML(p.name)); });
+  }catch(err){
+    resultsEl.innerHTML = '<p class="empty-note">Polohu se nepodařilo použít (nepovoleno, nebo pomalé spojení). Zkus obecný návrh výše.</p>';
+  }
+}
+function runLocationSuggest(){ return runLocationSuggestGeneric('location-results','now'); }
+function runLocationSuggestPlan(){
+  const dateStr = document.getElementById('plan-date').value;
+  if(!dateStr){ showToast('Vyber nejdřív datum'); return; }
+  const timeVal = document.getElementById('plan-time').value || '14:00';
+  return runLocationSuggestGeneric('plan-location-results','plan',dateStr,timeVal);
+}
+
+/* ================= WEATHER (Open-Meteo) + PLANNING ================= */
+function weatherCodeInfo(code){
+  const map={0:['☀️','Jasno'],1:['🌤️','Skoro jasno'],2:['⛅','Polojasno'],3:['☁️','Zataženo'],45:['🌫️','Mlha'],48:['🌫️','Mlha'],
+    51:['🌦️','Mrholení'],53:['🌦️','Mrholení'],55:['🌦️','Mrholení'],61:['🌧️','Déšť'],63:['🌧️','Déšť'],65:['🌧️','Silný déšť'],
+    71:['🌨️','Sníh'],73:['🌨️','Sníh'],75:['❄️','Silné sněžení'],80:['🌦️','Přeháňky'],81:['🌦️','Přeháňky'],82:['⛈️','Silné přeháňky'],
+    95:['⛈️','Bouřka'],96:['⛈️','Bouřka s kroupami'],99:['⛈️','Bouřka s kroupami']};
+  return map[code] || ['🌡️','Počasí'];
+}
+function isRainyCode(code){ return [51,53,55,61,63,65,71,73,75,80,81,82,95,96,99].includes(code); }
+
+async function ensurePosition(){
+  if(manualLocation) return manualLocation;
+  if(lastKnownPosition) return lastKnownPosition;
+  const pos = await new Promise((resolve,reject)=>{
+    if(!navigator.geolocation) return reject(new Error('no geo'));
+    navigator.geolocation.getCurrentPosition(resolve, reject, {timeout:10000});
+  });
+  lastKnownPosition = {lat:pos.coords.latitude, lon:pos.coords.longitude};
+  return lastKnownPosition;
+}
+async function fetchForecastForDate(dateStr){
+  const p = await ensurePosition();
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lon}&daily=weathercode,temperature_2m_max&timezone=auto&forecast_days=14`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error('weather fail');
+  const data = await res.json();
+  const idx = data.daily.time.indexOf(dateStr);
+  if(idx===-1) return null;
+  return {code:data.daily.weathercode[idx], tmax:data.daily.temperature_2m_max[idx]};
+}
+async function checkPlanWeather(){
+  const dateStr = document.getElementById('plan-date').value;
+  const capEl = document.getElementById('plan-weather-caption');
+  if(!dateStr){ showToast('Vyber nejdřív datum'); return; }
+  capEl.textContent = '🌐 Zjišťuju počasí…';
+  try{
+    const f = await fetchForecastForDate(dateStr);
+    if(!f){ capEl.textContent='Na tenhle den ještě předpověď není (moc daleko dopředu) — vyber počasí ručně.'; return; }
+    const [icon,label] = weatherCodeInfo(f.code);
+    const whereTxt = manualLocation ? ('podle vybraného místa: '+manualLocation.label) : 'podle tvojí aktuální polohy';
+    capEl.textContent = icon+' '+label+', nejvýš cca '+Math.round(f.tmax)+'°C · '+whereTxt;
+    const target = isRainyCode(f.code) ? 'indoor' : 'outdoor';
+    selectChip('chips-plan-weather', target); planOpts.weather = target;
+  }catch(e){ capEl.textContent = 'Předpověď se nepodařilo načíst — vyber počasí ručně.'; }
+}
+
+/* ================= MANUAL LOCATION PICKER (search + Leaflet map) ================= */
+function placeLabel(r){
+  const parts=[r.name];
+  if(r.admin1 && r.admin1!==r.name) parts.push(r.admin1);
+  if(r.country) parts.push(r.country);
+  return parts.join(', ');
+}
+async function searchPlaces(query){
+  if(!query || query.trim().length<2) return [];
+  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query.trim())}&count=6&language=cs&format=json`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error('geocoding fail');
+  const data = await res.json();
+  return data.results || [];
+}
+async function doLocationSearch(){
+  const q = document.getElementById('location-search-input').value;
+  const wrap = document.getElementById('location-search-results');
+  wrap.innerHTML = '<p class="empty-note">🔎 Hledám…</p>';
+  try{
+    const results = await searchPlaces(q);
+    if(!results.length){ wrap.innerHTML='<p class="empty-note">Nic jsem nenašel, zkus jiné slovo.</p>'; return; }
+    wrap.innerHTML = results.map((r,i)=>`<div class="search-result" onclick="pickSearchResult(${i})">${escapeHTML(placeLabel(r))}</div>`).join('');
+    window._searchResultsCache = results;
+  }catch(e){ wrap.innerHTML = '<p class="empty-note">Hledání se nepodařilo, zkus to znovu.</p>'; }
+}
+function pickSearchResult(i){
+  const r = window._searchResultsCache[i];
+  if(!r) return;
+  setPendingLocation(r.latitude, r.longitude, placeLabel(r));
+}
+function setPendingLocation(lat, lon, label){
+  pendingLocation = {lat, lon}; pendingLabel = label || null;
+  if(leafletMap){ leafletMap.setView([lat,lon], 13); leafletMarker.setLatLng([lat,lon]); }
+}
+function ensureLeafletIcons(){
+  delete L.Icon.Default.prototype._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl:'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+    iconUrl:'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+    shadowUrl:'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png'
+  });
+}
+async function openLocationPicker(){
+  document.getElementById('location-modal').classList.add('show');
+  const start = manualLocation || lastKnownPosition;
+  const startLat = start ? start.lat : 50.0755, startLon = start ? start.lon : 14.4378;
+  pendingLocation = {lat:startLat, lon:startLon}; pendingLabel = manualLocation ? manualLocation.label : null;
+  if(!leafletMap){
+    ensureLeafletIcons();
+    leafletMap = L.map('leaflet-map').setView([startLat, startLon], start?13:11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'&copy; OpenStreetMap contributors', maxZoom:19}).addTo(leafletMap);
+    leafletMarker = L.marker([startLat, startLon], {draggable:true}).addTo(leafletMap);
+    leafletMarker.on('dragend', e=>{ const p=e.target.getLatLng(); pendingLocation={lat:p.lat, lon:p.lng}; pendingLabel=null; });
+    leafletMap.on('click', e=>{ leafletMarker.setLatLng(e.latlng); pendingLocation={lat:e.latlng.lat, lon:e.latlng.lng}; pendingLabel=null; });
+  } else {
+    leafletMap.setView([startLat, startLon], start?13:11);
+    leafletMarker.setLatLng([startLat, startLon]);
+    setTimeout(()=>leafletMap.invalidateSize(), 80);
+  }
+  if(!start){
+    try{ const p = await ensurePosition(); pendingLocation=p; leafletMap.setView([p.lat,p.lon],13); leafletMarker.setLatLng([p.lat,p.lon]); }catch(e){/* ignore, keep default view */}
+  }
+}
+function closeLocationPicker(){ document.getElementById('location-modal').classList.remove('show'); }
+function confirmManualLocation(){
+  if(!pendingLocation){ showToast('Nejdřív vyber místo'); return; }
+  manualLocation = {lat:pendingLocation.lat, lon:pendingLocation.lon, label: pendingLabel || (pendingLocation.lat.toFixed(3)+', '+pendingLocation.lon.toFixed(3))};
+  document.getElementById('location-label').textContent = manualLocation.label;
+  closeLocationPicker();
+  showToast('📍 Poloha nastavena');
+}
+function useMyCurrentLocation(){
+  manualLocation = null;
+  document.getElementById('location-label').textContent = 'Používá se aktuální GPS poloha';
+  closeLocationPicker();
+  showToast('🛰️ Zpátky na živé GPS');
+}
+
+let suggestOpts = {minutes:30, social:'any', weather:'any'};
+let planOpts = {minutes:60, social:'any', weather:'any'};
+
+function runPlanSuggest(){
+  const dateStr = document.getElementById('plan-date').value;
+  if(!dateStr){ showToast('Vyber nejdřív datum'); return; }
+  const timeVal = document.getElementById('plan-time').value || '14:00';
+  const results = suggestActivities(planOpts);
+  const wrap = document.getElementById('plan-results');
+  if(!results.length){ wrap.innerHTML='<p class="empty-note">Zatím žádné aktivity k návrhu.</p>'; return; }
+  wrap.innerHTML = results.map(a=>`<div class="sugg-card"><div class="sugg-icon">${a.icon}</div>
+      <div class="sugg-info"><div class="name">${escapeHTML(a.name)}</div><div class="meta">min. ${a.minMinutes} min · +${a.xp} XP</div></div>
+      <button class="sugg-go plan-btn" onclick="planActivity('${a.id}','${dateStr}','${timeVal}')">📅 Přidat</button></div>`).join('');
+}
+function planActivity(activityId, dateStr, timeVal){
+  const act = state.activities.find(a=>a.id===activityId);
+  if(!act) return;
+  downloadICS(act, dateStr, timeVal);
+  showToast('📅 Staženo — otevři a přidej do kalendáře');
+}
+function downloadICS(activity, dateStr, timeHHMM){
+  const startDate = new Date(dateStr+'T'+timeHHMM+':00');
+  const endDate = new Date(startDate.getTime() + (activity.minMinutes||30)*60000);
+  const uid = 'pohyb-'+Date.now()+'@app.local';
+  const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Pohyb App//CS','CALSCALE:GREGORIAN','BEGIN:VEVENT',
+    'UID:'+uid,'DTSTAMP:'+formatICSDate(new Date()),'DTSTART:'+formatICSDate(startDate),'DTEND:'+formatICSDate(endDate),
+    'SUMMARY:'+escapeICS(activity.icon+' '+activity.name),'DESCRIPTION:'+escapeICS('Naplánováno v appce Pohyb'),'END:VEVENT','END:VCALENDAR'];
+  const blob = new Blob([lines.join('\r\n')], {type:'text/calendar;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='aktivita-'+dateStr+'.ics';
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{document.body.removeChild(a); URL.revokeObjectURL(url);}, 150);
+}
+
+/* ================= RENDER ================= */
+function goTo(view){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+view).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('nav-'+view).classList.add('active');
+  window.scrollTo(0,0);
+}
+function showToast(msg){
+  const t=document.getElementById('toast'); t.innerHTML=msg;
+  t.classList.add('show'); clearTimeout(window._toastTimer);
+  window._toastTimer=setTimeout(()=>t.classList.remove('show'), 2200);
+}
+function showUndoToast(msg){
+  const t=document.getElementById('toast');
+  t.innerHTML = msg+' <button class="toast-undo" onclick="undoLast()">Zpět</button>';
+  t.classList.add('show'); clearTimeout(window._toastTimer);
+  window._toastTimer=setTimeout(()=>t.classList.remove('show'), 4200);
+}
+
+function renderDashboard(){
+  const xp=totalXP(), li=levelInfo(xp);
+  document.getElementById('orb-level').textContent=li.level;
+  document.getElementById('orb-fill').style.height=Math.round(li.progress*100)+'%';
+  document.getElementById('xp-caption').textContent=li.into+' / '+li.need+' XP';
+  document.getElementById('freeze-count').textContent=freezesAvailable();
+
+  const statuses=getDayStatuses(14);
+  const dotsEl=document.getElementById('streak-dots'); dotsEl.innerHTML='';
+  statuses.forEach(s=>{ const d=document.createElement('div'); d.className='dot '+s.status+(s.isToday?' today':''); d.title=s.date; dotsEl.appendChild(d); });
+
+  const activeDays=statuses.filter(s=>s.status!=='empty').length;
+  document.getElementById('dash-subline').textContent = state.logs.length===0
+    ? 'Zatím žádná historie — mrkni na Návrh a rozjeď to.' : activeDays+' ze 14 dní v pohybu.';
+
+  const undoBanner=document.getElementById('undo-banner');
+  undoBanner.innerHTML = state.lastAction ? `<button class="btn btn-ghost btn-sm" style="width:100%;" onclick="undoLast()">↩ Vrátit: ${escapeHTML(state.lastAction.label||'')}</button>` : '';
+}
+
+function renderActivityGrid(){
+  const grid=document.getElementById('activity-grid'); grid.innerHTML='';
+  state.activities.forEach(a=>{
+    const d=lastDoneDays(a.id);
+    const lastTxt = d===999?'ještě nikdy':(d===0?'dnes':(d+'d zpět'));
+    const wrap=document.createElement('div'); wrap.className='act-card-wrap';
+    wrap.innerHTML = `<button class="act-card" onclick="logActivity('${a.id}')">
+        <span class="icon">${a.icon}</span><span class="name">${escapeHTML(a.name)}</span><span class="last">${lastTxt}</span>
+      </button>
+      <button class="edit-fab" title="Upravit" onclick="event.stopPropagation();openActivityForm('${a.id}')">✎</button>`;
+    grid.appendChild(wrap);
+  });
+  const addCard=document.createElement('button'); addCard.className='act-card add-card';
+  addCard.innerHTML='<span class="icon">➕</span><span class="name">Přidat</span>';
+  addCard.onclick=()=>openActivityForm(null);
+  grid.appendChild(addCard);
+}
+
+function openActivityForm(activityId){
+  const editing = !!activityId;
+  const act = editing ? state.activities.find(a=>a.id===activityId) : null;
+  const wrap = document.getElementById('add-form-wrap');
+  const key = activityId || 'new';
+  if(wrap.dataset.openFor === key){ wrap.innerHTML=''; wrap.dataset.openFor=''; return; }
+  wrap.dataset.openFor = key;
+  wrap.innerHTML = `<div class="glass">
+      <p class="field-label">${editing?'Upravit aktivitu':'Nová aktivita'}</p>
+      <input type="text" id="af-name" placeholder="Název" value="${act?escapeAttr(act.name):''}">
+      <input type="text" id="af-icon" placeholder="Emoji" maxlength="4" value="${act?act.icon:''}">
+      <input type="number" id="af-min" placeholder="Nejmíň minut" min="5" max="240" value="${act?act.minMinutes:''}">
+      <p class="field-label">Typ</p>
+      <div class="chip-row" id="af-cat">
+        <button class="chip" data-val="solo_any">Sám, kdykoliv</button>
+        <button class="chip" data-val="solo_out">Sám, potřebuju vyrazit</button>
+        <button class="chip" data-val="social">S ostatními</button>
+      </div>
+      <p class="field-label">Jde i doma / uvnitř?</p>
+      <div class="chip-row" id="af-indoor"><button class="chip" data-val="yes">Ano</button><button class="chip" data-val="no">Jen venku</button></div>
+      <p class="field-label">Kde to jde dělat (pro návrhy podle okolí)</p>
+      <div class="chip-row" id="af-place">
+        <button class="chip" data-val="park">Park</button><button class="chip" data-val="wood">Les</button>
+        <button class="chip" data-val="pitch">Sportoviště</button><button class="chip" data-val="sports_centre">Sport. centrum</button>
+        <button class="chip" data-val="pool">Bazén</button><button class="chip" data-val="anywhere">Kdekoliv</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-leaf display" onclick="saveActivityForm('${activityId||''}')">Uložit</button>
+        ${editing?`<button class="btn btn-ghost btn-sm" style="align-self:center;" onclick="deleteActivity('${activityId}')">🗑 Smazat aktivitu</button>`:''}
+      </div>
+    </div>`;
+  bindChipGroup('af-cat', true); bindChipGroup('af-indoor', true); bindChipGroup('af-place', false);
+  if(act){ selectChip('af-cat', act.category); selectChip('af-indoor', act.indoor?'yes':'no'); (act.placeTags||[]).forEach(t=>selectChip('af-place', t, false)); }
+  else { selectChip('af-cat','solo_any'); selectChip('af-indoor','yes'); selectChip('af-place','anywhere'); }
+}
+function selectChip(containerId, val, exclusive=true){
+  const container=document.getElementById(containerId); const chip=container.querySelector(`.chip[data-val="${val}"]`);
+  if(!chip) return;
+  if(exclusive) container.querySelectorAll('.chip').forEach(c=>c.classList.remove('selected'));
+  chip.classList.add('selected');
+}
+function bindChipGroup(containerId, exclusive=true){
+  document.getElementById(containerId).querySelectorAll('.chip').forEach(chip=>{
+    chip.onclick=()=>{
+      const container=document.getElementById(containerId);
+      if(exclusive){ container.querySelectorAll('.chip').forEach(c=>c.classList.remove('selected')); chip.classList.add('selected'); }
+      else{ chip.classList.toggle('selected'); }
+    };
+  });
+}
+function saveActivityForm(activityId){
+  const name=document.getElementById('af-name').value.trim();
+  const icon=document.getElementById('af-icon').value.trim() || '⭐';
+  const min=parseInt(document.getElementById('af-min').value,10) || 15;
+  if(!name){ showToast('Napiš aspoň název'); return; }
+  const catChip = document.querySelector('#af-cat .chip.selected');
+  const indoorChip = document.querySelector('#af-indoor .chip.selected');
+  const cat = catChip ? catChip.dataset.val : 'solo_any';
+  const indoor = indoorChip ? indoorChip.dataset.val==='yes' : true;
+  const placeTags = Array.from(document.querySelectorAll('#af-place .chip.selected')).map(c=>c.dataset.val);
+  const xp = Math.min(40, Math.round(min/2)+5+(cat==='social'?8:0));
+  if(activityId){
+    const act=state.activities.find(a=>a.id===activityId);
+    Object.assign(act, {name, icon, minMinutes:min, category:cat, indoor, placeTags: placeTags.length?placeTags:['anywhere'], xp});
+  } else {
+    state.activities.push({id:'c'+Date.now(), name, icon, xp, minMinutes:min, category:cat, indoor, placeTags: placeTags.length?placeTags:['anywhere'], custom:true});
+  }
+  saveState();
+  document.getElementById('add-form-wrap').innerHTML=''; document.getElementById('add-form-wrap').dataset.openFor='';
+  showToast('✓ Uloženo'); renderActivityGrid();
+}
+function deleteActivity(activityId){
+  state.activities = state.activities.filter(a=>a.id!==activityId);
+  saveState();
+  document.getElementById('add-form-wrap').innerHTML=''; document.getElementById('add-form-wrap').dataset.openFor='';
+  showToast('🗑 Smazáno'); renderActivityGrid();
+}
+
+/* ---- suggest "now" chips ---- */
+function bindSelectableGroup(containerId, onSelect, defaultVal){
+  const container=document.getElementById(containerId);
+  container.querySelectorAll('.chip').forEach(chip=>{
+    if(chip.dataset.val===defaultVal) chip.classList.add('selected');
+    chip.onclick=()=>{ container.querySelectorAll('.chip').forEach(c=>c.classList.remove('selected')); chip.classList.add('selected'); onSelect(chip.dataset.val); };
+  });
+}
+function initSuggestChips(){
+  bindSelectableGroup('chips-time', val=>suggestOpts.minutes=parseInt(val,10), '30');
+  bindSelectableGroup('chips-social', val=>suggestOpts.social=val, 'any');
+  bindSelectableGroup('chips-weather', val=>suggestOpts.weather=val, 'any');
+  bindSelectableGroup('chips-plan-time', val=>planOpts.minutes=parseInt(val,10), '60');
+  bindSelectableGroup('chips-plan-weather', val=>planOpts.weather=val, 'any');
+  bindSelectableGroup('chips-plan-tod', val=>{ document.getElementById('plan-time').value=val; }, '14:00');
+
+  document.querySelectorAll('#mode-toggle .chip').forEach(chip=>{
+    chip.onclick=()=>{
+      document.querySelectorAll('#mode-toggle .chip').forEach(c=>c.classList.remove('selected'));
+      chip.classList.add('selected');
+      const plan = chip.dataset.val==='plan';
+      document.getElementById('panel-now').style.display = plan? 'none':'block';
+      document.getElementById('panel-plan').style.display = plan? 'block':'none';
+    };
+  });
+  const dateInput = document.getElementById('plan-date');
+  dateInput.min = todayStr(); dateInput.value = todayStr();
+}
+function runSuggest(){
+  const results=suggestActivities(suggestOpts);
+  const wrap=document.getElementById('suggest-results');
+  if(!results.length){ wrap.innerHTML='<p class="empty-note">Zatím žádné aktivity — přidej si nějaké v Aktivitách.</p>'; return; }
+  wrap.innerHTML = results.map(a=>{
+    const d=lastDoneDays(a.id); const lastTxt=d===999?'ještě nikdy':(d===0?'dnes':('před '+d+' dny'));
+    return `<div class="sugg-card"><div class="sugg-icon">${a.icon}</div>
+      <div class="sugg-info"><div class="name">${escapeHTML(a.name)}</div><div class="meta">min. ${a.minMinutes} min · +${a.xp} XP · naposledy ${lastTxt}</div></div>
+      <button class="sugg-go" onclick="logActivity('${a.id}')">Beru</button></div>`;
+  }).join('') + '<button class="btn btn-ghost btn-sm" style="margin-top:4px;" onclick="runSuggest()">🔄 Jiné nápady</button>';
+}
+
+/* ================= BUBBLES ================= */
+function initBubbles(){
+  const host=document.getElementById('bubbles');
+  for(let i=0;i<9;i++){
+    const b=document.createElement('div'); b.className='bubble';
+    const size=10+Math.random()*46;
+    b.style.width=size+'px'; b.style.height=size+'px'; b.style.left=(Math.random()*100)+'%'; b.style.bottom='-60px';
+    b.style.setProperty('--drift', (Math.random()*60-30)+'px');
+    b.style.animationDuration=(14+Math.random()*14)+'s'; b.style.animationDelay=(Math.random()*16)+'s';
+    host.appendChild(b);
+  }
+}
+
+/* ================= INIT ================= */
+/* ================= STICKERS & JOURNAL (Deníček) ================= */
+const STICKER_SET = ['🫧','💧','🌿','☁️','✨','🌈','🍃','💎','⭐','🔷'];
+function checkLevelStickers(oldXP, newXP){
+  const oldLevel = levelInfo(oldXP).level, newLevel = levelInfo(newXP).level;
+  for(let lvl=oldLevel+1; lvl<=newLevel; lvl++){
+    if(lvl % 5 === 0) awardSticker(lvl);
+  }
+}
+function awardSticker(level){
+  const emoji = STICKER_SET[Math.floor(Math.random()*STICKER_SET.length)];
+  state.stickers.push({id:'s'+Date.now()+Math.random().toString(36).slice(2,6), emoji, label:'Level '+level});
+}
+function renderStickerTray(){
+  const tray = document.getElementById('sticker-tray');
+  if(!tray) return;
+  tray.innerHTML='';
+  if(!state.stickers.length){ tray.innerHTML='<p class="empty-note">Zatím žádné — první přijde na levelu 5.</p>'; return; }
+  state.stickers.forEach(s=>{
+    const chip = document.createElement('div');
+    chip.className='sticker-chip';
+    chip.innerHTML = `<span class="semoji">${s.emoji}</span><span class="slabel">${escapeHTML(s.label)}</span>`;
+    bindStickerDrag(chip, s.id);
+    tray.appendChild(chip);
+  });
+}
+function bindStickerDrag(el, stickerId){
+  let dragging=false;
+  el.addEventListener('pointerdown', e=>{
+    dragging=true; try{ el.setPointerCapture(e.pointerId); }catch(err){}
+    el.classList.add('dragging');
+    el.style.left=(e.clientX-31)+'px'; el.style.top=(e.clientY-31)+'px';
+    e.preventDefault();
+  });
+  el.addEventListener('pointermove', e=>{
+    if(!dragging) return;
+    el.style.left=(e.clientX-31)+'px'; el.style.top=(e.clientY-31)+'px';
+    document.querySelectorAll('.journal-entry').forEach(je=>je.classList.remove('drop-hover'));
+    const hovered = document.elementFromPoint(e.clientX, e.clientY);
+    const entryEl = hovered ? hovered.closest('.journal-entry') : null;
+    if(entryEl) entryEl.classList.add('drop-hover');
+  });
+  el.addEventListener('pointerup', e=>{
+    if(!dragging) return;
+    dragging=false;
+    document.querySelectorAll('.journal-entry').forEach(je=>je.classList.remove('drop-hover'));
+    const hovered = document.elementFromPoint(e.clientX, e.clientY);
+    const entryEl = hovered ? hovered.closest('.journal-entry') : null;
+    if(entryEl && entryEl.dataset.journalId){ attachStickerToEntry(stickerId, entryEl.dataset.journalId); }
+    else { renderStickerTray(); }
+  });
+  el.addEventListener('pointercancel', ()=>{ dragging=false; renderStickerTray(); });
+}
+function attachStickerToEntry(stickerId, entryId){
+  const sticker = state.stickers.find(s=>s.id===stickerId);
+  const entry = state.journal.find(j=>j.id===entryId);
+  if(!sticker || !entry){ renderStickerTray(); return; }
+  entry.stickerEmoji = sticker.emoji; entry.stickerLabel = sticker.label;
+  state.stickers = state.stickers.filter(s=>s.id!==stickerId);
+  saveState();
+  showToast('🎀 Nálepka přidána ke vzpomínce');
+  renderStickerTray(); renderJournalList();
+}
+function toggleJournalForm(){
+  const wrap = document.getElementById('journal-form-wrap');
+  if(wrap.innerHTML){ wrap.innerHTML=''; return; }
+  wrap.innerHTML = `<textarea class="journal-input" id="journal-text-input" placeholder="Co si chceš zapamatovat?"></textarea>
+    <button class="btn btn-leaf btn-sm" style="margin-bottom:14px;" onclick="saveJournalEntry()">Uložit vzpomínku</button>`;
+}
+function saveJournalEntry(){
+  const input = document.getElementById('journal-text-input');
+  const val = input ? input.value.trim() : '';
+  if(!val){ showToast('Napiš aspoň něco'); return; }
+  state.journal.unshift({id:'j'+Date.now(), text:val, date:todayStr()});
+  saveState();
+  document.getElementById('journal-form-wrap').innerHTML='';
+  renderJournalList();
+  showToast('📔 Vzpomínka uložena');
+}
+function renderJournalList(){
+  const wrap = document.getElementById('journal-list');
+  if(!wrap) return;
+  if(!state.journal.length){ wrap.innerHTML='<p class="empty-note">Zatím žádné vzpomínky.</p>'; return; }
+  wrap.innerHTML = state.journal.map(j=>{
+    const stickerHtml = j.stickerEmoji ? `<span class="entry-sticker" title="${escapeAttr(j.stickerLabel||'')}">${j.stickerEmoji}</span>` : '';
+    return `<div class="journal-entry" data-journal-id="${j.id}"><div class="jdate">${stickerHtml}${j.date}${j.stickerLabel?' · '+escapeHTML(j.stickerLabel):''}</div><div class="jtext">${escapeHTML(j.text)}</div></div>`;
+  }).join('');
+}
+
+/* ---- celebration: GIF (Giphy, needs a free personal key) with sparkle fallback ---- */
+const CELEBRATION_QUERIES = ['sports celebration','victory dance','high five','winning moment','champion celebration'];
+/* ---- Backup: export/import JSON, track last backup age ---- */
+function updateBackupStatus(){
+  const el = document.getElementById('backup-status');
+  if(!el) return;
+  if(!state.lastBackupAt){ el.textContent='Ještě jsi nikdy nezálohoval.'; el.style.color=''; return; }
+  const days = daysBetween(state.lastBackupAt, todayStr());
+  if(days<=0) el.textContent='Zálohováno dnes.';
+  else if(days===1) el.textContent='Zálohováno včera.';
+  else el.textContent='Poslední záloha: před '+days+' dny.';
+  el.style.color = days>=14 ? '#a9720f' : '';
+}
+function exportBackup(){
+  state.lastBackupAt = todayStr();
+  saveState();
+  const dataStr = JSON.stringify(state, null, 2);
+  const blob = new Blob([dataStr], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'pohyb-zaloha-'+todayStr()+'.json';
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 150);
+  showToast('💾 Záloha stažena');
+  updateBackupStatus();
+}
+function triggerImportPicker(){
+  const input = document.getElementById('import-file-input');
+  if(input) input.click();
+}
+function handleImportFile(event){
+  const file = event.target.files && event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    let parsed;
+    try{ parsed = JSON.parse(e.target.result); }
+    catch(err){ showToast('❌ Soubor není platné JSON'); return; }
+    if(!parsed || !Array.isArray(parsed.activities) || !Array.isArray(parsed.logs)){
+      showToast('❌ Tohle nevypadá jako záloha appky Pohyb'); return;
+    }
+    showImportConfirm(parsed);
+  };
+  reader.onerror = ()=>{ showToast('❌ Soubor se nepodařilo přečíst'); };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+function showImportConfirm(parsed){
+  const wrap = document.getElementById('import-confirm-wrap');
+  const actCount = (parsed.activities||[]).length;
+  const logCount = (parsed.logs||[]).length;
+  const xp = (parsed.logs||[]).reduce((s,l)=>s+(l.xp||0),0);
+  wrap.innerHTML = `<div class="glass small" style="margin-top:10px;background:rgba(255,209,102,.3);">
+    <p class="jtext" style="margin:0 0 10px;">Záloha obsahuje: ${actCount} aktivit, ${logCount} zápisů, celkem ${xp} XP. <strong>Tohle přepíše tvá současná data v appce.</strong></p>
+    <div class="btn-row">
+      <button class="btn btn-leaf btn-sm" onclick="confirmImport()">Ano, importovat</button>
+      <button class="btn btn-ghost btn-sm" onclick="cancelImport()">Zrušit</button>
+    </div>
+  </div>`;
+  window._pendingImport = parsed;
+}
+function cancelImport(){
+  document.getElementById('import-confirm-wrap').innerHTML = '';
+  window._pendingImport = null;
+}
+function confirmImport(){
+  const parsed = window._pendingImport;
+  if(!parsed) return;
+  state = Object.assign(getDefaultState(), parsed);
+  saveState();
+  document.getElementById('import-confirm-wrap').innerHTML = '';
+  window._pendingImport = null;
+  showToast('✅ Záloha importována');
+  renderAll();
+}
+
+function toggleGiphySettings(){
+  const wrap = document.getElementById('giphy-settings-wrap');
+  if(wrap.innerHTML){ wrap.innerHTML=''; return; }
+  wrap.innerHTML = `<input type="text" id="giphy-key-input" placeholder="Vlož svůj Giphy API klíč" value="${state.giphyKey?escapeAttr(state.giphyKey):''}">
+    <div class="btn-row">
+      <button class="btn btn-leaf btn-sm" onclick="saveGiphyKey()">Uložit</button>
+      <button class="btn btn-ghost btn-sm" onclick="testGiphyKey()">🎬 Vyzkoušet</button>
+    </div>
+    <p class="location-note">Zdarma na developers.giphy.com/dashboard. Bez klíče appka použije jiskřičkovou animaci.</p>`;
+}
+function saveGiphyKey(){
+  const input = document.getElementById('giphy-key-input');
+  const val = input ? input.value.trim() : '';
+  state.giphyKey = val || null;
+  saveState();
+  showToast(val ? '🎬 Giphy klíč uložen' : 'Klíč smazán, zpět na jiskřičky');
+}
+async function fetchGiphyGif(query){
+  const url = `https://api.giphy.com/v1/gifs/search?api_key=${encodeURIComponent(state.giphyKey)}&q=${encodeURIComponent(query)}&limit=25&rating=g`;
+  const res = await fetch(url);
+  if(!res.ok){
+    const body = await res.text().catch(()=>'');
+    console.warn('Giphy: chyba', res.status, body);
+    return {ok:false, reason:'http'+res.status};
+  }
+  const data = await res.json();
+  const results = data && data.data;
+  if(!results || !results.length){
+    console.warn('Giphy: žádné výsledky pro dotaz', query, data);
+    return {ok:false, reason:'empty'};
+  }
+  const pick = results[Math.floor(Math.random()*results.length)];
+  const gifUrl = pick && pick.images && pick.images.original && pick.images.original.url;
+  if(!gifUrl){ console.warn('Giphy: výsledek bez URL', pick); return {ok:false, reason:'nourl'}; }
+  return {ok:true, url:gifUrl};
+}
+async function testGiphyKey(){
+  const input = document.getElementById('giphy-key-input');
+  const key = input ? input.value.trim() : state.giphyKey;
+  if(!key){ showToast('Nejdřív vlož klíč'); return; }
+  state.giphyKey = key; // use it live for the test even before Uložit is tapped
+  showToast('🎬 Zkouším…');
+  try{
+    const result = await fetchGiphyGif('celebration');
+    if(result.ok){ showGifOverlay(result.url); return; }
+    if(result.reason==='http401' || result.reason==='http403') showToast('❌ Klíč nefunguje (neplatný nebo nepovolený)');
+    else if(result.reason && result.reason.startsWith('http')) showToast('❌ Chyba '+result.reason.replace('http','')+' — zkus klíč znovu zkopírovat');
+    else showToast('⚠️ Klíč funguje, ale nic nenašlo — zkus to ještě jednou');
+  }catch(e){
+    console.warn('Giphy test error', e);
+    showToast('❌ Nepodařilo se připojit (offline, nebo síť blokuje Giphy)');
+  }
+}
+async function celebrate(){
+  if(state.giphyKey){
+    try{
+      const q = CELEBRATION_QUERIES[Math.floor(Math.random()*CELEBRATION_QUERIES.length)];
+      const result = await fetchGiphyGif(q);
+      if(result.ok){ showGifOverlay(result.url); return; }
+    }catch(e){ console.warn('Giphy celebrate() selhal, padám na jiskřičky', e); }
+  }
+  celebrateBurst();
+}
+/* ---- Discord webhook (optional, fires when an activity is logged) ---- */
+function toggleDiscordSettings(){
+  const wrap = document.getElementById('discord-settings-wrap');
+  if(wrap.innerHTML){ wrap.innerHTML=''; return; }
+  wrap.innerHTML = `<input type="text" id="discord-webhook-input" placeholder="Vlož Discord webhook URL" value="${state.discordWebhook?escapeAttr(state.discordWebhook):''}">
+    <div class="btn-row">
+      <button class="btn btn-leaf btn-sm" onclick="saveDiscordWebhook()">Uložit</button>
+      <button class="btn btn-ghost btn-sm" onclick="testDiscordWebhook()">📨 Vyzkoušet</button>
+    </div>
+    <p class="location-note">Discord → nastavení serveru/kanálu → Integrace → Webhooky → Vytvořit webhook → zkopíruj URL.</p>`;
+}
+function saveDiscordWebhook(){
+  const input = document.getElementById('discord-webhook-input');
+  const val = input ? input.value.trim() : '';
+  state.discordWebhook = val || null;
+  saveState();
+  showToast(val ? '📨 Webhook uložen' : 'Webhook smazán');
+}
+async function sendDiscordWebhook(content){
+  if(!state.discordWebhook) return;
+  try{
+    const res = await fetch(state.discordWebhook, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({content})});
+    if(!res.ok) console.warn('Discord webhook: chyba', res.status);
+  }catch(e){ console.warn('Discord webhook selhal', e); }
+}
+async function testDiscordWebhook(){
+  const input = document.getElementById('discord-webhook-input');
+  const url = input ? input.value.trim() : state.discordWebhook;
+  if(!url){ showToast('Nejdřív vlož webhook URL'); return; }
+  state.discordWebhook = url;
+  showToast('📨 Posílám testovací zprávu…');
+  try{
+    const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({content:'✅ Appka Pohyb je propojená! Tohle je testovací zpráva.'})});
+    if(res.ok) showToast('✅ Odesláno, mrkni na Discord');
+    else showToast('❌ Chyba '+res.status+' — zkontroluj URL webhooku');
+  }catch(e){ showToast('❌ Nepodařilo se odeslat (offline, nebo špatná URL)'); }
+}
+
+function showGifOverlay(url){
+  const host=document.createElement('div');
+  host.style.cssText='position:fixed;inset:0;z-index:260;display:flex;align-items:center;justify-content:center;background:rgba(3,50,80,.4);backdrop-filter:blur(3px);';
+  host.innerHTML = `<img src="${url}" alt="Oslava" style="max-width:80vw;max-height:60vh;border-radius:20px;box-shadow:0 20px 50px rgba(3,86,133,.4);border:4px solid rgba(255,255,255,.9);">`;
+  host.addEventListener('click', ()=>host.remove());
+  document.body.appendChild(host);
+  setTimeout(()=>host.remove(), 2600);
+}
+function celebrateBurst(){
+  const host=document.createElement('div');
+  host.style.cssText='position:fixed;top:24%;left:50%;transform:translate(-50%,-50%);z-index:250;pointer-events:none;';
+  document.body.appendChild(host);
+  const set=['✨','🫧','⭐','💫','🌟','🍃'];
+  for(let i=0;i<7;i++){
+    const p=document.createElement('div'); p.className='burst-particle';
+    p.textContent=set[Math.floor(Math.random()*set.length)];
+    const angle=(Math.PI*2*i/7)+Math.random()*0.4, dist=55+Math.random()*45;
+    p.style.fontSize=(15+Math.random()*11)+'px';
+    p.style.setProperty('--dx',(Math.cos(angle)*dist)+'px');
+    p.style.setProperty('--dy',(Math.sin(angle)*dist)+'px');
+    host.appendChild(p);
+  }
+  setTimeout(()=>host.remove(), 950);
+}
+
+function renderAll(){ renderDashboard(); renderActivityGrid(); renderStickerTray(); renderJournalList(); updateBackupStatus(); }
+function init(){ reconcileFreezes(); initBubbles(); initSuggestChips(); renderAll(); }
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
