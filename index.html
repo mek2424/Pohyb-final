@@ -641,7 +641,7 @@ function classifyMapyBroad(name, label){
   return null;
 }
 async function fetchNearbyPlacesMapy(lat, lon){
-  const radius = 4000;
+  const radius = 1800;
   const results = await Promise.all(MAPY_QUERIES.map(async (q)=>{
     // preferNear is an array[number] param — Mapy.com expects it as two REPEATED
     // "preferNear" keys (?preferNear=lon&preferNear=lat), not one comma-joined value.
