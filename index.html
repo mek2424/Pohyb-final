@@ -645,7 +645,7 @@ async function fetchNearbyPlacesMapy(lat, lon){
   const results = await Promise.all(MAPY_QUERIES.map(async (q)=>{
     // preferNear is an array[number] param — Mapy.com expects it as two REPEATED
     // "preferNear" keys (?preferNear=lon&preferNear=lat), not one comma-joined value.
-    const url = `https://api.mapy.com/v1/suggest?apikey=${encodeURIComponent(state.mapyApiKey)}&query=${encodeURIComponent(q)}&type=poi&lang=cs&limit=10&preferNear=${lon}&preferNear=${lat}&preferNearPrecision=${radius}`;
+    const url = `https://api.mapy.com/v1/suggest?apikey=${encodeURIComponent(state.mapyApiKey)}&query=${encodeURIComponent(q)}&type=poi&lang=cs&limit=15&preferNear=${lon}&preferNear=${lat}&preferNearPrecision=${radius}`;
     try{
       const res = await fetch(url);
       if(!res.ok){ console.warn('Mapy.com suggest chyba', q, res.status); return []; }
