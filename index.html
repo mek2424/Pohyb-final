@@ -388,7 +388,8 @@ const DEFAULT_ACTIVITIES = [
   {id:'calisthenics', name:'Kalistenika na hřišti', icon:'🤸', xp:20, minMinutes:20, category:'solo_any', indoor:false, placeTags:['park']},
   {id:'hike', name:'Túra', icon:'🥾', xp:28, minMinutes:60, category:'solo_out', indoor:false, placeTags:['wood']},
   {id:'pickup', name:'Míčové hry s partou', icon:'⚽', xp:28, minMinutes:45, category:'social', indoor:false, placeTags:['pitch']},
-  {id:'bike', name:'Výlet na kole', icon:'🚲', xp:20, minMinutes:30, category:'solo_out', indoor:false, placeTags:['wood','anywhere']}
+  {id:'bike', name:'Výlet na kole', icon:'🚲', xp:20, minMinutes:30, category:'solo_out', indoor:false, placeTags:['wood','anywhere']},
+  {id:'explore', name:'Pohyb jinde', icon:'🧭', xp:15, minMinutes:15, category:'solo_any', indoor:false, placeTags:['anywhere']}
 ];
 
 function getDefaultState(){
@@ -603,16 +604,37 @@ async function fetchNearbyPlaces(lat, lon){
   const data = await res.json();
   return data.elements || [];
 }
-const MAPY_KIND_QUERIES = [
-  {kind:'park', q:'park'},
-  {kind:'wood', q:'les'},
-  {kind:'pitch', q:'sportoviště'},
-  {kind:'sports_centre', q:'sportovní centrum'},
-  {kind:'pool', q:'bazén'}
+const MAPY_QUERIES = ['park','les','sportoviště','sportovní centrum','bazén','hřiště'];
+const MAPY_TEXT_HINTS = [
+  {re:/pumptrack/i, name:'Pumptrack (kolo)', icon:'🚵', tag:'cycling'},
+  {re:/skate ?park/i, name:'Skateboarding', icon:'🛹', tag:'skateboard'},
+  {re:/beach ?volejbal/i, name:'Beach volejbal', icon:'🏐', tag:'beachvolleyball'},
+  {re:/volejbal/i, name:'Volejbal', icon:'🏐', tag:'volleyball'},
+  {re:/\btenis(ov)?\b/i, name:'Tenis', icon:'🎾', tag:'tennis'},
+  {re:/basketbal/i, name:'Basketbal', icon:'🏀', tag:'basketball'},
+  {re:/fotbal|kopan[áá]/i, name:'Fotbal', icon:'⚽', tag:'soccer'},
+  {re:/lezeck|boulder|horolez/i, name:'Lezení', icon:'🧗', tag:'climbing'},
+  {re:/plaveck|bazén|koupali[šs]t/i, name:'Plavání', icon:'🏊', tag:'swimming'},
+  {re:/workout|kalisteni/i, name:'Kalistenika', icon:'🤸', tag:null},
+  {re:/atletick|běžeck.{0,6}dráh/i, name:'Atletika', icon:'🏃', tag:'athletics'},
+  {re:/hokej/i, name:'Hokej', icon:'🏒', tag:'hockey'}
 ];
+function extractSpecificFromText(name, label){
+  const text = ((name||'')+' '+(label||'')).toLowerCase();
+  for(const hint of MAPY_TEXT_HINTS){ if(hint.re.test(text)) return hint; }
+  return null;
+}
+function classifyMapyBroad(name, label){
+  const text = ((name||'')+' '+(label||'')).toLowerCase();
+  if(/bazén|koupali[šs]t|plaveck/.test(text)) return 'pool';
+  if(/^les\b|lesík|háj/.test(text)) return 'wood';
+  if(/hřišt|sportovn|tělocvičn|sportovišt|\bhala\b|stadion|fitness|posiloven|areál/.test(text)) return 'sports_centre';
+  if(/\bpark\b(?!ing|ovišt)/.test(text)) return 'park';
+  return null;
+}
 async function fetchNearbyPlacesMapy(lat, lon){
   const radius = 3000;
-  const results = await Promise.all(MAPY_KIND_QUERIES.map(async ({kind,q})=>{
+  const results = await Promise.all(MAPY_QUERIES.map(async (q)=>{
     // preferNear is an array[number] param — Mapy.com expects it as two REPEATED
     // "preferNear" keys (?preferNear=lon&preferNear=lat), not one comma-joined value.
     const url = `https://api.mapy.com/v1/suggest?apikey=${encodeURIComponent(state.mapyApiKey)}&query=${encodeURIComponent(q)}&type=poi&lang=cs&limit=5&preferNear=${lon}&preferNear=${lat}&preferNearPrecision=${radius}`;
@@ -620,12 +642,20 @@ async function fetchNearbyPlacesMapy(lat, lon){
       const res = await fetch(url);
       if(!res.ok){ console.warn('Mapy.com suggest chyba', q, res.status); return []; }
       const data = await res.json();
-      return (data.items||[]).map(item=>({
-        kind,
-        name: item.name || kindLabel(kind),
-        lat: item.position && item.position.lat,
-        lon: item.position && item.position.lon
-      })).filter(p=>p.lat!=null && p.lon!=null);
+      return (data.items||[]).map(item=>{
+        const ilat = item.position && item.position.lat, ilon = item.position && item.position.lon;
+        if(ilat==null || ilon==null) return null;
+        const specific = extractSpecificFromText(item.name, item.label);
+        const broadKind = classifyMapyBroad(item.name, item.label);
+        if(!specific && !broadKind) return null; // can't confidently tell what this is — skip rather than guess wrong
+        return {
+          name: item.name || item.label || 'Místo',
+          info: item.label || null,
+          lat: ilat, lon: ilon,
+          kind: broadKind || 'sports_centre',
+          specificSport: specific ? {tag:specific.tag, name:specific.name, icon:specific.icon} : null
+        };
+      }).filter(Boolean);
     }catch(e){ console.warn('Mapy.com suggest selhal pro', q, e); return []; }
   }));
   return results.flat();
@@ -651,12 +681,23 @@ async function runLocationSuggestGeneric(resultsElId, mode, dateStr, timeVal){
         const dist = haversine(pos.lat, pos.lon, lat, lon);
         const name = (el.tags && el.tags.name) || kindLabel(kind);
         const specificSport = extractSpecificSport(el.tags);
-        return {kind, name, dist, lat, lon, specificSport};
+        return {kind, name, info:kindLabel(kind), dist, lat, lon, specificSport};
       }).filter(Boolean).sort((a,b)=>a.dist-b.dist);
     }
 
-    const seen=new Set(); const picked=[];
-    for(const p of places){ if(!seen.has(p.kind)){ seen.add(p.kind); picked.push(p); } if(picked.length>=4) break; }
+    // Specific sport matches (Tenis, Pumptrack, Beach volejbal...) each earn their own card.
+    // Only the generic, un-specific leftovers compete for one slot per broad kind.
+    const seenKind=new Set(), seenSpecific=new Set(); const picked=[];
+    for(const p of places){
+      if(p.specificSport){
+        if(seenSpecific.has(p.specificSport.name)) continue;
+        seenSpecific.add(p.specificSport.name); picked.push(p);
+      } else {
+        if(seenKind.has(p.kind)) continue;
+        seenKind.add(p.kind); picked.push(p);
+      }
+      if(picked.length>=5) break;
+    }
 
     if(!picked.length){ resultsEl.innerHTML = '<p class="empty-note">Poblíž jsem nic výrazného nenašel v '+(state.mapyApiKey?'Mapy.com':'OSM')+' datech — zkus obecný návrh výše.</p>'; return; }
 
@@ -664,25 +705,35 @@ async function runLocationSuggestGeneric(resultsElId, mode, dateStr, timeVal){
     resultsEl.innerHTML = '<p class="field-label" style="margin-top:2px;">📍 Poblíž zvolené polohy</p>'
       + `<div id="${mapId}" class="mini-map"></div>`
       + picked.map(p=>{
-        let isNew=false, cardIcon, cardName, act=null;
-        if(p.specificSport && !findExistingActivityByName(p.specificSport.name)){
-          isNew = true; cardIcon = p.specificSport.icon; cardName = p.specificSport.name;
+        let isNew=false, cardIcon, cardName, cardMeta, act=null, honest=false;
+        if(p.specificSport){
+          act = findExistingActivityByName(p.specificSport.name);
+          if(act){ cardIcon = act.icon; cardName = act.name; }
+          else { isNew = true; cardIcon = p.specificSport.icon; cardName = p.specificSport.name; }
         } else {
-          act = bestActivityForKind(p.kind);
-          if(!act) return '';
-          cardIcon = act.icon; cardName = act.name;
+          // No specific sport recognized — be honest instead of guessing wrong: show the
+          // real place and whatever info we actually have, log it against a flexible catch-all.
+          honest = true;
+          act = state.activities.find(a=>a.id==='explore');
+          cardIcon = '🧭'; cardName = p.name;
         }
         const distTxt = p.dist<1000 ? Math.round(p.dist)+' m' : (p.dist/1000).toFixed(1)+' km';
         const badge = isNew ? ' <span style="font-size:10px;font-weight:800;color:var(--aqua-deeper);">✨ nová</span>' : '';
+        const metaLine = honest
+          ? (p.info ? escapeHTML(p.info)+' · '+distTxt : distTxt)
+          : '📍 '+escapeHTML(p.name)+' · '+distTxt;
         const btn = isNew
           ? (mode==='plan'
               ? `<button class="sugg-go plan-btn" onclick="createAndUseActivity('${p.specificSport.name}','${p.specificSport.icon}','${p.specificSport.tag}','${p.kind}','plan','${dateStr}','${timeVal}')">📅 Přidat</button>`
               : `<button class="sugg-go" onclick="createAndUseActivity('${p.specificSport.name}','${p.specificSport.icon}','${p.specificSport.tag}','${p.kind}','now')">✨ Beru</button>`)
-          : (mode==='plan'
-              ? `<button class="sugg-go plan-btn" onclick="planActivity('${act.id}','${dateStr}','${timeVal}')">📅 Přidat</button>`
-              : `<button class="sugg-go" onclick="logActivity('${act.id}')">Beru</button>`);
+          : (act
+              ? (mode==='plan'
+                  ? `<button class="sugg-go plan-btn" onclick="planActivity('${act.id}','${dateStr}','${timeVal}')">📅 Přidat</button>`
+                  : `<button class="sugg-go" onclick="logActivity('${act.id}')">Beru</button>`)
+              : '');
+        if(!isNew && !act) return '';
         return `<div class="sugg-card"><div class="sugg-icon">${cardIcon}</div>
-          <div class="sugg-info"><div class="name">${escapeHTML(cardName)}${badge}</div><div class="meta">📍 ${escapeHTML(p.name)} · ${distTxt}</div></div>
+          <div class="sugg-info"><div class="name">${escapeHTML(cardName)}${badge}</div><div class="meta">${metaLine}</div></div>
           ${btn}</div>`;
       }).join('');
 
