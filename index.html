@@ -610,7 +610,12 @@ async function fetchNearbyPlaces(lat, lon){
   const data = await res.json();
   return data.elements || [];
 }
-const MAPY_QUERIES = ['park','les','sportoviště','sportovní centrum','bazén','hřiště','posilovna','fitness','tělocvična','jóga','skatepark'];
+const MAPY_QUERIES = ['park','les','sportoviště','sportovní centrum','bazén','hřiště','posilovna','fitness','Posilovna, fitness','tělocvična','jóga','skatepark','tenis','stolní tenis'];
+const MAPY_EXCLUDE_HINTS = [/dětské hřišt/i, /psí (louka|park|hřišt|venčišt)/i, /pískovišt/i, /venčišt/i];
+function isExcludedPlace(name, label){
+  const text = ((name||'')+' '+(label||'')).toLowerCase();
+  return MAPY_EXCLUDE_HINTS.some(re=>re.test(text));
+}
 const MAPY_TEXT_HINTS = [
   {re:/pumptrack/i, name:'Pumptrack (kolo)', icon:'🚵', tag:'cycling'},
   {re:/skate ?park/i, name:'Skateboarding', icon:'🛹', tag:'skateboard'},
@@ -653,6 +658,7 @@ async function fetchNearbyPlacesMapy(lat, lon){
       return (data.items||[]).map(item=>{
         const ilat = item.position && item.position.lat, ilon = item.position && item.position.lon;
         if(ilat==null || ilon==null) return null;
+        if(isExcludedPlace(item.name, item.label)) return null;
         const specific = extractSpecificFromText(item.name, item.label);
         const broadKind = classifyMapyBroad(item.name, item.label);
         if(!specific && !broadKind) return null; // can't confidently tell what this is — skip rather than guess wrong
