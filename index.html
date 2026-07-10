@@ -318,6 +318,14 @@
 
     <div class="glass small" style="opacity:.9;">
       <div class="loc-picker-row">
+        <span class="loc-text">🗺️ Mapy.com pro okolí (volitelné)</span>
+        <button class="btn btn-ghost btn-sm" onclick="toggleMapySettings()">Nastavit</button>
+      </div>
+      <div id="mapy-settings-wrap"></div>
+    </div>
+
+    <div class="glass small" style="opacity:.9;">
+      <div class="loc-picker-row">
         <span class="loc-text">🎬 GIF oslava (volitelné)</span>
         <button class="btn btn-ghost btn-sm" onclick="toggleGiphySettings()">Nastavit</button>
       </div>
@@ -388,7 +396,7 @@ function getDefaultState(){
     activities: JSON.parse(JSON.stringify(DEFAULT_ACTIVITIES)),
     logs: [], restDays: [], frozenDays: [], freezesUsed: 0,
     lastReconciled: todayStr(), lastAction: null,
-    stickers: [], journal: [], giphyKey: null, discordWebhook: null, lastBackupAt: null
+    stickers: [], journal: [], giphyKey: null, discordWebhook: null, lastBackupAt: null, mapyApiKey: null
   };
 }
 
@@ -557,28 +565,59 @@ async function fetchNearbyPlaces(lat, lon){
   const data = await res.json();
   return data.elements || [];
 }
+const MAPY_KIND_QUERIES = [
+  {kind:'park', q:'park'},
+  {kind:'wood', q:'les'},
+  {kind:'pitch', q:'sportoviště'},
+  {kind:'sports_centre', q:'sportovní centrum'},
+  {kind:'pool', q:'bazén'}
+];
+async function fetchNearbyPlacesMapy(lat, lon){
+  const radius = 2500;
+  const results = await Promise.all(MAPY_KIND_QUERIES.map(async ({kind,q})=>{
+    const url = `https://api.mapy.com/v1/suggest?apikey=${encodeURIComponent(state.mapyApiKey)}&query=${encodeURIComponent(q)}&type=poi&lang=cs&limit=3&preferNear=${lon},${lat}&preferNearPrecision=${radius}`;
+    try{
+      const res = await fetch(url);
+      if(!res.ok){ console.warn('Mapy.com suggest chyba', q, res.status); return []; }
+      const data = await res.json();
+      return (data.items||[]).map(item=>({
+        kind,
+        name: item.name || kindLabel(kind),
+        lat: item.position && item.position.lat,
+        lon: item.position && item.position.lon
+      })).filter(p=>p.lat!=null && p.lon!=null);
+    }catch(e){ console.warn('Mapy.com suggest selhal pro', q, e); return []; }
+  }));
+  return results.flat();
+}
 async function runLocationSuggestGeneric(resultsElId, mode, dateStr, timeVal){
   const resultsEl = document.getElementById(resultsElId);
   resultsEl.innerHTML = '<p class="empty-note">📍 Zjišťuju polohu…</p>';
   try{
     const pos = await ensurePosition();
     resultsEl.innerHTML = '<p class="empty-note">🔎 Hledám místa poblíž…</p>';
-    const elements = await fetchNearbyPlaces(pos.lat, pos.lon);
-    const places = elements.map(el=>{
-      const kind = classifyPlace(el.tags);
-      if(!kind) return null;
-      const lat = el.lat ?? (el.center && el.center.lat);
-      const lon = el.lon ?? (el.center && el.center.lon);
-      if(lat==null||lon==null) return null;
-      const dist = haversine(pos.lat, pos.lon, lat, lon);
-      const name = (el.tags && el.tags.name) || kindLabel(kind);
-      return {kind, name, dist, lat, lon};
-    }).filter(Boolean).sort((a,b)=>a.dist-b.dist);
+    let places;
+    if(state.mapyApiKey){
+      const found = await fetchNearbyPlacesMapy(pos.lat, pos.lon);
+      places = found.map(p=>({...p, dist: haversine(pos.lat, pos.lon, p.lat, p.lon)})).sort((a,b)=>a.dist-b.dist);
+    } else {
+      const elements = await fetchNearbyPlaces(pos.lat, pos.lon);
+      places = elements.map(el=>{
+        const kind = classifyPlace(el.tags);
+        if(!kind) return null;
+        const lat = el.lat ?? (el.center && el.center.lat);
+        const lon = el.lon ?? (el.center && el.center.lon);
+        if(lat==null||lon==null) return null;
+        const dist = haversine(pos.lat, pos.lon, lat, lon);
+        const name = (el.tags && el.tags.name) || kindLabel(kind);
+        return {kind, name, dist, lat, lon};
+      }).filter(Boolean).sort((a,b)=>a.dist-b.dist);
+    }
 
     const seen=new Set(); const picked=[];
     for(const p of places){ if(!seen.has(p.kind)){ seen.add(p.kind); picked.push(p); } if(picked.length>=4) break; }
 
-    if(!picked.length){ resultsEl.innerHTML = '<p class="empty-note">Poblíž jsem nic výrazného nenašel v OSM datech — zkus obecný návrh výše.</p>'; return; }
+    if(!picked.length){ resultsEl.innerHTML = '<p class="empty-note">Poblíž jsem nic výrazného nenašel v '+(state.mapyApiKey?'Mapy.com':'OSM')+' datech — zkus obecný návrh výše.</p>'; return; }
 
     const mapId = resultsElId+'-map';
     resultsEl.innerHTML = '<p class="field-label" style="margin-top:2px;">📍 Poblíž zvolené polohy</p>'
@@ -1135,6 +1174,51 @@ function confirmImport(){
   window._pendingImport = null;
   showToast('✅ Záloha importována');
   renderAll();
+}
+
+/* ---- Mapy.com (optional, replaces OSM/Overpass for "Podle okolí" once a key is set) ---- */
+function toggleMapySettings(){
+  const wrap = document.getElementById('mapy-settings-wrap');
+  if(wrap.innerHTML){ wrap.innerHTML=''; return; }
+  wrap.innerHTML = `<input type="text" id="mapy-key-input" placeholder="Vlož svůj Mapy.com API klíč" value="${state.mapyApiKey?escapeAttr(state.mapyApiKey):''}">
+    <div class="btn-row">
+      <button class="btn btn-leaf btn-sm" onclick="saveMapyKey()">Uložit</button>
+      <button class="btn btn-ghost btn-sm" onclick="testMapyKey()">🗺️ Vyzkoušet</button>
+    </div>
+    <p class="location-note">Zdarma po registraci na api.mapy.com. Jakmile je klíč uložený, appka ho automaticky použije pro "Podle okolí" místo OpenStreetMap. Bez klíče appka jede jako doteď.</p>`;
+}
+function saveMapyKey(){
+  const input = document.getElementById('mapy-key-input');
+  const val = input ? input.value.trim() : '';
+  state.mapyApiKey = val || null;
+  saveState();
+  showToast(val ? '🗺️ Klíč uložen — appka teď hledá přes Mapy.com' : 'Klíč smazán, appka jede zpátky přes OSM');
+}
+async function testMapyKey(){
+  const input = document.getElementById('mapy-key-input');
+  const key = input ? input.value.trim() : state.mapyApiKey;
+  if(!key){ showToast('Nejdřív vlož klíč'); return; }
+  const prevKey = state.mapyApiKey;
+  state.mapyApiKey = key; // use it live for the test even before Uložit is tapped
+  showToast('🗺️ Zkouším…');
+  try{
+    const pos = await ensurePosition();
+    const url = `https://api.mapy.com/v1/suggest?apikey=${encodeURIComponent(key)}&query=sport&type=poi&lang=cs&limit=3&preferNear=${pos.lon},${pos.lat}&preferNearPrecision=2500`;
+    const res = await fetch(url);
+    if(!res.ok){
+      state.mapyApiKey = prevKey;
+      if(res.status===401 || res.status===403) showToast('❌ Klíč nefunguje (neplatný nebo nepovolený)');
+      else showToast('❌ Chyba '+res.status+' — zkus klíč znovu zkopírovat');
+      return;
+    }
+    const data = await res.json();
+    const count = (data.items||[]).length;
+    showToast(count ? ('✅ Funguje! Našlo '+count+' míst poblíž') : '⚠️ Klíč funguje, ale poblíž nic nenašlo');
+  }catch(e){
+    state.mapyApiKey = prevKey;
+    console.warn('Mapy.com test error', e);
+    showToast('❌ Nepodařilo se připojit (offline, nebo špatný klíč)');
+  }
 }
 
 function toggleGiphySettings(){
