@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pohyb-cache-v1';
+const CACHE_NAME = 'pohyb-cache-v2';
 const APP_SHELL = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
@@ -28,8 +28,10 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(event.request)
         .then((res) => {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          if (res.ok) {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
           return res;
         })
         .catch(() => caches.match(event.request).then((r) => r || caches.match('./index.html')))
@@ -37,14 +39,17 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache-first for static assets like icons.
+  // Cache-first for static assets like icons — but only ever cache a response that
+  // actually succeeded, so a temporary 404 can never get "stuck" forever.
   event.respondWith(
     caches.match(event.request).then(
       (cached) =>
         cached ||
         fetch(event.request).then((res) => {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          if (res.ok) {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
           return res;
         })
     )
