@@ -533,12 +533,49 @@ function classifyPlace(tags){
   if(tags.leisure==='park') return 'park';
   if(tags.natural==='wood' || tags.landuse==='forest') return 'wood';
   if(tags.leisure==='pitch' || tags.leisure==='stadium' || tags.leisure==='track') return 'pitch';
-  if(tags.leisure==='sports_centre' || tags.leisure==='fitness_centre') return 'sports_centre';
+  if(tags.leisure==='sports_centre' || tags.leisure==='fitness_centre' || tags.landuse==='recreation_ground') return 'sports_centre';
   if(tags.leisure==='swimming_pool') return 'pool';
   if(tags.sport) return 'pitch'; // catches sport-tagged areas that don't fit a leisure= bucket above
   return null;
 }
 function kindLabel(kind){ return {park:'Park',wood:'Les',pitch:'Sportoviště',sports_centre:'Sportovní centrum',pool:'Bazén'}[kind]||'Místo'; }
+
+const SPORT_TAG_MAP = {
+  tennis:{name:'Tenis', icon:'🎾'}, basketball:{name:'Basketbal', icon:'🏀'},
+  soccer:{name:'Fotbal', icon:'⚽'}, football:{name:'Fotbal', icon:'⚽'},
+  climbing:{name:'Lezení', icon:'🧗'}, climbing_adventure:{name:'Lezení', icon:'🧗'},
+  skateboard:{name:'Skateboarding', icon:'🛹'}, table_tennis:{name:'Stolní tenis', icon:'🏓'},
+  athletics:{name:'Atletika', icon:'🏃'}, badminton:{name:'Badminton', icon:'🏸'},
+  ice_skating:{name:'Bruslení', icon:'⛸️'}, gymnastics:{name:'Gymnastika', icon:'🤸'},
+  handball:{name:'Házená', icon:'🤾'}, hockey:{name:'Hokej', icon:'🏒'}, ice_hockey:{name:'Hokej', icon:'🏒'},
+  boxing:{name:'Box', icon:'🥊'}, cycling:{name:'Cyklistika', icon:'🚴'}
+};
+const TEAM_SPORTS = new Set(['soccer','football','basketball','handball','hockey','ice_hockey','volleyball','beachvolleyball']);
+
+function extractSpecificSport(tags){
+  if(!tags || !tags.sport) return null;
+  const values = String(tags.sport).split(';').map(s=>s.trim());
+  for(const v of values){ if(SPORT_TAG_MAP[v]) return {tag:v, name:SPORT_TAG_MAP[v].name, icon:SPORT_TAG_MAP[v].icon}; }
+  return null;
+}
+function findExistingActivityByName(name){
+  const norm = name.toLowerCase();
+  return state.activities.find(a=>a.name.toLowerCase().includes(norm) || norm.includes(a.name.toLowerCase()));
+}
+function createAndUseActivity(name, icon, sportTag, placeKind, mode, dateStr, timeVal){
+  let act = findExistingActivityByName(name);
+  if(!act){
+    const min = 30;
+    const category = TEAM_SPORTS.has(sportTag) ? 'social' : 'solo_out';
+    const xp = Math.min(40, Math.round(min/2)+5+(category==='social'?8:0));
+    act = {id:'c'+Date.now(), name, icon, xp, minMinutes:min, category, indoor:false, placeTags:[placeKind,'anywhere'], custom:true};
+    state.activities.push(act);
+    saveState();
+    showToast('✨ '+icon+' '+name+' přidáno mezi aktivity');
+  }
+  if(mode==='plan'){ planActivity(act.id, dateStr, timeVal); }
+  else { logActivity(act.id); }
+}
 function bestActivityForKind(kind){
   const matches = state.activities.filter(a=>(a.placeTags||[]).includes(kind));
   const pool = matches.length ? matches : state.activities.filter(a=>(a.placeTags||[]).includes('anywhere'));
@@ -549,17 +586,18 @@ function bestActivityForKind(kind){
 }
 async function fetchNearbyPlaces(lat, lon){
   const radius=2500;
-  const query = `[out:json][timeout:20];(`+
-    `node["leisure"="park"](around:${radius},${lat},${lon});way["leisure"="park"](around:${radius},${lat},${lon});`+
-    `node["natural"="wood"](around:${radius},${lat},${lon});way["natural"="wood"](around:${radius},${lat},${lon});way["landuse"="forest"](around:${radius},${lat},${lon});`+
+  const query = `[out:json][timeout:25];(`+
+    `node["leisure"="park"](around:${radius},${lat},${lon});way["leisure"="park"](around:${radius},${lat},${lon});relation["leisure"="park"](around:${radius},${lat},${lon});`+
+    `node["natural"="wood"](around:${radius},${lat},${lon});way["natural"="wood"](around:${radius},${lat},${lon});way["landuse"="forest"](around:${radius},${lat},${lon});relation["landuse"="forest"](around:${radius},${lat},${lon});`+
     `node["leisure"="pitch"](around:${radius},${lat},${lon});way["leisure"="pitch"](around:${radius},${lat},${lon});`+
-    `node["leisure"="stadium"](around:${radius},${lat},${lon});way["leisure"="stadium"](around:${radius},${lat},${lon});`+
+    `node["leisure"="stadium"](around:${radius},${lat},${lon});way["leisure"="stadium"](around:${radius},${lat},${lon});relation["leisure"="stadium"](around:${radius},${lat},${lon});`+
     `node["leisure"="track"](around:${radius},${lat},${lon});way["leisure"="track"](around:${radius},${lat},${lon});`+
-    `node["leisure"="sports_centre"](around:${radius},${lat},${lon});way["leisure"="sports_centre"](around:${radius},${lat},${lon});`+
+    `node["leisure"="sports_centre"](around:${radius},${lat},${lon});way["leisure"="sports_centre"](around:${radius},${lat},${lon});relation["leisure"="sports_centre"](around:${radius},${lat},${lon});`+
     `node["leisure"="fitness_centre"](around:${radius},${lat},${lon});way["leisure"="fitness_centre"](around:${radius},${lat},${lon});`+
+    `way["landuse"="recreation_ground"](around:${radius},${lat},${lon});relation["landuse"="recreation_ground"](around:${radius},${lat},${lon});`+
     `node["leisure"="swimming_pool"](around:${radius},${lat},${lon});way["leisure"="swimming_pool"](around:${radius},${lat},${lon});`+
-    `node["sport"](around:${radius},${lat},${lon});way["sport"](around:${radius},${lat},${lon});`+
-    `);out center 60;`;
+    `node["sport"](around:${radius},${lat},${lon});way["sport"](around:${radius},${lat},${lon});relation["sport"](around:${radius},${lat},${lon});`+
+    `);out center 80;`;
   const res = await fetch('https://overpass-api.de/api/interpreter', {method:'POST', body:'data='+encodeURIComponent(query)});
   if(!res.ok) throw new Error('overpass fail');
   const data = await res.json();
@@ -573,9 +611,11 @@ const MAPY_KIND_QUERIES = [
   {kind:'pool', q:'bazén'}
 ];
 async function fetchNearbyPlacesMapy(lat, lon){
-  const radius = 2500;
+  const radius = 3000;
   const results = await Promise.all(MAPY_KIND_QUERIES.map(async ({kind,q})=>{
-    const url = `https://api.mapy.com/v1/suggest?apikey=${encodeURIComponent(state.mapyApiKey)}&query=${encodeURIComponent(q)}&type=poi&lang=cs&limit=3&preferNear=${lon},${lat}&preferNearPrecision=${radius}`;
+    // preferNear is an array[number] param — Mapy.com expects it as two REPEATED
+    // "preferNear" keys (?preferNear=lon&preferNear=lat), not one comma-joined value.
+    const url = `https://api.mapy.com/v1/suggest?apikey=${encodeURIComponent(state.mapyApiKey)}&query=${encodeURIComponent(q)}&type=poi&lang=cs&limit=5&preferNear=${lon}&preferNear=${lat}&preferNearPrecision=${radius}`;
     try{
       const res = await fetch(url);
       if(!res.ok){ console.warn('Mapy.com suggest chyba', q, res.status); return []; }
@@ -610,7 +650,8 @@ async function runLocationSuggestGeneric(resultsElId, mode, dateStr, timeVal){
         if(lat==null||lon==null) return null;
         const dist = haversine(pos.lat, pos.lon, lat, lon);
         const name = (el.tags && el.tags.name) || kindLabel(kind);
-        return {kind, name, dist, lat, lon};
+        const specificSport = extractSpecificSport(el.tags);
+        return {kind, name, dist, lat, lon, specificSport};
       }).filter(Boolean).sort((a,b)=>a.dist-b.dist);
     }
 
@@ -623,14 +664,25 @@ async function runLocationSuggestGeneric(resultsElId, mode, dateStr, timeVal){
     resultsEl.innerHTML = '<p class="field-label" style="margin-top:2px;">📍 Poblíž zvolené polohy</p>'
       + `<div id="${mapId}" class="mini-map"></div>`
       + picked.map(p=>{
-        const act = bestActivityForKind(p.kind);
-        if(!act) return '';
+        let isNew=false, cardIcon, cardName, act=null;
+        if(p.specificSport && !findExistingActivityByName(p.specificSport.name)){
+          isNew = true; cardIcon = p.specificSport.icon; cardName = p.specificSport.name;
+        } else {
+          act = bestActivityForKind(p.kind);
+          if(!act) return '';
+          cardIcon = act.icon; cardName = act.name;
+        }
         const distTxt = p.dist<1000 ? Math.round(p.dist)+' m' : (p.dist/1000).toFixed(1)+' km';
-        const btn = mode==='plan'
-          ? `<button class="sugg-go plan-btn" onclick="planActivity('${act.id}','${dateStr}','${timeVal}')">📅 Přidat</button>`
-          : `<button class="sugg-go" onclick="logActivity('${act.id}')">Beru</button>`;
-        return `<div class="sugg-card"><div class="sugg-icon">${act.icon}</div>
-          <div class="sugg-info"><div class="name">${escapeHTML(act.name)}</div><div class="meta">📍 ${escapeHTML(p.name)} · ${distTxt}</div></div>
+        const badge = isNew ? ' <span style="font-size:10px;font-weight:800;color:var(--aqua-deeper);">✨ nová</span>' : '';
+        const btn = isNew
+          ? (mode==='plan'
+              ? `<button class="sugg-go plan-btn" onclick="createAndUseActivity('${p.specificSport.name}','${p.specificSport.icon}','${p.specificSport.tag}','${p.kind}','plan','${dateStr}','${timeVal}')">📅 Přidat</button>`
+              : `<button class="sugg-go" onclick="createAndUseActivity('${p.specificSport.name}','${p.specificSport.icon}','${p.specificSport.tag}','${p.kind}','now')">✨ Beru</button>`)
+          : (mode==='plan'
+              ? `<button class="sugg-go plan-btn" onclick="planActivity('${act.id}','${dateStr}','${timeVal}')">📅 Přidat</button>`
+              : `<button class="sugg-go" onclick="logActivity('${act.id}')">Beru</button>`);
+        return `<div class="sugg-card"><div class="sugg-icon">${cardIcon}</div>
+          <div class="sugg-info"><div class="name">${escapeHTML(cardName)}${badge}</div><div class="meta">📍 ${escapeHTML(p.name)} · ${distTxt}</div></div>
           ${btn}</div>`;
       }).join('');
 
@@ -1199,11 +1251,11 @@ async function testMapyKey(){
   const key = input ? input.value.trim() : state.mapyApiKey;
   if(!key){ showToast('Nejdřív vlož klíč'); return; }
   const prevKey = state.mapyApiKey;
-  state.mapyApiKey = key; // use it live for the test even before Uložit is tapped
+  state.mapyApiKey = key;
   showToast('🗺️ Zkouším…');
   try{
     const pos = await ensurePosition();
-    const url = `https://api.mapy.com/v1/suggest?apikey=${encodeURIComponent(key)}&query=sport&type=poi&lang=cs&limit=3&preferNear=${pos.lon},${pos.lat}&preferNearPrecision=2500`;
+    const url = `https://api.mapy.com/v1/suggest?apikey=${encodeURIComponent(key)}&query=sportoviště&type=poi&lang=cs&limit=5&preferNear=${pos.lon}&preferNear=${pos.lat}&preferNearPrecision=3000`;
     const res = await fetch(url);
     if(!res.ok){
       state.mapyApiKey = prevKey;
