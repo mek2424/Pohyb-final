@@ -423,9 +423,15 @@ function loadState(){
     const raw = localStorage.getItem(STORAGE_KEY);
     if(!raw) return getDefaultState();
     const parsed = JSON.parse(raw);
-    return Object.assign(getDefaultState(), parsed, {
+    const merged = Object.assign(getDefaultState(), parsed, {
       activities: parsed.activities && parsed.activities.length ? parsed.activities : getDefaultState().activities
     });
+    // Backfill core utility activities added in later app updates — needed for people
+    // whose saved state predates them, so "Podle okolí" always has something to log against.
+    if(!merged.activities.some(a=>a.id==='explore')){
+      merged.activities.push({id:'explore', name:'Pohyb jinde', icon:'🧭', xp:15, minMinutes:15, category:'solo_any', indoor:false, placeTags:['anywhere']});
+    }
+    return merged;
   }catch(e){ console.warn('Nepodařilo se načíst uložená data, začínám nanovo.', e); return getDefaultState(); }
 }
 function saveState(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){ console.warn('Nepodařilo se uložit data.', e); } }
@@ -586,7 +592,7 @@ function bestActivityForKind(kind){
   return scored[0].a;
 }
 async function fetchNearbyPlaces(lat, lon){
-  const radius=2500;
+  const radius=4000;
   const query = `[out:json][timeout:25];(`+
     `node["leisure"="park"](around:${radius},${lat},${lon});way["leisure"="park"](around:${radius},${lat},${lon});relation["leisure"="park"](around:${radius},${lat},${lon});`+
     `node["natural"="wood"](around:${radius},${lat},${lon});way["natural"="wood"](around:${radius},${lat},${lon});way["landuse"="forest"](around:${radius},${lat},${lon});relation["landuse"="forest"](around:${radius},${lat},${lon});`+
@@ -633,7 +639,7 @@ function classifyMapyBroad(name, label){
   return null;
 }
 async function fetchNearbyPlacesMapy(lat, lon){
-  const radius = 3000;
+  const radius = 4000;
   const results = await Promise.all(MAPY_QUERIES.map(async (q)=>{
     // preferNear is an array[number] param — Mapy.com expects it as two REPEATED
     // "preferNear" keys (?preferNear=lon&preferNear=lat), not one comma-joined value.
@@ -685,19 +691,23 @@ async function runLocationSuggestGeneric(resultsElId, mode, dateStr, timeVal){
       }).filter(Boolean).sort((a,b)=>a.dist-b.dist);
     }
 
-    // Specific sport matches (Tenis, Pumptrack, Beach volejbal...) each earn their own card.
-    // Only the generic, un-specific leftovers compete for one slot per broad kind.
-    const seenKind=new Set(), seenSpecific=new Set(); const picked=[];
+    // Clearly named sports (Tenis, Pumptrack, Beach volejbal...) get priority for the limited
+    // slots. Generic "honest fallback" places only fill whatever room is left over.
+    const CAP = 8;
+    const seenSpecific=new Set(), seenKind=new Set();
+    const specificMatches=[], genericMatches=[];
     for(const p of places){
       if(p.specificSport){
         if(seenSpecific.has(p.specificSport.name)) continue;
-        seenSpecific.add(p.specificSport.name); picked.push(p);
+        seenSpecific.add(p.specificSport.name); specificMatches.push(p);
       } else {
         if(seenKind.has(p.kind)) continue;
-        seenKind.add(p.kind); picked.push(p);
+        seenKind.add(p.kind); genericMatches.push(p);
       }
-      if(picked.length>=5) break;
     }
+    let picked = specificMatches.slice(0, CAP);
+    if(picked.length < CAP) picked = picked.concat(genericMatches.slice(0, CAP - picked.length));
+    picked.sort((a,b)=>a.dist-b.dist); // final display order: closest first, regardless of which pass found it
 
     if(!picked.length){ resultsEl.innerHTML = '<p class="empty-note">Poblíž jsem nic výrazného nenašel v '+(state.mapyApiKey?'Mapy.com':'OSM')+' datech — zkus obecný návrh výše.</p>'; return; }
 
