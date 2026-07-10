@@ -643,7 +643,7 @@ async function fetchNearbyPlacesMapy(lat, lon){
   const results = await Promise.all(MAPY_QUERIES.map(async (q)=>{
     // preferNear is an array[number] param — Mapy.com expects it as two REPEATED
     // "preferNear" keys (?preferNear=lon&preferNear=lat), not one comma-joined value.
-    const url = `https://api.mapy.com/v1/suggest?apikey=${encodeURIComponent(state.mapyApiKey)}&query=${encodeURIComponent(q)}&type=poi&lang=cs&limit=5&preferNear=${lon}&preferNear=${lat}&preferNearPrecision=${radius}`;
+    const url = `https://api.mapy.com/v1/suggest?apikey=${encodeURIComponent(state.mapyApiKey)}&query=${encodeURIComponent(q)}&type=poi&lang=cs&limit=10&preferNear=${lon}&preferNear=${lat}&preferNearPrecision=${radius}`;
     try{
       const res = await fetch(url);
       if(!res.ok){ console.warn('Mapy.com suggest chyba', q, res.status); return []; }
@@ -692,17 +692,18 @@ async function runLocationSuggestGeneric(resultsElId, mode, dateStr, timeVal){
     }
 
     // Clearly named sports (Tenis, Pumptrack, Beach volejbal...) get priority for the limited
-    // slots. Generic "honest fallback" places only fill whatever room is left over.
+    // slots. Generic "honest fallback" places only fill whatever room is left over — deduped
+    // by their own name, not by broad kind, so several different unclear places can each show up.
     const CAP = 8;
-    const seenSpecific=new Set(), seenKind=new Set();
+    const seenSpecific=new Set(), seenGenericName=new Set();
     const specificMatches=[], genericMatches=[];
     for(const p of places){
       if(p.specificSport){
         if(seenSpecific.has(p.specificSport.name)) continue;
         seenSpecific.add(p.specificSport.name); specificMatches.push(p);
       } else {
-        if(seenKind.has(p.kind)) continue;
-        seenKind.add(p.kind); genericMatches.push(p);
+        if(seenGenericName.has(p.name)) continue;
+        seenGenericName.add(p.name); genericMatches.push(p);
       }
     }
     let picked = specificMatches.slice(0, CAP);
