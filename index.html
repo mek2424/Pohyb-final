@@ -610,7 +610,7 @@ async function fetchNearbyPlaces(lat, lon){
   const data = await res.json();
   return data.elements || [];
 }
-const MAPY_QUERIES = ['park','les','sportoviště','sportovní centrum','bazén','hřiště'];
+const MAPY_QUERIES = ['park','les','sportoviště','sportovní centrum','bazén','hřiště','posilovna','fitness','tělocvična','jóga','skatepark'];
 const MAPY_TEXT_HINTS = [
   {re:/pumptrack/i, name:'Pumptrack (kolo)', icon:'🚵', tag:'cycling'},
   {re:/skate ?park/i, name:'Skateboarding', icon:'🛹', tag:'skateboard'},
@@ -623,7 +623,9 @@ const MAPY_TEXT_HINTS = [
   {re:/plaveck|bazén|koupali[šs]t/i, name:'Plavání', icon:'🏊', tag:'swimming'},
   {re:/workout|kalisteni/i, name:'Kalistenika', icon:'🤸', tag:null},
   {re:/atletick|běžeck.{0,6}dráh/i, name:'Atletika', icon:'🏃', tag:'athletics'},
-  {re:/hokej/i, name:'Hokej', icon:'🏒', tag:'hockey'}
+  {re:/hokej/i, name:'Hokej', icon:'🏒', tag:'hockey'},
+  {re:/posilovn|fitness/i, name:'Posilovna', icon:'🏋️', tag:null},
+  {re:/\bjóg[au]\b/i, name:'Jóga / strečink', icon:'🧘', tag:null}
 ];
 function extractSpecificFromText(name, label){
   const text = ((name||'')+' '+(label||'')).toLowerCase();
