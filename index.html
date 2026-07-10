@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#4FC3F7">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pohyb">
 <title>Pohyb — sportovní parťák</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -518,9 +524,10 @@ function classifyPlace(tags){
   if(!tags) return null;
   if(tags.leisure==='park') return 'park';
   if(tags.natural==='wood' || tags.landuse==='forest') return 'wood';
-  if(tags.leisure==='pitch') return 'pitch';
-  if(tags.leisure==='sports_centre') return 'sports_centre';
+  if(tags.leisure==='pitch' || tags.leisure==='stadium' || tags.leisure==='track') return 'pitch';
+  if(tags.leisure==='sports_centre' || tags.leisure==='fitness_centre') return 'sports_centre';
   if(tags.leisure==='swimming_pool') return 'pool';
+  if(tags.sport) return 'pitch'; // catches sport-tagged areas that don't fit a leisure= bucket above
   return null;
 }
 function kindLabel(kind){ return {park:'Park',wood:'Les',pitch:'Sportoviště',sports_centre:'Sportovní centrum',pool:'Bazén'}[kind]||'Místo'; }
@@ -533,14 +540,18 @@ function bestActivityForKind(kind){
   return scored[0].a;
 }
 async function fetchNearbyPlaces(lat, lon){
-  const radius=2000;
-  const query = `[out:json][timeout:15];(`+
+  const radius=2500;
+  const query = `[out:json][timeout:20];(`+
     `node["leisure"="park"](around:${radius},${lat},${lon});way["leisure"="park"](around:${radius},${lat},${lon});`+
     `node["natural"="wood"](around:${radius},${lat},${lon});way["natural"="wood"](around:${radius},${lat},${lon});way["landuse"="forest"](around:${radius},${lat},${lon});`+
     `node["leisure"="pitch"](around:${radius},${lat},${lon});way["leisure"="pitch"](around:${radius},${lat},${lon});`+
+    `node["leisure"="stadium"](around:${radius},${lat},${lon});way["leisure"="stadium"](around:${radius},${lat},${lon});`+
+    `node["leisure"="track"](around:${radius},${lat},${lon});way["leisure"="track"](around:${radius},${lat},${lon});`+
     `node["leisure"="sports_centre"](around:${radius},${lat},${lon});way["leisure"="sports_centre"](around:${radius},${lat},${lon});`+
+    `node["leisure"="fitness_centre"](around:${radius},${lat},${lon});way["leisure"="fitness_centre"](around:${radius},${lat},${lon});`+
     `node["leisure"="swimming_pool"](around:${radius},${lat},${lon});way["leisure"="swimming_pool"](around:${radius},${lat},${lon});`+
-    `);out center 40;`;
+    `node["sport"](around:${radius},${lat},${lon});way["sport"](around:${radius},${lat},${lon});`+
+    `);out center 60;`;
   const res = await fetch('https://overpass-api.de/api/interpreter', {method:'POST', body:'data='+encodeURIComponent(query)});
   if(!res.ok) throw new Error('overpass fail');
   const data = await res.json();
@@ -621,27 +632,40 @@ async function ensurePosition(){
   lastKnownPosition = {lat:pos.coords.latitude, lon:pos.coords.longitude};
   return lastKnownPosition;
 }
-async function fetchForecastForDate(dateStr){
+async function fetchForecastForDateTime(dateStr, timeHHMM){
   const p = await ensurePosition();
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lon}&daily=weathercode,temperature_2m_max&timezone=auto&forecast_days=14`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lon}&hourly=temperature_2m,weathercode,precipitation_probability&timezone=auto&forecast_days=14`;
   const res = await fetch(url);
   if(!res.ok) throw new Error('weather fail');
   const data = await res.json();
-  const idx = data.daily.time.indexOf(dateStr);
+  const targetKey = dateStr+'T'+timeHHMM;
+  let idx = data.hourly.time.indexOf(targetKey);
+  if(idx===-1){
+    // Open-Meteo's hourly slots land on the hour; if the picked time doesn't match exactly,
+    // fall back to the closest available hour instead of giving up.
+    const targetMs = new Date(dateStr+'T'+timeHHMM+':00').getTime();
+    let bestIdx=-1, bestDiff=Infinity;
+    data.hourly.time.forEach((t,i)=>{
+      const diff = Math.abs(new Date(t).getTime() - targetMs);
+      if(diff<bestDiff){ bestDiff=diff; bestIdx=i; }
+    });
+    idx = bestIdx;
+  }
   if(idx===-1) return null;
-  return {code:data.daily.weathercode[idx], tmax:data.daily.temperature_2m_max[idx]};
+  return {code:data.hourly.weathercode[idx], temp:data.hourly.temperature_2m[idx], precipProb:data.hourly.precipitation_probability[idx]};
 }
 async function checkPlanWeather(){
   const dateStr = document.getElementById('plan-date').value;
+  const timeVal = document.getElementById('plan-time').value || '14:00';
   const capEl = document.getElementById('plan-weather-caption');
   if(!dateStr){ showToast('Vyber nejdřív datum'); return; }
   capEl.textContent = '🌐 Zjišťuju počasí…';
   try{
-    const f = await fetchForecastForDate(dateStr);
-    if(!f){ capEl.textContent='Na tenhle den ještě předpověď není (moc daleko dopředu) — vyber počasí ručně.'; return; }
+    const f = await fetchForecastForDateTime(dateStr, timeVal);
+    if(!f){ capEl.textContent='Na tenhle čas ještě předpověď není (moc daleko dopředu) — vyber počasí ručně.'; return; }
     const [icon,label] = weatherCodeInfo(f.code);
     const whereTxt = manualLocation ? ('podle vybraného místa: '+manualLocation.label) : 'podle tvojí aktuální polohy';
-    capEl.textContent = icon+' '+label+', nejvýš cca '+Math.round(f.tmax)+'°C · '+whereTxt;
+    capEl.textContent = icon+' '+label+', cca '+Math.round(f.temp)+'°C v '+timeVal+' · '+whereTxt;
     const target = isRainyCode(f.code) ? 'indoor' : 'outdoor';
     selectChip('chips-plan-weather', target); planOpts.weather = target;
   }catch(e){ capEl.textContent = 'Předpověď se nepodařilo načíst — vyber počasí ručně.'; }
@@ -1242,6 +1266,12 @@ function celebrateBurst(){
 function renderAll(){ renderDashboard(); renderActivityGrid(); renderStickerTray(); renderJournalList(); updateBackupStatus(); }
 function init(){ reconcileFreezes(); initBubbles(); initSuggestChips(); renderAll(); }
 document.addEventListener('DOMContentLoaded', init);
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./sw.js').catch(()=>{ /* offline support just won't be available, core app still works */ });
+  });
+}
 </script>
 </body>
 </html>
