@@ -617,7 +617,7 @@ async function fetchNearbyPlaces(lat, lon){
   const data = await res.json();
   return data.elements || [];
 }
-const MAPY_QUERIES = ['park','les','sportoviště','sportovní centrum','bazén','hřiště','posilovna','fitness','Posilovna, fitness','tělocvična','jóga','skatepark','tenis','stolní tenis'];
+const MAPY_QUERIES = ['park','les','sportoviště','sportovní centrum','bazén','hřiště','posilovna','fitness','Posilovna, fitness','tělocvična','jóga','skatepark','tenis','stolní tenis','Stůl na stolní tenis'];
 const MAPY_EXCLUDE_HINTS = [/dětské hřišt/i, /psí (louka|park|hřišt|venčišt)/i, /pískovišt/i, /venčišt/i];
 function isExcludedPlace(name, label){
   const text = ((name||'')+' '+(label||'')).toLowerCase();
