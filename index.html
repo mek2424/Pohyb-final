@@ -101,6 +101,7 @@
   .sugg-info .meta{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin-top:2px;}
   .sugg-go{flex-shrink:0;background:linear-gradient(180deg,#8fe3a5,#3fa96a);color:#0f3d22;border:none;border-radius:999px;padding:10px 14px;font-weight:800;font-family:'Baloo 2',sans-serif;font-size:12.5px;box-shadow:0 4px 10px rgba(63,169,106,.4), inset 0 1px 1px rgba(255,255,255,.6);white-space:nowrap;}
   .sugg-go.plan-btn{background:linear-gradient(180deg,#ffe9b0,#f4a93b);color:#5a3c0a;box-shadow:0 4px 10px rgba(244,169,59,.4), inset 0 1px 1px rgba(255,255,255,.6);}
+  .fav-star-btn{background:rgba(255,255,255,.6);border:1px solid rgba(244,169,59,.5);color:#f4a93b;width:32px;height:32px;border-radius:50%;font-size:16px;display:flex;align-items:center;justify-content:center;padding:0;}
 
   .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
   .act-card-wrap{position:relative;}
@@ -305,6 +306,15 @@
       <div id="journal-list" class="results-area"></div>
     </div>
 
+    <div class="glass">
+      <div class="loc-picker-row" style="margin-bottom:4px;">
+        <strong class="display" style="font-size:15px;color:var(--ink);">⭐ Oblíbená místa</strong>
+        <button class="btn btn-ghost btn-sm" onclick="openLocationPicker('favorite')">+ Přidat</button>
+      </div>
+      <p class="location-note" style="margin-bottom:6px;">Vždycky se ukážou nahoře v Podle okolí, bez ohledu na to, jak zrovna appka řadí ostatní výsledky.</p>
+      <div id="favorites-list" class="results-area"></div>
+    </div>
+
     <div class="glass small" style="opacity:.9;">
       <div class="loc-picker-row"><span class="loc-text">💾 Záloha dat</span></div>
       <p class="location-note" id="backup-status" style="text-align:left;margin-top:6px;">Ještě jsi nikdy nezálohoval.</p>
@@ -352,12 +362,9 @@
 
     <div id="leaflet-map"></div>
     <div class="map-hint">Klepnutím na mapu nebo přetažením špendlíku vybereš přesný bod.</div>
+    <div id="favorite-name-wrap"></div>
 
-    <div class="btn-row">
-      <button class="btn btn-primary display" onclick="confirmManualLocation()">📍 Použít tuhle polohu</button>
-      <button class="btn btn-leaf display" onclick="useMyCurrentLocation()">🛰️ Použít aktuální GPS polohu</button>
-      <button class="btn btn-ghost btn-sm" style="align-self:center;" onclick="closeLocationPicker()">Zavřít</button>
-    </div>
+    <div class="btn-row" id="location-modal-actions"></div>
   </div>
 </div>
 
@@ -397,7 +404,7 @@ function getDefaultState(){
     activities: JSON.parse(JSON.stringify(DEFAULT_ACTIVITIES)),
     logs: [], restDays: [], frozenDays: [], freezesUsed: 0,
     lastReconciled: todayStr(), lastAction: null,
-    stickers: [], journal: [], giphyKey: null, discordWebhook: null, lastBackupAt: null, mapyApiKey: null
+    stickers: [], journal: [], giphyKey: null, discordWebhook: null, lastBackupAt: null, mapyApiKey: null, favoritePlaces: []
   };
 }
 
@@ -679,7 +686,29 @@ async function runLocationSuggestGeneric(resultsElId, mode, dateStr, timeVal){
   resultsEl.innerHTML = '<p class="empty-note">📍 Zjišťuju polohu…</p>';
   try{
     const pos = await ensurePosition();
-    resultsEl.innerHTML = '<p class="empty-note">🔎 Hledám místa poblíž…</p>';
+
+    // Favorite places always show up first, wherever they are within a wide "still makes sense" range —
+    // independent of whatever the live search happens to rank well today.
+    const FAVORITE_RANGE_M = 50000;
+    const nearbyFavorites = state.favoritePlaces
+      .map(f=>({...f, dist: haversine(pos.lat, pos.lon, f.lat, f.lon)}))
+      .filter(f=>f.dist <= FAVORITE_RANGE_M)
+      .sort((a,b)=>a.dist-b.dist);
+    const favNames = new Set(nearbyFavorites.map(f=>f.name));
+    const favHTML = nearbyFavorites.length ? (
+      '<p class="field-label" style="margin-top:2px;">⭐ Oblíbená místa poblíž</p>' + nearbyFavorites.map(f=>{
+        const act = state.activities.find(a=>a.id===f.activityId);
+        const distTxt = f.dist<1000 ? Math.round(f.dist)+' m' : (f.dist/1000).toFixed(1)+' km';
+        const btn = mode==='plan'
+          ? `<button class="sugg-go plan-btn" onclick="planActivity('${f.activityId}','${dateStr}','${timeVal}')">📅 Přidat</button>`
+          : `<button class="sugg-go" onclick="logActivity('${f.activityId}')">Beru</button>`;
+        return `<div class="sugg-card"><div class="sugg-icon">${act?act.icon:f.icon}</div>
+          <div class="sugg-info"><div class="name">${escapeHTML(f.name)} <span style="font-size:11px;">⭐</span></div><div class="meta">${distTxt}</div></div>
+          ${btn}</div>`;
+      }).join('')
+    ) : '';
+
+    resultsEl.innerHTML = favHTML + '<p class="empty-note">🔎 Hledám další místa poblíž…</p>';
     let places;
     if(state.mapyApiKey){
       const found = await fetchNearbyPlacesMapy(pos.lat, pos.lon);
@@ -698,6 +727,7 @@ async function runLocationSuggestGeneric(resultsElId, mode, dateStr, timeVal){
         return {kind, name, info:kindLabel(kind), dist, lat, lon, specificSport};
       }).filter(Boolean).sort((a,b)=>a.dist-b.dist);
     }
+    places = places.filter(p=>!favNames.has(p.name)); // don't show an already-favorited place twice
 
     // Clearly named sports (Tenis, Pumptrack, Beach volejbal...) get priority for the limited
     // slots. Generic "honest fallback" places only fill whatever room is left over — deduped
@@ -717,13 +747,14 @@ async function runLocationSuggestGeneric(resultsElId, mode, dateStr, timeVal){
     let picked = specificMatches.slice(0, CAP);
     if(picked.length < CAP) picked = picked.concat(genericMatches.slice(0, CAP - picked.length));
     picked.sort((a,b)=>a.dist-b.dist); // final display order: closest first, regardless of which pass found it
+    window._lastLocationResults = picked;
 
-    if(!picked.length){ resultsEl.innerHTML = '<p class="empty-note">Poblíž jsem nic výrazného nenašel v '+(state.mapyApiKey?'Mapy.com':'OSM')+' datech — zkus obecný návrh výše.</p>'; return; }
+    if(!picked.length){ resultsEl.innerHTML = favHTML + '<p class="empty-note">Poblíž jsem nic dalšího výrazného nenašel v '+(state.mapyApiKey?'Mapy.com':'OSM')+' datech.</p>'; return; }
 
     const mapId = resultsElId+'-map';
-    resultsEl.innerHTML = '<p class="field-label" style="margin-top:2px;">📍 Poblíž zvolené polohy</p>'
+    resultsEl.innerHTML = favHTML + '<p class="field-label" style="margin-top:2px;">📍 Poblíž zvolené polohy</p>'
       + `<div id="${mapId}" class="mini-map"></div>`
-      + picked.map(p=>{
+      + picked.map((p, idx)=>{
         let isNew=false, cardIcon, cardName, cardMeta, act=null, honest=false;
         if(p.specificSport){
           act = findExistingActivityByName(p.specificSport.name);
@@ -753,13 +784,14 @@ async function runLocationSuggestGeneric(resultsElId, mode, dateStr, timeVal){
         if(!isNew && !act) return '';
         return `<div class="sugg-card"><div class="sugg-icon">${cardIcon}</div>
           <div class="sugg-info"><div class="name">${escapeHTML(cardName)}${badge}</div><div class="meta">${metaLine}</div></div>
-          ${btn}</div>`;
+          <div style="display:flex;flex-direction:column;gap:5px;align-items:center;">${btn}<button class="fav-star-btn" onclick="quickSaveFavoriteByIndex(${idx})" title="Uložit jako oblíbené">☆</button></div></div>`;
       }).join('');
 
     ensureLeafletIcons();
     const miniMap = L.map(mapId, {zoomControl:false, attributionControl:false}).setView([pos.lat,pos.lon], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19}).addTo(miniMap);
     L.circleMarker([pos.lat,pos.lon], {radius:8, color:'#0288d1', fillColor:'#7fe0ff', fillOpacity:1, weight:2}).addTo(miniMap).bindPopup('Zvolená poloha');
+    nearbyFavorites.forEach(f=>{ L.marker([f.lat,f.lon]).addTo(miniMap).bindPopup('⭐ '+escapeHTML(f.name)); });
     picked.forEach(p=>{ L.marker([p.lat,p.lon]).addTo(miniMap).bindPopup(escapeHTML(p.name)); });
   }catch(err){
     resultsEl.innerHTML = '<p class="empty-note">Polohu se nepodařilo použít (nepovoleno, nebo pomalé spojení). Zkus obecný návrh výše.</p>';
@@ -875,8 +907,11 @@ function ensureLeafletIcons(){
     shadowUrl:'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png'
   });
 }
-async function openLocationPicker(){
+let locationModalMode = 'search';
+async function openLocationPicker(mode){
+  locationModalMode = mode || 'search';
   document.getElementById('location-modal').classList.add('show');
+  document.getElementById('favorite-name-wrap').innerHTML = '';
   const start = manualLocation || lastKnownPosition;
   const startLat = start ? start.lat : 50.0755, startLon = start ? start.lon : 14.4378;
   pendingLocation = {lat:startLat, lon:startLon}; pendingLabel = manualLocation ? manualLocation.label : null;
@@ -895,8 +930,22 @@ async function openLocationPicker(){
   if(!start){
     try{ const p = await ensurePosition(); pendingLocation=p; leafletMap.setView([p.lat,p.lon],13); leafletMarker.setLatLng([p.lat,p.lon]); }catch(e){/* ignore, keep default view */}
   }
+  renderModalActions();
 }
-function closeLocationPicker(){ document.getElementById('location-modal').classList.remove('show'); }
+function renderModalActions(){
+  const wrap = document.getElementById('location-modal-actions');
+  if(locationModalMode === 'favorite'){
+    wrap.innerHTML = `
+      <button class="btn btn-primary display" onclick="startSaveFavorite()">⭐ Uložit jako oblíbené</button>
+      <button class="btn btn-ghost btn-sm" style="align-self:center;" onclick="closeLocationPicker()">Zavřít</button>`;
+  } else {
+    wrap.innerHTML = `
+      <button class="btn btn-primary display" onclick="confirmManualLocation()">📍 Použít tuhle polohu</button>
+      <button class="btn btn-leaf display" onclick="useMyCurrentLocation()">🛰️ Použít aktuální GPS polohu</button>
+      <button class="btn btn-ghost btn-sm" style="align-self:center;" onclick="closeLocationPicker()">Zavřít</button>`;
+  }
+}
+function closeLocationPicker(){ document.getElementById('location-modal').classList.remove('show'); document.getElementById('favorite-name-wrap').innerHTML=''; }
 function confirmManualLocation(){
   if(!pendingLocation){ showToast('Nejdřív vyber místo'); return; }
   manualLocation = {lat:pendingLocation.lat, lon:pendingLocation.lon, label: pendingLabel || (pendingLocation.lat.toFixed(3)+', '+pendingLocation.lon.toFixed(3))};
@@ -909,6 +958,73 @@ function useMyCurrentLocation(){
   document.getElementById('location-label').textContent = 'Používá se aktuální GPS poloha';
   closeLocationPicker();
   showToast('🛰️ Zpátky na živé GPS');
+}
+
+/* ---- Favorite places ---- */
+function startSaveFavorite(){
+  if(!pendingLocation){ showToast('Nejdřív vyber místo na mapě'); return; }
+  const wrap = document.getElementById('favorite-name-wrap');
+  const options = state.activities.map(a=>`<option value="${a.id}">${a.icon} ${escapeAttr(a.name)}</option>`).join('');
+  wrap.innerHTML = `
+    <input type="text" id="favorite-name-input" placeholder="Název místa" value="${pendingLabel?escapeAttr(pendingLabel):''}">
+    <p class="field-label" style="margin-bottom:6px;">Jaká aktivita to je?</p>
+    <select id="favorite-activity-select" style="width:100%;padding:11px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.9);background:rgba(255,255,255,.65);font-weight:700;color:var(--ink);margin-bottom:10px;">${options}</select>
+    <button class="btn btn-leaf btn-sm" onclick="finishSaveFavorite()">Uložit oblíbené místo</button>`;
+}
+function finishSaveFavorite(){
+  const nameInput = document.getElementById('favorite-name-input');
+  const select = document.getElementById('favorite-activity-select');
+  const name = nameInput ? nameInput.value.trim() : '';
+  if(!name){ showToast('Napiš název místa'); return; }
+  const act = state.activities.find(a=>a.id===(select?select.value:null));
+  if(!act || !pendingLocation) return;
+  state.favoritePlaces.push({id:'f'+Date.now(), name, lat:pendingLocation.lat, lon:pendingLocation.lon, activityId:act.id, icon:act.icon});
+  saveState();
+  closeLocationPicker();
+  showToast('⭐ Oblíbené místo uloženo');
+  renderFavoritesList();
+}
+function renderFavoritesList(){
+  const wrap = document.getElementById('favorites-list');
+  if(!wrap) return;
+  if(!state.favoritePlaces.length){ wrap.innerHTML = '<p class="empty-note">Zatím žádná oblíbená místa.</p>'; return; }
+  wrap.innerHTML = state.favoritePlaces.map(f=>{
+    const act = state.activities.find(a=>a.id===f.activityId);
+    return `<div class="journal-entry"><div class="jdate">${act?act.icon:f.icon} ${escapeHTML(f.name)}</div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="deleteFavorite('${f.id}')">🗑 Smazat</button></div>`;
+  }).join('');
+}
+function deleteFavorite(id){
+  state.favoritePlaces = state.favoritePlaces.filter(f=>f.id!==id);
+  saveState();
+  showToast('Smazáno z oblíbených');
+  renderFavoritesList();
+}
+function quickSaveFavoriteByIndex(idx){
+  const results = window._lastLocationResults;
+  if(!results || !results[idx]) return;
+  const p = results[idx];
+  if(state.favoritePlaces.some(f=>f.name===p.name && Math.abs(f.lat-p.lat)<0.0005 && Math.abs(f.lon-p.lon)<0.0005)){
+    showToast('Už je to v oblíbených'); return;
+  }
+  let activityId, icon;
+  if(p.specificSport){
+    let act = findExistingActivityByName(p.specificSport.name);
+    if(!act){
+      const min=30, category = TEAM_SPORTS.has(p.specificSport.tag) ? 'social':'solo_out';
+      const xp = Math.min(40, Math.round(min/2)+5+(category==='social'?8:0));
+      act = {id:'c'+Date.now(), name:p.specificSport.name, icon:p.specificSport.icon, xp, minMinutes:min, category, indoor:false, placeTags:[p.kind,'anywhere'], custom:true};
+      state.activities.push(act);
+    }
+    activityId = act.id; icon = act.icon;
+  } else {
+    const act = state.activities.find(a=>a.id==='explore');
+    activityId = act ? act.id : 'explore'; icon = '🧭';
+  }
+  state.favoritePlaces.push({id:'f'+Date.now(), name:p.name, lat:p.lat, lon:p.lon, activityId, icon});
+  saveState();
+  showToast('⭐ Uloženo do oblíbených');
+  renderActivityGrid(); renderFavoritesList();
 }
 
 let suggestOpts = {minutes:30, social:'any', weather:'any'};
@@ -1469,7 +1585,7 @@ function celebrateBurst(){
   setTimeout(()=>host.remove(), 950);
 }
 
-function renderAll(){ renderDashboard(); renderActivityGrid(); renderStickerTray(); renderJournalList(); updateBackupStatus(); }
+function renderAll(){ renderDashboard(); renderActivityGrid(); renderStickerTray(); renderJournalList(); updateBackupStatus(); renderFavoritesList(); }
 function init(){ reconcileFreezes(); initBubbles(); initSuggestChips(); renderAll(); }
 document.addEventListener('DOMContentLoaded', init);
 
