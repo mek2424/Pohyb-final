@@ -400,6 +400,13 @@
       <button class="btn btn-leaf btn-sm" onclick="calcGymbro1RM()">Spočítat</button>
       <div id="gb-calc-result" style="margin-top:10px;"></div>
     </div>
+
+    <div class="glass small" style="opacity:.9;border:1px solid rgba(220,80,80,.35);">
+      <div class="loc-picker-row"><span class="loc-text">🗑️ Restart jen GymBro</span></div>
+      <p class="location-note" style="margin-top:6px;">Smaže jen deník tréninků, úrovně žebříčků a upravenou zátěž. Zbytek appky (Pohyb, streak, XP) i uložené GIFy zůstanou beze změny.</p>
+      <div id="gymbro-restart-confirm-wrap"></div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="startGymbroRestart()">Restartovat GymBro</button>
+    </div>
   </section>
 
 </div>
@@ -2281,6 +2288,29 @@ function confirmAppRestart(){
   document.getElementById('restart-confirm-wrap').innerHTML = '';
   showToast('🗑️ Appka restartována — API klíče a oblíbená místa zůstaly');
   renderAll();
+  renderGbLastWorkoutInfo();
+}
+
+/* ---- GymBro-only restart: clears just its own progress, leaves the rest of Pohyb and the GIF cache untouched ---- */
+function startGymbroRestart(){
+  const wrap = document.getElementById('gymbro-restart-confirm-wrap');
+  wrap.innerHTML = `<p class="location-note" style="color:#b23b3b;margin:8px 0;">Fakt smazat deník tréninků, úrovně žebříčků a upravenou zátěž v GymBro? Tohle nejde vrátit zpět.</p>
+    <div class="btn-row">
+      <button class="btn btn-leaf btn-sm" style="background:linear-gradient(180deg,#ffb3b3,#e05a5a);color:#fff;" onclick="confirmGymbroRestart()">Ano, smazat</button>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('gymbro-restart-confirm-wrap').innerHTML=''">Zrušit</button>
+    </div>`;
+}
+function confirmGymbroRestart(){
+  state.gymbroLog = [];
+  state.gymbroLadderLevel = {};
+  state.gymbroCustomSets = {};
+  state.gymbroUndoStack = [];
+  saveState();
+  document.getElementById('gymbro-restart-confirm-wrap').innerHTML = '';
+  gbCurrentWorkout = null;
+  const wrap = document.getElementById('gb-workout-wrap');
+  if(wrap) wrap.innerHTML = '';
+  showToast('🗑️ GymBro restartován — zbytek appky i uložené GIFy zůstaly');
   renderGbLastWorkoutInfo();
 }
 
