@@ -1925,7 +1925,7 @@ async function openGbExerciseModal(exId){
   if(!state.workoutxKey) return; // no key set — text-only popup, exactly as agreed
   gifWrap.innerHTML = '<p class="empty-note">🎬 Hledám ukázku…</p>';
   try{
-    const url = await fetchWorkoutxGif(ex.gifQuery);
+    const url = await fetchWorkoutxGif(ex.gifQuery, ex.env);
     if(url){
       state.gymbroGifCache = state.gymbroGifCache || {};
       state.gymbroGifCache[exId] = url;
@@ -1939,14 +1939,35 @@ async function openGbExerciseModal(exId){
     gifWrap.innerHTML = '';
   }
 }
-async function fetchWorkoutxGif(query){
+function gbNameMatchScore(candidateName, query){
+  const c = (candidateName||'').toLowerCase();
+  const q = (query||'').toLowerCase();
+  if(c === q) return 100;
+  const qWords = q.split(/\s+/).filter(Boolean);
+  const cWords = c.split(/\s+/).filter(Boolean);
+  const matched = qWords.filter(w=>cWords.includes(w)).length;
+  const wordScore = qWords.length ? (matched/qWords.length)*50 : 0;
+  const lengthPenalty = Math.max(0, cWords.length-qWords.length)*2; // prefer simpler/closer variants over long compound ones
+  return wordScore - lengthPenalty;
+}
+function gbScoreWorkoutxResult(result, query, env){
+  let score = gbNameMatchScore(result.name, query);
+  const equip = (result.equipment||'').toLowerCase();
+  const isBodyweight = equip.includes('body weight') || equip.includes('bodyweight') || equip.includes('assisted');
+  if(env==='outdoor' && isBodyweight) score += 30;      // outdoor exercises should match bodyweight-only results
+  if(env==='gym' && !isBodyweight) score += 15;         // gym exercises get a gentler nudge toward equipment-based results
+  return score;
+}
+async function fetchWorkoutxGif(query, env){
   const searchRes = await fetch(`https://api.workoutxapp.com/v1/exercises/name/${encodeURIComponent(query)}`, {headers:{'X-WorkoutX-Key': state.workoutxKey}});
   if(!searchRes.ok) return null;
   const raw = await searchRes.json();
   // Some endpoints return a bare array, others wrap it as {total, count, data:[...]} — handle both.
   const results = Array.isArray(raw) ? raw : (raw && Array.isArray(raw.data) ? raw.data : null);
   if(!results || !results.length) return null;
-  const best = results[0];
+  const scored = results.map(r=>({...r, _score: gbScoreWorkoutxResult(r, query, env)}));
+  scored.sort((a,b)=>b._score-a._score);
+  const best = scored[0];
   if(best.gifUrl) return best.gifUrl;
   // Name-search sometimes returns a trimmed record — fetch the full one by ID for the GIF.
   const detailRes = await fetch(`https://api.workoutxapp.com/v1/exercises/exercise/${best.id}`, {headers:{'X-WorkoutX-Key': state.workoutxKey}});
@@ -1955,7 +1976,10 @@ async function fetchWorkoutxGif(query){
   return detail.gifUrl || null;
 }
 function renderGbGif(url){
-  document.getElementById('gb-modal-gif-wrap').innerHTML = `<img src="${url}" alt="Ukázka cviku" style="width:100%;border-radius:16px;margin-bottom:10px;display:block;">`;
+  // A plain <img> tag can't send the X-WorkoutX-Key header, but their API also accepts
+  // the key as a ?api-key= query param — attach it there so the browser can load the file.
+  const authedUrl = url + (url.includes('?') ? '&' : '?') + 'api-key=' + encodeURIComponent(state.workoutxKey);
+  document.getElementById('gb-modal-gif-wrap').innerHTML = `<img src="${authedUrl}" alt="Ukázka cviku" style="width:100%;border-radius:16px;margin-bottom:10px;display:block;">`;
 }
 function closeGbExerciseModal(){ document.getElementById('gb-exercise-modal').classList.remove('show'); }
 
