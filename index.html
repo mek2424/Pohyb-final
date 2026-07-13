@@ -137,7 +137,7 @@
     15%{opacity:1; transform:translate(calc(var(--dx)*0.3), calc(var(--dy)*0.3)) scale(1.15) rotate(20deg);}
     100%{transform:translate(var(--dx), var(--dy)) scale(.65) rotate(60deg); opacity:0;}
   }
-  .nav-btn{width:56px;height:52px;border-radius:999px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:transparent;border:none;color:var(--ink-soft);font-size:20px;}
+  .nav-btn{width:48px;height:50px;border-radius:999px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:transparent;border:none;color:var(--ink-soft);font-size:18px;}
   .nav-btn span.lbl{font-size:9.5px;font-weight:800;font-family:'Baloo 2',sans-serif;}
   .nav-btn.active{background:linear-gradient(180deg,#7fe0ff,#0288d1);color:#fff;box-shadow:inset 0 1px 1px rgba(255,255,255,.6), 0 4px 12px rgba(2,136,209,.45);}
 
@@ -351,6 +351,37 @@
     </div>
   </section>
 
+  <!-- ============ GYMBRO ============ -->
+  <section class="view" id="view-gymbro">
+    <h1 class="display view-title">GymBro 💪</h1>
+    <p class="empty-note" style="margin-bottom:14px;">Samostatný parťák na trénink — nic odsud se nepočítá do streaku, XP dostaneš jako vždy za "Beru" u Posilovny.</p>
+
+    <div class="glass">
+      <p class="field-label">Kde cvičíš?</p>
+      <div class="chip-row" id="gb-env-chips">
+        <button class="chip selected" data-val="gym">🏋️ Posilovna</button>
+        <button class="chip" data-val="outdoor">🌳 Venkovní posilovna</button>
+      </div>
+      <p class="field-label">Co dneska?</p>
+      <div class="grid-2" style="margin-bottom:6px;">
+        <button class="act-card" onclick="buildGymbroWorkout('push')"><span class="icon">🫸</span><span class="name">Přední vršek</span></button>
+        <button class="act-card" onclick="buildGymbroWorkout('pull')"><span class="icon">🫷</span><span class="name">Zadní vršek</span></button>
+        <button class="act-card" onclick="buildGymbroWorkout('legs')"><span class="icon">🦵</span><span class="name">Nohy</span></button>
+        <button class="act-card" onclick="buildGymbroWorkout('core')"><span class="icon">🧱</span><span class="name">Core</span></button>
+      </div>
+    </div>
+
+    <div id="gb-workout-wrap"></div>
+
+    <div class="glass">
+      <p class="field-label" style="margin-bottom:8px;">🧮 Kalkulačka váhy (1RM)</p>
+      <input type="number" id="gb-calc-weight" placeholder="Váha (kg), co jsi zvedl">
+      <input type="number" id="gb-calc-reps" placeholder="Kolik opakování">
+      <button class="btn btn-leaf btn-sm" onclick="calcGymbro1RM()">Spočítat</button>
+      <div id="gb-calc-result" style="margin-top:10px;"></div>
+    </div>
+  </section>
+
 </div>
 
 <div class="modal-backdrop" id="location-modal">
@@ -375,6 +406,7 @@
   <button class="nav-btn" id="nav-suggest" onclick="goTo('suggest')">✨<span class="lbl">Návrh</span></button>
   <button class="nav-btn" id="nav-activities" onclick="goTo('activities')">📋<span class="lbl">Aktivity</span></button>
   <button class="nav-btn" id="nav-journal" onclick="goTo('journal')">📔<span class="lbl">Deníček</span></button>
+  <button class="nav-btn" id="nav-gymbro" onclick="goTo('gymbro')">💪<span class="lbl">GymBro</span></button>
 </nav>
 
 <script>
@@ -404,7 +436,7 @@ function getDefaultState(){
     activities: JSON.parse(JSON.stringify(DEFAULT_ACTIVITIES)),
     logs: [], restDays: [], frozenDays: [], freezesUsed: 0,
     lastReconciled: todayStr(), lastAction: null,
-    stickers: [], journal: [], giphyKey: null, discordWebhook: null, lastBackupAt: null, mapyApiKey: null, favoritePlaces: []
+    stickers: [], journal: [], giphyKey: null, discordWebhook: null, lastBackupAt: null, mapyApiKey: null, favoritePlaces: [], gymbroLog: []
   };
 }
 
@@ -1585,8 +1617,118 @@ function celebrateBurst(){
   setTimeout(()=>host.remove(), 950);
 }
 
+/* ================= GYMBRO — separate training-plan companion ================= */
+// env: 'gym' (needs equipment), 'outdoor' (bodyweight/bar-friendly), 'both'
+const GYMBRO_EXERCISES = [
+  // Přední vršek těla (push)
+  {id:'bench_press', name:'Bench press', cat:'push', env:'gym', sets:'4×8–10', desc:'Tlak s činkou vleže na rovné lavici, hlavní cvik na rozvoj hrudníku.', key:true},
+  {id:'incline_bench', name:'Šikmá lavice', cat:'push', env:'gym', sets:'3×10–12', desc:'Bench press na nakloněné lavici, zapojuje horní část hrudníku.'},
+  {id:'overhead_press', name:'Overhead press', cat:'push', env:'gym', sets:'4×8–10', desc:'Tlak činky nad hlavu vestoje nebo vsedě. Klíčový cvik pro rozvoj ramen.', key:true},
+  {id:'lateral_raise', name:'Laterální únos', cat:'push', env:'gym', sets:'3×12–15', desc:'Zvedání malých činek do strany, tvaruje střední část ramene.'},
+  {id:'triceps_pushdown', name:'Triceps na kladce', cat:'push', env:'gym', sets:'3×12', desc:'Stahování kladky nebo francouzský tlak. Zadní část paže.'},
+  {id:'pushups', name:'Kliky', cat:'push', env:'both', sets:'3×12–20', desc:'Základní tlak vlastní vahou, funguje kdekoliv.'},
+  {id:'dips', name:'Kliky na bradlech', cat:'push', env:'both', sets:'3×8–12', desc:'Tlak vlastní vahou na bradlech, hrudník a triceps.'},
+  {id:'pike_pushups', name:'Pike push-upy', cat:'push', env:'outdoor', sets:'3×8–12', desc:'Kliky se zvednutými boky, náhrada ramenního tlaku bez činek.'},
+  {id:'diamond_pushups', name:'Diamantové kliky', cat:'push', env:'both', sets:'3×10–15', desc:'Kliky s rukama u sebe, víc zapojují triceps.'},
+  // Zadní vršek těla (pull)
+  {id:'deadlift', name:'Mrtvý tah', cat:'pull', env:'gym', sets:'4×6–8', desc:'Zvedání osy ze země. Zapojuje celé tělo – hlavně záda a zadní stehna. Klíčový cvik.', key:true},
+  {id:'barbell_row', name:'Veslování', cat:'pull', env:'gym', sets:'4×8–10', desc:'Tahání osy nebo činky k tělu v předklonu. Rozvíjí střed zad.'},
+  {id:'lat_pulldown', name:'Stahování kladky', cat:'pull', env:'gym', sets:'3×10–12', desc:'Tahání kladky dolů k hrudníku. Základ V-tvaru.'},
+  {id:'face_pulls', name:'Face pulls', cat:'pull', env:'gym', sets:'3×15', desc:'Tahání lana kladky k obličeji. Zdraví ramen, dobré proti sezení.', key:true},
+  {id:'biceps_curl', name:'Biceps', cat:'pull', env:'gym', sets:'3×12', desc:'Klasický zdvih s činkou nebo na kladce.'},
+  {id:'pullups', name:'Shyby', cat:'pull', env:'both', sets:'3×5–10', desc:'Tah vlastní vahou nadhmatem, základ zad venku i doma.', key:true},
+  {id:'chinups', name:'Přítahy podhmatem', cat:'pull', env:'both', sets:'3×5–10', desc:'Tah podhmatem, víc zapojuje biceps.'},
+  {id:'inverted_rows', name:'Vzpory pod tyčí', cat:'pull', env:'outdoor', sets:'3×10–15', desc:'Veslování vlastní vahou pod nízkou tyčí nebo na bradlech.'},
+  // Nohy (legs)
+  {id:'squat', name:'Dřep', cat:'legs', env:'gym', sets:'4×10', desc:'Základní cvik na celé nohy, záda a core.', key:true},
+  {id:'leg_press', name:'Leg press', cat:'legs', env:'gym', sets:'4×10', desc:'Tlak nohama na stroji, náhrada dřepu.'},
+  {id:'lunges', name:'Výpady', cat:'legs', env:'both', sets:'3×12', desc:'Střídavé kroky vpřed. Tvarují zadek a stehna.'},
+  {id:'romanian_deadlift', name:'Rumunský mrtvý tah', cat:'legs', env:'gym', sets:'3×10', desc:'Tah s propnutými koleny, zadní strana stehen a hýždě.'},
+  {id:'calf_raise', name:'Výpony na lýtka', cat:'legs', env:'both', sets:'3×15', desc:'Zvedání na špičky, vestoje nebo na stroji.'},
+  {id:'bulgarian_split_squat', name:'Bulharský dřep', cat:'legs', env:'both', sets:'3×10/nohu', desc:'Jednonožní dřep se zadní nohou na lavici nebo schodu.'},
+  {id:'squat_bodyweight', name:'Dřep s vlastní vahou', cat:'legs', env:'outdoor', sets:'4×15–20', desc:'Dřep bez zátěže, vyšší počet opakování.'},
+  {id:'step_up', name:'Výstupy na bednu/lavičku', cat:'legs', env:'outdoor', sets:'3×12/nohu', desc:'Výstup na vyvýšenou plochu, síla i rovnováha.'},
+  {id:'hip_thrust', name:'Hip thrust', cat:'legs', env:'gym', sets:'3×10', desc:'Zvedání pánve, hýždě a zadní řetězec.'},
+  // Core
+  {id:'plank', name:'Prkno', cat:'core', env:'both', sets:'3×30–60s', desc:'Statická výdrž, celý core.'},
+  {id:'situps', name:'Zkracovačky', cat:'core', env:'both', sets:'3×15–20', desc:'Klasické břicháky.'},
+  {id:'leg_raises', name:'Zvedání nohou', cat:'core', env:'both', sets:'3×12–15', desc:'Vleže nebo ve visu, spodní břicho.'},
+  {id:'hanging_leg_raise', name:'Zvedání nohou ve visu', cat:'core', env:'outdoor', sets:'3×10–15', desc:'Na hrazdě nebo bradlech, náročnější varianta.'},
+  {id:'russian_twist', name:'Ruský twist', cat:'core', env:'both', sets:'3×20', desc:'Rotace trupu vsedě, šikmé břišní svaly.'},
+  {id:'mountain_climbers', name:'Horolezec', cat:'core', env:'both', sets:'3×30s', desc:'Dynamický core a mírné kardio.'},
+  {id:'side_plank', name:'Boční prkno', cat:'core', env:'both', sets:'3×20–30s/strana', desc:'Šikmé břišní svaly a stabilita.'}
+];
+const GB_CAT_LABEL = {push:'Přední vršek těla', pull:'Zadní vršek těla', legs:'Nohy', core:'Core'};
+let gbCurrentEnv = 'gym', gbCurrentWorkout = null;
+
+function gbLastUsedDays(exId){
+  const past = state.gymbroLog.filter(w=>w.exercises.some(x=>x.id===exId));
+  if(!past.length) return 999;
+  const last = past.reduce((a,b)=> a.date>b.date ? a : b);
+  return daysBetween(last.date, todayStr());
+}
+function buildGymbroWorkout(cat){
+  const env = gbCurrentEnv;
+  const pool = GYMBRO_EXERCISES.filter(e=>e.cat===cat && (e.env===env || e.env==='both'));
+  const scored = pool.map(e=>({...e, score: gbLastUsedDays(e.id) + Math.random()*3 + (e.key?2:0)}));
+  scored.sort((a,b)=>b.score-a.score);
+  const count = Math.min(5, scored.length);
+  gbCurrentWorkout = {cat, env, exercises: scored.slice(0, count)};
+  renderGymbroWorkout();
+}
+function renderGymbroWorkout(){
+  const wrap = document.getElementById('gb-workout-wrap');
+  if(!gbCurrentWorkout){ wrap.innerHTML=''; return; }
+  const w = gbCurrentWorkout;
+  wrap.innerHTML = `<div class="glass">
+    <p class="field-label">${GB_CAT_LABEL[w.cat]} · ${w.env==='gym'?'🏋️ Posilovna':'🌳 Venkovní posilovna'}</p>
+    ${w.exercises.map(e=>`<div class="journal-entry">
+        <div class="jdate">${e.key?'⭐ ':''}${escapeHTML(e.name)} — ${e.sets}</div>
+        <div class="jtext">${escapeHTML(e.desc)}</div>
+      </div>`).join('')}
+    <div class="btn-row">
+      <button class="btn btn-leaf display" onclick="finishGymbroWorkout()">✅ Odcvičeno</button>
+      <button class="btn btn-ghost btn-sm" style="align-self:center;" onclick="buildGymbroWorkout('${w.cat}')">🔄 Jiná sestava</button>
+    </div>
+  </div>`;
+}
+function finishGymbroWorkout(){
+  if(!gbCurrentWorkout) return;
+  state.gymbroLog.push({id:'gb'+Date.now(), date:todayStr(), cat:gbCurrentWorkout.cat, env:gbCurrentWorkout.env, exercises:gbCurrentWorkout.exercises.map(e=>({id:e.id, name:e.name}))});
+  saveState();
+  gbCurrentWorkout = null;
+  document.getElementById('gb-workout-wrap').innerHTML = '';
+  showToast('💪 Trénink zapsán do GymBro deníku');
+}
+function calcGymbro1RM(){
+  const w = parseFloat(document.getElementById('gb-calc-weight').value);
+  const r = parseInt(document.getElementById('gb-calc-reps').value, 10);
+  const out = document.getElementById('gb-calc-result');
+  if(!w || !r || r<1){ out.innerHTML = '<p class="empty-note">Zadej váhu i počet opakování.</p>'; return; }
+  const oneRM = w * (1 + r/30);
+  const round5 = n => Math.round(n/2.5)*2.5;
+  out.innerHTML = `<p class="jtext" style="margin-bottom:8px;"><strong>Odhad 1RM: ${oneRM.toFixed(1)} kg</strong></p>
+    <div class="journal-entry"><div class="jdate">💪 Síla (5×5)</div><div class="jtext">${round5(oneRM*0.85)} kg</div></div>
+    <div class="journal-entry"><div class="jdate">📈 Hypertrofie (4×8)</div><div class="jtext">${round5(oneRM*0.72)} kg</div></div>
+    <div class="journal-entry"><div class="jdate">🔁 Vytrvalost (3×15)</div><div class="jtext">${round5(oneRM*0.60)} kg</div></div>
+    <p class="location-note">Rozcvička: ${round5(oneRM*0.40)} → ${round5(oneRM*0.55)} → ${round5(oneRM*0.70)} kg</p>`;
+}
+function initGymbroChips(){
+  const wrap = document.getElementById('gb-env-chips');
+  if(!wrap) return;
+  wrap.querySelectorAll('.chip').forEach(chip=>{
+    chip.onclick = ()=>{
+      wrap.querySelectorAll('.chip').forEach(c=>c.classList.remove('selected'));
+      chip.classList.add('selected');
+      gbCurrentEnv = chip.dataset.val;
+      gbCurrentWorkout = null;
+      document.getElementById('gb-workout-wrap').innerHTML = '';
+    };
+  });
+}
+
 function renderAll(){ renderDashboard(); renderActivityGrid(); renderStickerTray(); renderJournalList(); updateBackupStatus(); renderFavoritesList(); }
-function init(){ reconcileFreezes(); initBubbles(); initSuggestChips(); renderAll(); }
+function init(){ reconcileFreezes(); initBubbles(); initSuggestChips(); initGymbroChips(); renderAll(); }
 document.addEventListener('DOMContentLoaded', init);
 
 if('serviceWorker' in navigator){
