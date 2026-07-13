@@ -316,6 +316,14 @@
     </div>
 
     <div class="glass small" style="opacity:.9;">
+      <div class="loc-picker-row">
+        <span class="loc-text">🎬 GIFy cviků v GymBro (volitelné)</span>
+        <button class="btn btn-ghost btn-sm" onclick="toggleWorkoutxSettings()">Nastavit</button>
+      </div>
+      <div id="workoutx-settings-wrap"></div>
+    </div>
+
+    <div class="glass small" style="opacity:.9;">
       <div class="loc-picker-row"><span class="loc-text">💾 Záloha dat</span></div>
       <p class="location-note" id="backup-status" style="text-align:left;margin-top:6px;">Ještě jsi nikdy nezálohoval.</p>
       <div class="btn-row">
@@ -398,6 +406,15 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="gb-exercise-modal">
+  <div class="glass modal-card">
+    <p class="field-label" id="gb-modal-title" style="font-size:17px;"></p>
+    <div id="gb-modal-gif-wrap"></div>
+    <div id="gb-modal-content"></div>
+    <button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="closeGbExerciseModal()">Zavřít</button>
+  </div>
+</div>
+
 <div class="toast" id="toast">✓ Zapsáno</div>
 
 <nav class="bottom-nav">
@@ -435,7 +452,7 @@ function getDefaultState(){
     activities: JSON.parse(JSON.stringify(DEFAULT_ACTIVITIES)),
     logs: [], restDays: [], frozenDays: [], freezesUsed: 0,
     lastReconciled: todayStr(), lastAction: null,
-    stickers: [], journal: [], giphyKey: null, discordWebhook: null, lastBackupAt: null, mapyApiKey: null, favoritePlaces: [], gymbroLog: []
+    stickers: [], journal: [], giphyKey: null, discordWebhook: null, lastBackupAt: null, mapyApiKey: null, favoritePlaces: [], gymbroLog: [], workoutxKey: null, gymbroGifCache: {}
   };
 }
 
@@ -1619,61 +1636,214 @@ function celebrateBurst(){
 /* ================= GYMBRO — separate training-plan companion ================= */
 // env: 'gym' (needs equipment), 'outdoor' (bodyweight/bar-friendly), 'both'
 const GYMBRO_EXERCISES = [
-  // Přední vršek těla (push)
-  {id:'bench_press', name:'Bench press', cat:'push', env:'gym', sets:'4×8–10', desc:'Tlak s činkou vleže na rovné lavici, hlavní cvik na rozvoj hrudníku.', key:true},
-  {id:'incline_bench', name:'Šikmá lavice', cat:'push', env:'gym', sets:'3×10–12', desc:'Bench press na nakloněné lavici, zapojuje horní část hrudníku.'},
-  {id:'overhead_press', name:'Overhead press', cat:'push', env:'gym', sets:'4×8–10', desc:'Tlak činky nad hlavu vestoje nebo vsedě. Klíčový cvik pro rozvoj ramen.', key:true},
-  {id:'lateral_raise', name:'Laterální únos', cat:'push', env:'gym', sets:'3×12–15', desc:'Zvedání malých činek do strany, tvaruje střední část ramene.'},
-  {id:'triceps_pushdown', name:'Triceps na kladce', cat:'push', env:'gym', sets:'3×12', desc:'Stahování kladky nebo francouzský tlak. Zadní část paže.'},
-  {id:'cable_fly', name:'Motýlky na kladce', cat:'push', env:'gym', sets:'3×12–15', desc:'Roznožování s kladkami před tělem, izoluje střed hrudníku.'},
-  {id:'arnold_press', name:'Arnold press', cat:'push', env:'gym', sets:'3×10–12', desc:'Tlak nad hlavu s rotací zápěstí, zapojuje ramena z víc úhlů.'},
-  {id:'machine_chest_press', name:'Posilovací stroj na hrudník', cat:'push', env:'gym', sets:'3×10–12', desc:'Tlak na stroji, bezpečná a stabilní varianta bench pressu.'},
-  {id:'pushups', name:'Kliky', cat:'push', env:'both', sets:'3×12–20', desc:'Základní tlak vlastní vahou, funguje kdekoliv.'},
-  {id:'dips', name:'Kliky na bradlech', cat:'push', env:'both', sets:'3×8–12', desc:'Tlak vlastní vahou na bradlech, hrudník a triceps.'},
-  {id:'pike_pushups', name:'Pike push-upy', cat:'push', env:'outdoor', sets:'3×8–12', desc:'Kliky se zvednutými boky (tělo do "véčka"), náhrada ramenního tlaku bez činek.'},
-  {id:'diamond_pushups', name:'Diamantové kliky', cat:'push', env:'both', sets:'3×10–15', desc:'Kliky s rukama u sebe pod hrudníkem, víc zapojují triceps.'},
-  {id:'bench_dips', name:'Dipy na lavičce', cat:'push', env:'outdoor', sets:'3×10–15', desc:'Kliky na bradlech pomocí obyčejné lavičky v parku, triceps venku bez vybavení.'},
-  {id:'decline_pushups', name:'Kliky se zvednutýma nohama', cat:'push', env:'both', sets:'3×10–15', desc:'Kliky s nohama výš (na lavičce/schodu), víc zapojují horní hrudník a ramena.'},
-  {id:'explosive_pushups', name:'Výbušné kliky', cat:'push', env:'outdoor', sets:'3×8–12', desc:'Kliky s odrazem rukou od země, budují výbušnou sílu.'},
-  // Zadní vršek těla (pull)
-  {id:'deadlift', name:'Mrtvý tah', cat:'pull', env:'gym', sets:'4×6–8', desc:'Zvedání osy ze země. Zapojuje celé tělo – hlavně záda a zadní stehna. Klíčový cvik.', key:true},
-  {id:'barbell_row', name:'Veslování', cat:'pull', env:'gym', sets:'4×8–10', desc:'Tahání osy nebo činky k tělu v předklonu. Rozvíjí střed zad.'},
-  {id:'lat_pulldown', name:'Stahování kladky', cat:'pull', env:'gym', sets:'3×10–12', desc:'Tahání kladky dolů k hrudníku. Základ V-tvaru.'},
-  {id:'face_pulls', name:'Face pulls', cat:'pull', env:'gym', sets:'3×15', desc:'Tahání lana kladky k obličeji. Zdraví ramen, dobré proti sezení.', key:true},
-  {id:'biceps_curl', name:'Biceps', cat:'pull', env:'gym', sets:'3×12', desc:'Klasický zdvih s činkou nebo na kladce.'},
-  {id:'seated_cable_row', name:'Veslování na kladce vsedě', cat:'pull', env:'gym', sets:'3×10–12', desc:'Tah rukojeti k tělu vsedě, izolovaněji zapojuje střed zad.'},
-  {id:'shrugs', name:'Zdvihy ramen (shrugs)', cat:'pull', env:'gym', sets:'3×12', desc:'Zvedání ramen nahoru s činkami, trapézové svaly (proti sezení u počítače).'},
-  {id:'hammer_curl', name:'Kladivový zdvih', cat:'pull', env:'gym', sets:'3×12', desc:'Biceps s neutrálním úchopem dlaněmi k sobě, zapojuje i předloktí.'},
-  {id:'pullups', name:'Shyby', cat:'pull', env:'both', sets:'3×5–10', desc:'Tah vlastní vahou nadhmatem, základ zad venku i doma.', key:true},
-  {id:'chinups', name:'Přítahy podhmatem', cat:'pull', env:'both', sets:'3×5–10', desc:'Tah podhmatem (dlaně k sobě), víc zapojuje biceps.'},
-  {id:'wide_pullups', name:'Široké shyby', cat:'pull', env:'outdoor', sets:'3×5–10', desc:'Shyby s rukama daleko od sebe, víc do šířky zad.'},
-  {id:'inverted_rows', name:'Australské shyby (vzpory pod tyčí)', cat:'pull', env:'outdoor', sets:'3×10–15', desc:'Lehneš si pod nízkou tyč/bradla a táhneš hrudník nahoru k ní, nohy zůstávají na zemi – veslování vlastní vahou, mnohem jednodušší než klasický shyb.'},
-  {id:'single_arm_row', name:'Jednoruční tah k tyči/větvi', cat:'pull', env:'outdoor', sets:'3×10/ruku', desc:'Improvizované jednoruční veslování o cokoliv pevného v pase, kolem parku.'},
-  {id:'negative_pullups', name:'Negativní shyby', cat:'pull', env:'outdoor', sets:'3×5', desc:'Vyskočíš nahoru a co nejpomaleji sesedáš dolů – buduje sílu, když plný shyb ještě nejde.'},
-  // Nohy (legs) — generují se spolu s core jako jedna kategorie, viz buildGymbroWorkout
-  {id:'squat', name:'Dřep', cat:'legs', env:'gym', sets:'4×10', desc:'Základní cvik na celé nohy, záda a core.', key:true},
-  {id:'leg_press', name:'Leg press', cat:'legs', env:'gym', sets:'4×10', desc:'Tlak nohama na stroji, náhrada dřepu.'},
-  {id:'lunges', name:'Výpady', cat:'legs', env:'both', sets:'3×12', desc:'Střídavé kroky vpřed. Tvarují zadek a stehna.'},
-  {id:'romanian_deadlift', name:'Rumunský mrtvý tah', cat:'legs', env:'gym', sets:'3×10', desc:'Tah s propnutými koleny, zadní strana stehen a hýždě.'},
-  {id:'calf_raise', name:'Výpony na lýtka', cat:'legs', env:'both', sets:'3×15', desc:'Zvedání na špičky, vestoje nebo na stroji.'},
-  {id:'bulgarian_split_squat', name:'Bulharský dřep', cat:'legs', env:'both', sets:'3×10/nohu', desc:'Jednonožní dřep se zadní nohou opřenou na lavici nebo schodu.'},
-  {id:'squat_bodyweight', name:'Dřep s vlastní vahou', cat:'legs', env:'outdoor', sets:'4×15–20', desc:'Dřep bez zátěže, vyšší počet opakování.'},
-  {id:'step_up', name:'Výstupy na bednu/lavičku', cat:'legs', env:'outdoor', sets:'3×12/nohu', desc:'Výstup celou vahou na vyvýšenou plochu, síla i rovnováha.'},
-  {id:'hip_thrust', name:'Hip thrust', cat:'legs', env:'gym', sets:'3×10', desc:'Zvedání pánve s činkou přes boky, hýždě a zadní řetězec.'},
-  {id:'glute_bridge', name:'Zvedání pánve (bez zátěže)', cat:'legs', env:'both', sets:'3×15', desc:'Bezvahová verze hip thrustu, vleže na zádech.'},
-  {id:'wall_sit', name:'Sedová výdrž u zdi', cat:'legs', env:'outdoor', sets:'3×30–45s', desc:'Sed opřený zády o zeď v úhlu 90°, izometrická síla nohou, jde kdekoliv je zeď.'},
-  {id:'nordic_curl', name:'Nordická flexe', cat:'legs', env:'outdoor', sets:'3×6–8', desc:'Poklek s nohama zafixovanýma (partnerem nebo pod tyčí), pomalý pád vpřed – extrémně účinné na zadní stehna.'},
-  // Core
-  {id:'plank', name:'Prkno', cat:'core', env:'both', sets:'3×30–60s', desc:'Statická výdrž v opoře na předloktích, celý core.'},
-  {id:'situps', name:'Zkracovačky', cat:'core', env:'both', sets:'3×15–20', desc:'Klasické břicháky, celý pohyb trupu nahoru.'},
-  {id:'leg_raises_lying', name:'Zvedání nohou vleže', cat:'core', env:'both', sets:'3×12–15', desc:'Vleže na zádech zvedáš propnuté nohy nahoru, spodní břicho.'},
-  {id:'hanging_leg_raise', name:'Zvedání nohou ve visu', cat:'core', env:'outdoor', sets:'3×10–15', desc:'Ve visu na hrazdě/bradlech zvedáš nohy k tělu, náročnější varianta předchozího.'},
-  {id:'russian_twist', name:'Ruský twist', cat:'core', env:'both', sets:'3×20', desc:'Vsedě s nadzvednutýma nohama otáčíš trup ze strany na stranu, šikmé břišní svaly.'},
-  {id:'mountain_climbers', name:'Horolezec', cat:'core', env:'both', sets:'3×30s', desc:'Ve vzporu rychle střídáš přitahování kolen k hrudníku, dynamický core a mírné kardio.'},
-  {id:'side_plank', name:'Boční prkno', cat:'core', env:'both', sets:'3×20–30s/strana', desc:'Opora na jednom předloktí bokem, šikmé břišní svaly a stabilita.'},
-  {id:'dead_bug', name:'Mrtvý brouk', cat:'core', env:'both', sets:'3×12/stranu', desc:'Vleže na zádech střídavě natahuješ protilehlou ruku a nohu, kontrola a stabilita core.'},
-  {id:'v_ups', name:'Zvedání do véčka', cat:'core', env:'both', sets:'3×12–15', desc:'Současné zvednutí trupu i propnutých nohou do véčka, náročnější zkracovačka.'},
-  {id:'superman', name:'Superman', cat:'core', env:'both', sets:'3×15', desc:'Vleže na břiše současně zvedáš ruce i nohy, posiluje spodní záda.'}
+  // ---- Přední vršek těla (push) ----
+  {id:'bench_press', name:'Bench press', cat:'push', env:'gym', sets:'4×8–10', desc:'Tlak s činkou vleže na rovné lavici, hlavní cvik na rozvoj hrudníku.', key:true, gifQuery:'barbell bench press',
+    detail:'Lehneš si na rovnou lavici, uchopíš osu o něco šíř než ramena a spouštíš ji k hrudníku, pak tlačíš zpět nahoru.',
+    caution:'Nedělej odraz osy od hrudníku, lopatky drž stažené k sobě a zadek se nesmí zvedat z lavice.',
+    muscles:'Prsní svaly, přední deltové svaly, triceps.'},
+  {id:'incline_bench', name:'Šikmá lavice', cat:'push', env:'gym', sets:'3×10–12', desc:'Bench press na nakloněné lavici, zapojuje horní část hrudníku.', gifQuery:'incline barbell bench press',
+    detail:'Stejný pohyb jako bench press, ale na lavici skloněné nahoru 30–45°, čímž se práce přesouvá výš na hrudník.',
+    caution:'Moc strmý úhel lavice přesouvá práci hlavně na ramena, drž se kolem 30°.',
+    muscles:'Horní část prsních svalů, přední deltové svaly, triceps.'},
+  {id:'overhead_press', name:'Overhead press', cat:'push', env:'gym', sets:'4×8–10', desc:'Tlak činky nad hlavu vestoje nebo vsedě. Klíčový cvik pro rozvoj ramen.', key:true, gifQuery:'overhead barbell press',
+    detail:'Stoje nebo vsedě tlačíš osu nebo činky od úrovně ramen kolmo nad hlavu.',
+    caution:'Nezaklánej se v zádech, aby osa prošla nad hlavou – radši mírně předsuň hlavu vpřed, když osa prochází kolem obličeje.',
+    muscles:'Ramena (deltové svaly), triceps, horní část hrudníku.'},
+  {id:'lateral_raise', name:'Laterální únos', cat:'push', env:'gym', sets:'3×12–15', desc:'Zvedání malých činek do strany, tvaruje střední část ramene.', gifQuery:'dumbbell lateral raise',
+    detail:'Stoje s mírně pokrčenými lokty zvedáš činky do stran do úrovně ramen.',
+    caution:'Nehoupej se s tělem, aby to udělal moment – zvedej pomalu, čistě silou ramene.',
+    muscles:'Střední část deltového svalu (ramene).'},
+  {id:'triceps_pushdown', name:'Triceps na kladce', cat:'push', env:'gym', sets:'3×12', desc:'Stahování kladky nebo francouzský tlak. Zadní část paže.', gifQuery:'triceps pushdown cable',
+    detail:'Stoje u kladky tlačíš rukojeť nebo lano dolů, dokud nejsou paže propnuté.',
+    caution:'Lokty drž pevně u těla, ať nepracují ramena místo tricepsu.',
+    muscles:'Triceps (zadní strana paže).'},
+  {id:'cable_fly', name:'Motýlky na kladce', cat:'push', env:'gym', sets:'3×12–15', desc:'Roznožování s kladkami, izoluje střed hrudníku.', gifQuery:'cable chest fly',
+    detail:'Stoje mezi dvěma kladkami roznožuješ paže vpřed a spojuješ je před tělem obloukovým pohybem.',
+    caution:'Lokty drž mírně pokrčené po celou dobu, nezamykej je.',
+    muscles:'Střed a vnitřní část prsních svalů.'},
+  {id:'arnold_press', name:'Arnold press', cat:'push', env:'gym', sets:'3×10–12', desc:'Tlak nad hlavu s rotací zápěstí, zapojuje ramena z víc úhlů.', gifQuery:'arnold press dumbbell',
+    detail:'Začínáš s činkami před tělem dlaněmi k sobě, při tlaku nahoru rotuješ zápěstí, až jsou nahoře dlaněmi vpřed.',
+    caution:'Rotaci dělej plynule, ne trhaně, ať nezatěžuješ rameno.',
+    muscles:'Všechny tři části ramene, triceps.'},
+  {id:'machine_chest_press', name:'Posilovací stroj na hrudník', cat:'push', env:'gym', sets:'3×10–12', desc:'Tlak na stroji, bezpečná varianta bench pressu.', gifQuery:'machine chest press',
+    detail:'Sedíš na stroji a tlačíš rukojeti vpřed od hrudníku, dokud paže nejsou propnuté.',
+    caution:'Nastav si sedačku tak, aby rukojeti byly v úrovni prostředku hrudníku.',
+    muscles:'Prsní svaly, přední deltové svaly, triceps.'},
+  {id:'pushups', name:'Kliky', cat:'push', env:'both', sets:'3×12–20', desc:'Základní tlak vlastní vahou, funguje kdekoliv.', gifQuery:'push up',
+    detail:'Ve vzporu ležmo spouštíš tělo k zemi ohnutím loktů, pak se tlačíš zpět nahoru.',
+    caution:'Drž tělo v jedné rovině od hlavy k patám, nenechávej klesat boky.',
+    muscles:'Prsní svaly, triceps, ramena, core.'},
+  {id:'dips', name:'Kliky na bradlech', cat:'push', env:'both', sets:'3×8–12', desc:'Tlak vlastní vahou na bradlech, hrudník a triceps.', gifQuery:'chest dip',
+    detail:'Na bradlech spouštíš tělo pokrčením loktů, dokud nejsou paže v pravém úhlu, pak se tlačíš nahoru.',
+    caution:'Nechoď příliš hluboko, pokud tě to tahá v ramenou – stačí paže v 90°.',
+    muscles:'Dolní část prsních svalů, triceps, přední ramena.'},
+  {id:'pike_pushups', name:'Pike push-upy', cat:'push', env:'outdoor', sets:'3×8–12', desc:'Kliky se zvednutými boky (tělo do "véčka"), náhrada ramenního tlaku bez činek.', gifQuery:'pike push up',
+    detail:'V pozici obráceného véčka (boky vysoko nahoře, ruce a nohy na zemi) spouštíš hlavu k zemi ohnutím loktů.',
+    caution:'Čím blíž jsou nohy k rukám, tím strmější a náročnější je úhel na ramena.',
+    muscles:'Ramena, horní část hrudníku, triceps.'},
+  {id:'diamond_pushups', name:'Diamantové kliky', cat:'push', env:'both', sets:'3×10–15', desc:'Kliky s rukama u sebe pod hrudníkem, víc zapojují triceps.', gifQuery:'diamond push up',
+    detail:'Klasické kliky, ale ruce má u sebe pod hrudníkem tak, aby palce a ukazováky tvořily kosočtverec.',
+    caution:'Náročnější na zápěstí, dělej pomaleji než klasické kliky.',
+    muscles:'Triceps hlavně, prsní svaly vedlejší.'},
+  {id:'bench_dips', name:'Dipy na lavičce', cat:'push', env:'outdoor', sets:'3×10–15', desc:'Kliky na bradlech pomocí obyčejné lavičky v parku, triceps venku bez vybavení.', gifQuery:'bench dip',
+    detail:'Ruce opřené o okraj lavičky za tělem, nohy natažené vpřed, spouštíš tělo ohnutím loktů dolů a zpět nahoru.',
+    caution:'Lokty drž blízko těla, ne do stran, ať to nebolí v ramenou.',
+    muscles:'Triceps, dolní část prsních svalů.'},
+  {id:'decline_pushups', name:'Kliky se zvednutýma nohama', cat:'push', env:'both', sets:'3×10–15', desc:'Kliky s nohama výš (na lavičce/schodu), víc zapojují horní hrudník a ramena.', gifQuery:'decline push up',
+    detail:'Klasické kliky s nohama položenýma výš než ruce, na lavičce nebo schodu.',
+    caution:'Čím výš nohy, tím větší nárok na ramena – jdi na to postupně.',
+    muscles:'Horní část prsních svalů, ramena.'},
+  {id:'explosive_pushups', name:'Výbušné kliky', cat:'push', env:'outdoor', sets:'3×8–12', desc:'Kliky s odrazem od země, buduje výbušnost.', gifQuery:'plyometric push up',
+    detail:'Klik provedeš rychle a s takovou silou, že se ruce na okamžik odlepí od země.',
+    caution:'Dopadej měkce na pokrčené paže, ne na propnuté.',
+    muscles:'Prsní svaly, triceps, ramena – výbušná síla.'},
+  // ---- Zadní vršek těla (pull) ----
+  {id:'deadlift', name:'Mrtvý tah', cat:'pull', env:'gym', sets:'4×6–8', desc:'Zvedání osy ze země. Zapojuje celé tělo – hlavně záda a zadní stehna. Klíčový cvik.', key:true, gifQuery:'barbell deadlift',
+    detail:'Osa na zemi, uchopíš ji mírně širším úchopem než ramena a napřímením celého těla ji zvedneš do stoje.',
+    caution:'Záda drž po celou dobu rovná, ne zakulacená – táhni s patami, ne se špičkami.',
+    muscles:'Celý zadní řetězec – hýždě, zadní stehna, spodní záda, trapézy.'},
+  {id:'barbell_row', name:'Veslování', cat:'pull', env:'gym', sets:'4×8–10', desc:'Tahání osy nebo činky k tělu v předklonu. Rozvíjí střed zad.', gifQuery:'barbell row',
+    detail:'V předklonu s rovnými zády táhneš osu od země k spodní části hrudníku.',
+    caution:'Nezvedej se v zádech při tahu, drž pevný předklon po celou sadu.',
+    muscles:'Střed zad, biceps, zadní ramena.'},
+  {id:'lat_pulldown', name:'Stahování kladky', cat:'pull', env:'gym', sets:'3×10–12', desc:'Tahání kladky dolů k hrudníku. Základ V-tvaru.', gifQuery:'lat pulldown',
+    detail:'Sedíš u kladky, širším úchopem táhneš tyč shora dolů k hornímu hrudníku.',
+    caution:'Netahej tyč za hlavu, jen k hrudníku vpředu.',
+    muscles:'Široký sval zádový (lats), biceps.'},
+  {id:'face_pulls', name:'Face pulls', cat:'pull', env:'gym', sets:'3×15', desc:'Tahání lana kladky k obličeji. Zdraví ramen, dobré proti sezení.', key:true, gifQuery:'face pull cable',
+    detail:'U kladky s lanem táhneš konce lana směrem k obličeji, lokty jdou do stran a nahoru.',
+    caution:'Táhni pomalu s důrazem na stažení lopatek, ne rychle.',
+    muscles:'Zadní ramena, rotátorová manžeta, horní záda.'},
+  {id:'biceps_curl', name:'Biceps', cat:'pull', env:'gym', sets:'3×12', desc:'Klasický zdvih s činkou nebo na kladce.', gifQuery:'barbell bicep curl',
+    detail:'Stoje s činkou nebo osou v rukou, ohýbáš lokty a zvedáš zátěž k ramenům.',
+    caution:'Lokty drž u těla, nehoupej se celým tělem.',
+    muscles:'Biceps.'},
+  {id:'seated_cable_row', name:'Veslování na kladce vsedě', cat:'pull', env:'gym', sets:'3×10–12', desc:'Tah rukojeti k tělu vsedě, izolovaněji zapojuje střed zad.', gifQuery:'seated cable row',
+    detail:'Sedíš u kladky s nohama opřenýma o platformu, táhneš rukojeť k břichu.',
+    caution:'Nekrč se v zádech dozadu při tahu, drž trup stabilní.',
+    muscles:'Střed zad, biceps.'},
+  {id:'shrugs', name:'Zdvihy ramen (shrugs)', cat:'pull', env:'gym', sets:'3×12', desc:'Zvedání ramen s činkami, trapézové svaly.', gifQuery:'dumbbell shrug',
+    detail:'Stoje s činkami podél těla zvedáš ramena přímo nahoru směrem k uším.',
+    caution:'Ramena nekruž dokola, jen nahoru a dolů.',
+    muscles:'Trapézové svaly (horní záda a krk).'},
+  {id:'hammer_curl', name:'Kladivový zdvih', cat:'pull', env:'gym', sets:'3×12', desc:'Biceps s neutrálním úchopem, zapojuje i předloktí.', gifQuery:'hammer curl dumbbell',
+    detail:'Stejné jako biceps curl, ale dlaně směřují k sobě (neutrální úchop) po celou dobu.',
+    caution:'Lokty drž pevně u boků.',
+    muscles:'Biceps, předloktí.'},
+  {id:'pullups', name:'Shyby', cat:'pull', env:'both', sets:'3×5–10', desc:'Tah vlastní vahou nadhmatem, základ zad venku i doma.', key:true, gifQuery:'pull up bar',
+    detail:'Ve visu na hrazdě nadhmatem (dlaně od sebe) se přitáhneš, dokud brada nepřejde tyč.',
+    caution:'Nekmitej nohama pro rozjezd, táhni čistě silou zad a paží.',
+    muscles:'Široký sval zádový, biceps, zadní ramena.'},
+  {id:'chinups', name:'Přítahy podhmatem', cat:'pull', env:'both', sets:'3×5–10', desc:'Tah podhmatem, víc zapojuje biceps.', gifQuery:'chin up',
+    detail:'Stejné jako shyb, ale podhmatem (dlaně k sobě), víc práce padá na biceps.',
+    caution:'Stejné zásady jako u shybu – bez kmitání.',
+    muscles:'Biceps, široký sval zádový.'},
+  {id:'wide_pullups', name:'Široké shyby', cat:'pull', env:'outdoor', sets:'3×5–10', desc:'Shyby širším úchopem, víc do šířky zad.', gifQuery:'wide grip pull up',
+    detail:'Shyb s rukama posazenýma výrazně šíř, než jsou ramena.',
+    caution:'Širší úchop znamená menší rozsah pohybu, nesnaž se dotáhnout bradu až nad tyč za každou cenu.',
+    muscles:'Šířka zad (široký sval zádový).'},
+  {id:'inverted_rows', name:'Australské shyby (vzpory pod tyčí)', cat:'pull', env:'outdoor', sets:'3×10–15', desc:'Lehneš si pod nízkou tyč/bradla a táhneš hrudník nahoru k ní, nohy zůstávají na zemi – veslování vlastní vahou, mnohem jednodušší než klasický shyb.', gifQuery:'inverted row',
+    detail:'Lehneš si pod nízko upevněnou tyč nebo bradla, uchopíš ji nadhmatem, paty na zemi, a přitáhneš hrudník nahoru k tyči jako veslování vleže.',
+    caution:'Tělo drž napřímené jako prkno, boky nenechávej klesat.',
+    muscles:'Celá záda, biceps, zadní ramena.'},
+  {id:'single_arm_row', name:'Jednoruční tah k tyči/větvi', cat:'pull', env:'outdoor', sets:'3×10/ruku', desc:'Improvizované jednoruční veslování, kdekoliv je pevný úchyt v pase výšky.', gifQuery:'single arm row',
+    detail:'Jednou rukou se opřeš o pevnou oporu (větev, tyč, zábradlí), druhou táhneš tělo k sobě do strany.',
+    caution:'Improvizuj opatrně – ověř, že opora fakt drží tvou váhu.',
+    muscles:'Jedna strana zad, biceps.'},
+  {id:'negative_pullups', name:'Negativní shyby', cat:'pull', env:'outdoor', sets:'3×5', desc:'Pomalý sestup ze shybu, buduje sílu, když plný shyb ještě nejde.', gifQuery:'negative pull up',
+    detail:'Vyskočíš (nebo si vylezeš na bednu) do horní pozice shybu, a co nejpomaleji sesedáš dolů do visu.',
+    caution:'Cíl je pomalost sestupu, ne rychlost – klidně 5–8 vteřin dolů.',
+    muscles:'Celá záda, biceps – buduje sílu pro plný shyb.'},
+  // ---- Nohy (legs) — generují se spolu s core, viz buildGymbroWorkout ----
+  {id:'squat', name:'Dřep', cat:'legs', env:'gym', sets:'4×10', desc:'Základní cvik na celé nohy, záda a core.', key:true, gifQuery:'barbell squat',
+    detail:'Osa na ramenou, nohy na šíři ramen, dřepneš si, dokud stehna nejsou rovnoběžná se zemí, pak se vrátíš do stoje.',
+    caution:'Kolena nesmí padat dovnitř, záda drž rovná, hlava se dívá vpřed.',
+    muscles:'Čtyřhlavý sval stehenní, hýždě, zadní stehna, core.'},
+  {id:'leg_press', name:'Leg press', cat:'legs', env:'gym', sets:'4×10', desc:'Tlak nohama na stroji, náhrada dřepu.', gifQuery:'leg press machine',
+    detail:'Sedíš/ležíš na stroji a tlačíš nohama plošinu od sebe.',
+    caution:'Kolena na konci pohybu nenatahuj úplně naplno, ať je nezamykáš.',
+    muscles:'Čtyřhlavý sval stehenní, hýždě.'},
+  {id:'lunges', name:'Výpady', cat:'legs', env:'both', sets:'3×12', desc:'Střídavé kroky vpřed. Tvarují zadek a stehna.', gifQuery:'walking lunge',
+    detail:'Uděláš dlouhý krok vpřed, spustíš zadní koleno k zemi, pak se odrazíš zpět do stoje.',
+    caution:'Přední koleno by nemělo výrazně přesahovat přes špičku.',
+    muscles:'Čtyřhlavý sval stehenní, hýždě.'},
+  {id:'romanian_deadlift', name:'Rumunský mrtvý tah', cat:'legs', env:'gym', sets:'3×10', desc:'Tah s propnutými koleny, zadní strana stehen a hýždě.', gifQuery:'romanian deadlift',
+    detail:'S mírně pokrčenými koleny spouštíš osu podél nohou dolů předklonem v kyčlích, pak se vracíš do stoje.',
+    caution:'Kolena drž skoro propnutá, pohyb jde z kyčlí, ne z beder.',
+    muscles:'Zadní stehna, hýždě.'},
+  {id:'calf_raise', name:'Výpony na lýtka', cat:'legs', env:'both', sets:'3×15', desc:'Zvedání na špičky, vestoje nebo na stroji.', gifQuery:'calf raise',
+    detail:'Stoje (s váhou nebo bez) zvedáš se na špičky, pak spouštíš paty zpět dolů.',
+    caution:'Dělej pomalu, s výdrží nahoře na vrcholu.',
+    muscles:'Lýtkové svaly.'},
+  {id:'bulgarian_split_squat', name:'Bulharský dřep', cat:'legs', env:'both', sets:'3×10/nohu', desc:'Jednonožní dřep se zadní nohou opřenou na lavici nebo schodu.', gifQuery:'bulgarian split squat',
+    detail:'Zadní nohu opřeš nártem o lavici za tebou, přední nohou provádíš jednonožní dřep.',
+    caution:'Většina váhy je na přední noze, zadní jen pro rovnováhu.',
+    muscles:'Čtyřhlavý sval stehenní, hýždě jedné nohy.'},
+  {id:'squat_bodyweight', name:'Dřep s vlastní vahou', cat:'legs', env:'outdoor', sets:'4×15–20', desc:'Dřep bez zátěže, vyšší počet opakování.', gifQuery:'bodyweight squat',
+    detail:'Stejný pohyb jako dřep s osou, ale bez zátěže, jen s vlastní vahou.',
+    caution:'Bez zátěže jdi do vyššího počtu opakování, ať to má smysl.',
+    muscles:'Čtyřhlavý sval stehenní, hýždě.'},
+  {id:'step_up', name:'Výstupy na bednu/lavičku', cat:'legs', env:'outdoor', sets:'3×12/nohu', desc:'Výstup celou vahou na vyvýšenou plochu, síla i rovnováha.', gifQuery:'step up exercise',
+    detail:'Vystoupíš celou vahou na vyvýšenou plochu jednou nohou, druhou přitáhneš nahoru, pak sestoupíš.',
+    caution:'Vystupuj silou přední nohy, neodrážej se druhou nohou od země.',
+    muscles:'Čtyřhlavý sval stehenní, hýždě.'},
+  {id:'hip_thrust', name:'Hip thrust', cat:'legs', env:'gym', sets:'3×10', desc:'Zvedání pánve s činkou přes boky, hýždě a zadní řetězec.', gifQuery:'barbell hip thrust',
+    detail:'Zády opřený o lavici, osa přes boky, zvedáš pánev nahoru, dokud tělo netvoří rovnou linii.',
+    caution:'Bradu drž zastrčenou, nezaklánej hlavu dozadu.',
+    muscles:'Hýžďové svaly hlavně.'},
+  {id:'glute_bridge', name:'Zvedání pánve (bez zátěže)', cat:'legs', env:'both', sets:'3×15', desc:'Bezvahová verze hip thrustu, vleže na zádech.', gifQuery:'glute bridge',
+    detail:'Vleže na zádech s pokrčenými koleny zvedáš pánev nahoru bez zátěže.',
+    caution:'Nahoře na chvíli zatni hýždě, než spustíš zpět.',
+    muscles:'Hýžďové svaly.'},
+  {id:'wall_sit', name:'Sedová výdrž u zdi', cat:'legs', env:'outdoor', sets:'3×30–45s', desc:'Sed opřený zády o zeď, izometrická síla nohou, jde kdekoliv je zeď.', gifQuery:'wall sit',
+    detail:'Zády opřený o zeď sjedeš do pozice, jako bys seděl na neviditelné židli, a vydržíš.',
+    caution:'Kolena by měla svírat zhruba 90°, ne víc dopředu než kotníky.',
+    muscles:'Čtyřhlavý sval stehenní (izometricky).'},
+  {id:'nordic_curl', name:'Nordická flexe', cat:'legs', env:'outdoor', sets:'3×6–8', desc:'Poklek s nohama zafixovanýma, pomalý pád vpřed – extrémně účinné na zadní stehna.', gifQuery:'nordic hamstring curl',
+    detail:'Klečíš, nohy má někdo (nebo něco) pevně fixované, pomalu se skláníš vpřed a brzdíš pád zadní stranou stehen.',
+    caution:'Velmi náročný cvik – jdi na to postupně, nejdřív jen malý rozsah pohybu.',
+    muscles:'Zadní stehna intenzivně.'},
+  // ---- Core ----
+  {id:'plank', name:'Prkno', cat:'core', env:'both', sets:'3×30–60s', desc:'Statická výdrž v opoře na předloktích, celý core.', gifQuery:'plank exercise',
+    detail:'Opora na předloktích a špičkách, tělo v jedné rovině od hlavy k patám, vydržíš.',
+    caution:'Boky nesmí klesat k zemi ani stoupat nahoru do stříšky.',
+    muscles:'Celý core (hluboké břišní svaly).'},
+  {id:'situps', name:'Zkracovačky', cat:'core', env:'both', sets:'3×15–20', desc:'Klasické břicháky, celý pohyb trupu nahoru.', gifQuery:'sit up exercise',
+    detail:'Vleže na zádech s pokrčenými koleny zvedáš celý trup nahoru k sedu.',
+    caution:'Nezaklesávej ruce za hlavu a netahej se za krk.',
+    muscles:'Přímý břišní sval.'},
+  {id:'leg_raises_lying', name:'Zvedání nohou vleže', cat:'core', env:'both', sets:'3×12–15', desc:'Vleže na zádech zvedáš propnuté nohy nahoru, spodní břicho.', gifQuery:'lying leg raise',
+    detail:'Vleže na zádech s propnutými nohami je zvedáš nahoru k 90°, pak spouštíš zpět, ne až na zem.',
+    caution:'Spodní záda drž přitisknutá k zemi, nenech je se prohýbat.',
+    muscles:'Spodní část břišních svalů.'},
+  {id:'hanging_leg_raise', name:'Zvedání nohou ve visu', cat:'core', env:'outdoor', sets:'3×10–15', desc:'Na hrazdě nebo bradlech, náročnější varianta předchozího.', gifQuery:'hanging leg raise',
+    detail:'Ve visu na hrazdě zvedáš propnuté (nebo pokrčené) nohy nahoru k tělu.',
+    caution:'Nekmitej tělem pro rozjezd, zvedej čistě silou břicha.',
+    muscles:'Spodní břicho, úchop předloktí.'},
+  {id:'russian_twist', name:'Ruský twist', cat:'core', env:'both', sets:'3×20', desc:'Rotace trupu vsedě, šikmé břišní svaly.', gifQuery:'russian twist',
+    detail:'Vsedě s nadzvednutýma nohama a mírně zakloněným trupem otáčíš horní část těla ze strany na stranu.',
+    caution:'Pohyb jde z trupu, ne jen z rukou.',
+    muscles:'Šikmé břišní svaly.'},
+  {id:'mountain_climbers', name:'Horolezec', cat:'core', env:'both', sets:'3×30s', desc:'Dynamický core a mírné kardio.', gifQuery:'mountain climbers',
+    detail:'Ve vzporu ležmo rychle střídáš přitahování kolen k hrudníku.',
+    caution:'Boky drž nízko, netrč zadkem nahoru.',
+    muscles:'Core, mírně i nohy a kardio.'},
+  {id:'side_plank', name:'Boční prkno', cat:'core', env:'both', sets:'3×20–30s/strana', desc:'Šikmé břišní svaly a stabilita.', gifQuery:'side plank',
+    detail:'Opora bokem na jednom předloktí, tělo v jedné rovině, vydržíš, pak vyměníš stranu.',
+    caution:'Boky nenech klesat k zemi.',
+    muscles:'Šikmé břišní svaly, stabilizátory trupu.'},
+  {id:'dead_bug', name:'Mrtvý brouk', cat:'core', env:'both', sets:'3×12/stranu', desc:'Vleže na zádech, střídavé natahování protilehlé ruky a nohy, kontrola core.', gifQuery:'dead bug exercise',
+    detail:'Vleže na zádech se zvednutýma rukama i nohama střídavě natahuješ protilehlou ruku a nohu k zemi.',
+    caution:'Spodní záda drž přitisknutá k podložce po celou dobu.',
+    muscles:'Hluboký core, koordinace.'},
+  {id:'v_ups', name:'Zvedání do véčka', cat:'core', env:'both', sets:'3×12–15', desc:'Současné zvednutí trupu i nohou do véčka.', gifQuery:'v up exercise',
+    detail:'Vleže na zádech současně zvedáš propnuté nohy i trup nahoru, dotkneš se rukama špiček, pak spouštíš zpět.',
+    caution:'Náročnější varianta zkracovačky – pokud to bolí v zádech, zůstaň u klasických.',
+    muscles:'Celý přímý břišní sval.'},
+  {id:'superman', name:'Superman', cat:'core', env:'both', sets:'3×15', desc:'Vleže na břiše zvedáš ruce i nohy, posiluje spodní záda.', gifQuery:'superman exercise',
+    detail:'Vleže na břiše současně zvedáš propnuté ruce i nohy nad podložku, chvíli vydržíš, pak spouštíš.',
+    caution:'Zvedej mírně, nejde o výšku, ale o kontrolu.',
+    muscles:'Spodní záda, hýždě.'}
 ];
 const GB_CAT_LABEL = {push:'Přední vršek těla', pull:'Zadní vršek těla', legs_core:'Nohy + Core'};
 let gbCurrentEnv = 'gym', gbCurrentWorkout = null;
@@ -1716,8 +1886,8 @@ function renderGymbroWorkout(){
   const w = gbCurrentWorkout;
   wrap.innerHTML = `<div class="glass">
     <p class="field-label">${GB_CAT_LABEL[w.cat]} · ${w.env==='gym'?'🏋️ Posilovna':'🌳 Venkovní posilovna'}</p>
-    ${w.exercises.map(e=>`<div class="journal-entry">
-        <div class="jdate">${e.key?'⭐ ':''}${escapeHTML(e.name)} — ${e.sets}</div>
+    ${w.exercises.map(e=>`<div class="journal-entry" style="cursor:pointer;" onclick="openGbExerciseModal('${e.id}')">
+        <div class="jdate">${e.key?'⭐ ':''}${escapeHTML(e.name)} — ${e.sets} <span style="font-size:11px;opacity:.6;">ℹ️ detail</span></div>
         <div class="jtext">${escapeHTML(e.desc)}</div>
       </div>`).join('')}
     <div class="btn-row">
@@ -1734,6 +1904,94 @@ function finishGymbroWorkout(){
   document.getElementById('gb-workout-wrap').innerHTML = '';
   showToast('💪 Trénink zapsán do GymBro deníku');
 }
+
+/* ---- Exercise detail popup: text always shown, GIF fetched from WorkoutX (optional, cached) ---- */
+async function openGbExerciseModal(exId){
+  const ex = GYMBRO_EXERCISES.find(e=>e.id===exId);
+  if(!ex) return;
+  document.getElementById('gb-modal-title').textContent = (ex.key?'⭐ ':'') + ex.name;
+  document.getElementById('gb-modal-content').innerHTML = `
+    <p class="jtext" style="margin-bottom:10px;"><strong>Jak na to:</strong> ${escapeHTML(ex.detail)}</p>
+    <p class="jtext" style="margin-bottom:10px;"><strong>⚠️ Na co si dát pozor:</strong> ${escapeHTML(ex.caution)}</p>
+    <p class="jtext"><strong>💪 Zapojené svaly:</strong> ${escapeHTML(ex.muscles)}</p>`;
+  const gifWrap = document.getElementById('gb-modal-gif-wrap');
+  gifWrap.innerHTML = '';
+  document.getElementById('gb-exercise-modal').classList.add('show');
+
+  if(state.gymbroGifCache && state.gymbroGifCache[exId]){
+    renderGbGif(state.gymbroGifCache[exId]);
+    return;
+  }
+  if(!state.workoutxKey) return; // no key set — text-only popup, exactly as agreed
+  gifWrap.innerHTML = '<p class="empty-note">🎬 Hledám ukázku…</p>';
+  try{
+    const url = await fetchWorkoutxGif(ex.gifQuery);
+    if(url){
+      state.gymbroGifCache = state.gymbroGifCache || {};
+      state.gymbroGifCache[exId] = url;
+      saveState();
+      renderGbGif(url);
+    } else {
+      gifWrap.innerHTML = ''; // not found — text-only, no wrong/mismatched image
+    }
+  }catch(e){
+    console.warn('WorkoutX GIF fetch failed', e);
+    gifWrap.innerHTML = '';
+  }
+}
+async function fetchWorkoutxGif(query){
+  const searchRes = await fetch(`https://api.workoutxapp.com/v1/exercises/name/${encodeURIComponent(query)}`, {headers:{'X-WorkoutX-Key': state.workoutxKey}});
+  if(!searchRes.ok) return null;
+  const results = await searchRes.json();
+  if(!Array.isArray(results) || !results.length) return null;
+  const best = results[0];
+  if(best.gifUrl) return best.gifUrl;
+  // Name-search sometimes returns a trimmed record — fetch the full one by ID for the GIF.
+  const detailRes = await fetch(`https://api.workoutxapp.com/v1/exercises/exercise/${best.id}`, {headers:{'X-WorkoutX-Key': state.workoutxKey}});
+  if(!detailRes.ok) return null;
+  const detail = await detailRes.json();
+  return detail.gifUrl || null;
+}
+function renderGbGif(url){
+  document.getElementById('gb-modal-gif-wrap').innerHTML = `<img src="${url}" alt="Ukázka cviku" style="width:100%;border-radius:16px;margin-bottom:10px;display:block;">`;
+}
+function closeGbExerciseModal(){ document.getElementById('gb-exercise-modal').classList.remove('show'); }
+
+/* ---- WorkoutX key settings ---- */
+function toggleWorkoutxSettings(){
+  const wrap = document.getElementById('workoutx-settings-wrap');
+  if(wrap.innerHTML){ wrap.innerHTML=''; return; }
+  wrap.innerHTML = `<input type="text" id="workoutx-key-input" placeholder="Vlož svůj WorkoutX API klíč (wx_...)" value="${state.workoutxKey?escapeAttr(state.workoutxKey):''}">
+    <div class="btn-row">
+      <button class="btn btn-leaf btn-sm" onclick="saveWorkoutxKey()">Uložit</button>
+      <button class="btn btn-ghost btn-sm" onclick="testWorkoutxKey()">🎬 Vyzkoušet</button>
+    </div>
+    <p class="location-note">Zdarma na workoutxapp.com (500 dotazů/měsíc, appka si nalezené GIFy ukládá, aby se nehledalo pořád dokola). Bez klíče appka ukáže jen textový popis, bez GIFu.</p>`;
+}
+function saveWorkoutxKey(){
+  const input = document.getElementById('workoutx-key-input');
+  const val = input ? input.value.trim() : '';
+  state.workoutxKey = val || null;
+  saveState();
+  showToast(val ? '🎬 Klíč uložen' : 'Klíč smazán, GymBro ukáže jen text');
+}
+async function testWorkoutxKey(){
+  const input = document.getElementById('workoutx-key-input');
+  const key = input ? input.value.trim() : state.workoutxKey;
+  if(!key){ showToast('Nejdřív vlož klíč'); return; }
+  const prevKey = state.workoutxKey;
+  state.workoutxKey = key;
+  showToast('🎬 Zkouším…');
+  try{
+    const url = await fetchWorkoutxGif('barbell squat');
+    if(url) showToast('✅ Funguje! GIF se našel.');
+    else showToast('⚠️ Klíč funguje, ale ukázku nenašlo — text bude fungovat i tak.');
+  }catch(e){
+    state.workoutxKey = prevKey;
+    showToast('❌ Klíč nefunguje nebo appka není online.');
+  }
+}
+
 function calcGymbro1RM(){
   const w = parseFloat(document.getElementById('gb-calc-weight').value);
   const r = parseInt(document.getElementById('gb-calc-reps').value, 10);
