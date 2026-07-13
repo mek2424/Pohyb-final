@@ -102,6 +102,8 @@
   .sugg-go{flex-shrink:0;background:linear-gradient(180deg,#8fe3a5,#3fa96a);color:#0f3d22;border:none;border-radius:999px;padding:10px 14px;font-weight:800;font-family:'Baloo 2',sans-serif;font-size:12.5px;box-shadow:0 4px 10px rgba(63,169,106,.4), inset 0 1px 1px rgba(255,255,255,.6);white-space:nowrap;}
   .sugg-go.plan-btn{background:linear-gradient(180deg,#ffe9b0,#f4a93b);color:#5a3c0a;box-shadow:0 4px 10px rgba(244,169,59,.4), inset 0 1px 1px rgba(255,255,255,.6);}
   .fav-star-btn{background:rgba(255,255,255,.6);border:1px solid rgba(244,169,59,.5);color:#f4a93b;width:32px;height:32px;border-radius:50%;font-size:16px;display:flex;align-items:center;justify-content:center;padding:0;}
+  .gb-ex-card.dragging{opacity:.5;}
+  .gb-drag-handle{color:var(--ink-soft);font-size:18px;user-select:none;-webkit-user-select:none;}
 
   .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
   .act-card-wrap{position:relative;}
@@ -334,6 +336,13 @@
       <div id="import-confirm-wrap"></div>
     </div>
 
+    <div class="glass small" style="opacity:.9;border:1px solid rgba(220,80,80,.35);">
+      <div class="loc-picker-row"><span class="loc-text">🗑️ Restart appky</span></div>
+      <p class="location-note" style="margin-top:6px;">Smaže veškerý postup (log, streak, XP, nálepky, deníček, GymBro deník i úrovně) — API klíče, oblíbená místa, uložené GIFy a vlastní aktivity zůstanou. Zvaž si napřed zálohu výše.</p>
+      <div id="restart-confirm-wrap"></div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="startAppRestart()">Restartovat appku</button>
+    </div>
+
     <div class="glass small" style="opacity:.9;">
       <div class="loc-picker-row">
         <span class="loc-text">🗺️ Mapy.com pro okolí (volitelné)</span>
@@ -362,10 +371,14 @@
   <!-- ============ GYMBRO ============ -->
   <section class="view" id="view-gymbro">
     <h1 class="display view-title">GymBro 💪</h1>
-    <p class="empty-note" style="margin-bottom:14px;">Samostatný parťák na trénink — nic odsud se nepočítá do streaku, XP dostaneš jako vždy za "Beru" u Posilovny.</p>
+    <p class="empty-note" style="margin-bottom:8px;">Samostatný parťák na trénink — nic odsud se nepočítá do streaku, XP dostaneš jako vždy za "Beru" u Posilovny.</p>
+    <div id="gb-last-workout-info"></div>
 
     <div class="glass">
-      <p class="field-label">Kde cvičíš?</p>
+      <div class="loc-picker-row" style="margin-bottom:10px;">
+        <p class="field-label" style="margin:0;">Kde cvičíš?</p>
+        <button class="btn btn-ghost btn-sm" onclick="gbUndo()">↩️ Vrátit zpět</button>
+      </div>
       <div class="chip-row" id="gb-env-chips">
         <button class="chip selected" data-val="gym">🏋️ Posilovna</button>
         <button class="chip" data-val="outdoor">🌳 Venkovní posilovna</button>
@@ -410,8 +423,18 @@
   <div class="glass modal-card">
     <p class="field-label" id="gb-modal-title" style="font-size:17px;"></p>
     <div id="gb-modal-gif-wrap"></div>
+    <div id="gb-modal-gif-alt-wrap"></div>
     <div id="gb-modal-content"></div>
     <button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="closeGbExerciseModal()">Zavřít</button>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="gb-postworkout-modal">
+  <div class="glass modal-card">
+    <p class="field-label" style="font-size:17px;">💪 Trénink hotový!</p>
+    <div id="gb-postworkout-gif"></div>
+    <div id="gb-postworkout-content"></div>
+    <button class="btn btn-leaf display" style="margin-top:10px;" onclick="closeGbPostWorkoutModal()">Paráda</button>
   </div>
 </div>
 
@@ -452,7 +475,7 @@ function getDefaultState(){
     activities: JSON.parse(JSON.stringify(DEFAULT_ACTIVITIES)),
     logs: [], restDays: [], frozenDays: [], freezesUsed: 0,
     lastReconciled: todayStr(), lastAction: null,
-    stickers: [], journal: [], giphyKey: null, discordWebhook: null, lastBackupAt: null, mapyApiKey: null, favoritePlaces: [], gymbroLog: [], workoutxKey: null, gymbroGifCache: {}, gymbroLadderLevel: {}, gymbroCustomSets: {}
+    stickers: [], journal: [], giphyKey: null, discordWebhook: null, lastBackupAt: null, mapyApiKey: null, favoritePlaces: [], gymbroLog: [], workoutxKey: null, gymbroGifCache: {}, gymbroLadderLevel: {}, gymbroCustomSets: {}, gymbroUndoStack: [], gymbroGifCandidates: {}
   };
 }
 
@@ -1116,6 +1139,7 @@ function goTo(view){
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('nav-'+view).classList.add('active');
   window.scrollTo(0,0);
+  if(view==='gymbro') renderGbLastWorkoutInfo();
 }
 function showToast(msg){
   const t=document.getElementById('toast'); t.innerHTML=msg;
@@ -1722,10 +1746,6 @@ const GYMBRO_EXERCISES = [
     detail:'Sedíš u kladky s nohama opřenýma o platformu, táhneš rukojeť k břichu.',
     caution:'Nekrč se v zádech dozadu při tahu, drž trup stabilní.',
     muscles:'Střed zad, biceps.'},
-  {id:'shrugs', name:'Zdvihy ramen (shrugs)', cat:'pull', env:'gym', muscle:'traps', sets:'3×12', desc:'Zvedání ramen s činkami, trapézové svaly.', gifQuery:'dumbbell shrug',
-    detail:'Stoje s činkami podél těla zvedáš ramena přímo nahoru směrem k uším.',
-    caution:'Ramena nekruž dokola, jen nahoru a dolů.',
-    muscles:'Trapézové svaly (horní záda a krk).'},
   {id:'hammer_curl', name:'Kladivový zdvih', cat:'pull', env:'gym', muscle:'biceps', sets:'3×12', desc:'Biceps s neutrálním úchopem, zapojuje i předloktí.', gifQuery:'dumbbell hammer curl',
     detail:'Stejné jako biceps curl, ale dlaně směřují k sobě (neutrální úchop) po celou dobu.',
     caution:'Lokty drž pevně u boků.',
@@ -1803,6 +1823,23 @@ const GYMBRO_EXERCISES = [
     detail:'Klečíš, nohy má někdo (nebo něco) pevně fixované, pomalu se skláníš vpřed a brzdíš pád zadní stranou stehen.',
     caution:'Velmi náročný cvik – jdi na to postupně, nejdřív jen malý rozsah pohybu.',
     muscles:'Zadní stehna intenzivně.'},
+  {id:'box_step_down', name:'Seskok z bedny/schodu', cat:'legs', env:'outdoor', muscle:'quads', sets:'3×5/nohu', plyo:true, desc:'Krátký seskok z nízkého schodu, měkké doskočení. Prostorově nenáročné.', gifQuery:'box step down',
+    detail:'Postavíš se na nízký schod nebo obrubník, seskočíš dolů jednou nohou a měkce doskočíš, pokrč koleno při dopadu.',
+    caution:'Začni na fakt nízké výšce a s málo opakováními, dopad má být tichý a kontrolovaný, ne tvrdý.',
+    muscles:'Čtyřhlavý sval stehenní, stabilita kotníku a kolena.'},
+  {id:'small_hops', name:'Drobné výskoky na místě', cat:'legs', env:'outdoor', muscle:'quads', sets:'3×8–10', plyo:true, desc:'Malé, rychlé poskoky na místě, vejdou se na jedno místo bez rozběhu.', gifQuery:'small hop jump',
+    detail:'Lehké, rychlé poskoky na místě, jen pár centimetrů nad zem, ruce volně podél těla nebo v bok.',
+    caution:'Doskakuj na měkká kolena, ne na propnuté nohy.',
+    muscles:'Lýtka, čtyřhlavý sval stehenní.'},
+  {id:'tuck_jump_small', name:'Mírný tuck jump', cat:'legs', env:'outdoor', muscle:'quads', sets:'3×5–6', plyo:true, desc:'Výskok s mírným přitažením kolen k hrudníku, menší rozsah než plný tuck jump.', gifQuery:'tuck jump',
+    detail:'Z mírného podřepu vyskočíš nahoru a kolena jen lehce přitáhneš směrem k hrudníku, pak měkce dopadneš.',
+    caution:'Náročné na klouby – drž rozsah pohybu malý, hlavně na začátku, a dopadej potichu.',
+    muscles:'Čtyřhlavý sval stehenní, hýždě, výbušná síla.'},
+  // ---- Švihadlo — samostatný žolík mimo kategorie, viz buildGymbroWorkout ----
+  {id:'jump_rope', name:'Švihadlo', cat:'wildcard', env:'both', muscle:'calves', sets:'3×60s', desc:'Klasické skákání přes švihadlo, celé tělo a mírné kardio navíc.', gifQuery:'jump rope',
+    detail:'Skáčeš přes švihadlo na místě, plynulým rytmem, dopadáš na špičky.',
+    caution:'Dopadej měkce na špičky, ne na celé chodidlo nebo paty.',
+    muscles:'Lýtka, celotělová koordinace, mírné kardio.'},
   // ---- Core ----
   {id:'plank', name:'Prkno', cat:'core', env:'both', muscle:'abs', sets:'3×30–60s', desc:'Statická výdrž v opoře na předloktích, celý core.', gifQuery:'plank',
     detail:'Opora na předloktích a špičkách, tělo v jedné rovině od hlavy k patám, vydržíš.',
@@ -1861,25 +1898,74 @@ function gbScoreExercise(e, env){
   return gbLastUsedDays(e.id) + Math.random()*3 + (e.key?2:0) + envBonus;
 }
 const GB_LADDERS = {
-  pullups: ['inverted_rows', 'negative_pullups', 'pullups'],
-  dips: ['bench_dips', 'dips']
+  // Each level is a LIST of ids — the top level of pullups includes all three full
+  // bodyweight-pull variants (grip style stops mattering once you can do any of them).
+  pullups: [['inverted_rows'], ['negative_pullups'], ['pullups','chinups','wide_pullups']],
+  dips: [['bench_dips'], ['dips']]
 };
-function gbLadderFamilyFor(exId){ return Object.keys(GB_LADDERS).find(fam=>GB_LADDERS[fam].includes(exId)) || null; }
-function gbCurrentLadderExerciseId(family){ const level = state.gymbroLadderLevel[family]||0; return GB_LADDERS[family][Math.min(level, GB_LADDERS[family].length-1)]; }
+function gbLadderFamilyFor(exId){ return Object.keys(GB_LADDERS).find(fam=>GB_LADDERS[fam].some(level=>level.includes(exId))) || null; }
+function gbCurrentLadderIds(family){ const level = state.gymbroLadderLevel[family]||0; return GB_LADDERS[family][Math.min(level, GB_LADDERS[family].length-1)]; }
+
+/* ---- Undo, up to 3 steps, for GymBro's own adjustments ---- */
+function gbPushUndo(action){
+  state.gymbroUndoStack = state.gymbroUndoStack || [];
+  state.gymbroUndoStack.push(action);
+  if(state.gymbroUndoStack.length>3) state.gymbroUndoStack.shift();
+  saveState();
+}
+function gbUndo(){
+  if(!state.gymbroUndoStack || !state.gymbroUndoStack.length){ showToast('Není co vracet zpět.'); return; }
+  const action = state.gymbroUndoStack.pop();
+  if(action.type==='sets'){
+    if(action.prevValue===null) delete state.gymbroCustomSets[action.exId];
+    else state.gymbroCustomSets[action.exId] = action.prevValue;
+  } else if(action.type==='ladder'){
+    state.gymbroLadderLevel[action.family] = action.prevLevel;
+  } else if(action.type==='swap'){
+    if(gbCurrentWorkout){
+      const idx = gbCurrentWorkout.exercises.findIndex(e=>e.id===action.newId);
+      const oldEx = GYMBRO_EXERCISES.find(x=>x.id===action.oldId);
+      if(idx!==-1 && oldEx) gbCurrentWorkout.exercises[idx] = oldEx;
+    }
+  } else if(action.type==='finish'){
+    state.gymbroLog = state.gymbroLog.filter(l=>l.id!==action.logId);
+    gbCurrentWorkout = action.workoutSnapshot;
+  }
+  saveState();
+  showToast('↩️ Vráceno zpět');
+  renderGymbroWorkout();
+}
 function gbLevelUp(exId){
   const family = gbLadderFamilyFor(exId);
   if(!family) return;
   const maxLevel = GB_LADDERS[family].length-1;
   const current = state.gymbroLadderLevel[family]||0;
   if(current>=maxLevel){ showToast('Už jsi na nejtěžší úrovni tohohle cviku 💪'); return; }
+  gbPushUndo({type:'ladder', family, prevLevel:current});
   state.gymbroLadderLevel[family] = current+1;
   saveState();
-  const newEx = GYMBRO_EXERCISES.find(x=>x.id===gbCurrentLadderExerciseId(family));
+  const newEx = GYMBRO_EXERCISES.find(x=>x.id===gbCurrentLadderIds(family)[0]);
   if(gbCurrentWorkout){
     const idx = gbCurrentWorkout.exercises.findIndex(e=>e.id===exId);
     if(idx!==-1 && newEx) gbCurrentWorkout.exercises[idx] = newEx;
   }
   showToast('⬆️ Level nahoru! Teď uvidíš: '+(newEx?newEx.name:''));
+  renderGymbroWorkout();
+}
+function gbLevelDown(exId){
+  const family = gbLadderFamilyFor(exId);
+  if(!family) return;
+  const current = state.gymbroLadderLevel[family]||0;
+  if(current<=0){ showToast('Už jsi na nejlehčí úrovni tohohle cviku.'); return; }
+  gbPushUndo({type:'ladder', family, prevLevel:current});
+  state.gymbroLadderLevel[family] = current-1;
+  saveState();
+  const newEx = GYMBRO_EXERCISES.find(x=>x.id===gbCurrentLadderIds(family)[0]);
+  if(gbCurrentWorkout){
+    const idx = gbCurrentWorkout.exercises.findIndex(e=>e.id===exId);
+    if(idx!==-1 && newEx) gbCurrentWorkout.exercises[idx] = newEx;
+  }
+  showToast('⬇️ O level níž. Teď uvidíš: '+(newEx?newEx.name:''));
   renderGymbroWorkout();
 }
 function gbParseSets(str){
@@ -1910,6 +1996,8 @@ function gbEffectiveSets(ex){ return (state.gymbroCustomSets && state.gymbroCust
 function gbAdjustSets(exId, dir){
   const ex = GYMBRO_EXERCISES.find(e=>e.id===exId);
   if(!ex) return;
+  const prevValue = (state.gymbroCustomSets && state.gymbroCustomSets[exId]) || null;
+  gbPushUndo({type:'sets', exId, prevValue});
   const next = gbBumpSets(gbEffectiveSets(ex), dir);
   state.gymbroCustomSets = state.gymbroCustomSets || {};
   state.gymbroCustomSets[exId] = next;
@@ -1923,7 +2011,7 @@ function gbPickForCategory(cat, env, count){
   const pool = GYMBRO_EXERCISES.filter(e=>{
     if(e.cat!==cat || (e.env!==env && e.env!=='both')) return false;
     const family = gbLadderFamilyFor(e.id);
-    if(family) return e.id===gbCurrentLadderExerciseId(family);
+    if(family) return gbCurrentLadderIds(family).includes(e.id);
     return true;
   });
   const scored = pool.map(e=>({...e, score: gbScoreExercise(e, env)}));
@@ -1949,34 +2037,154 @@ function gbPickForCategory(cat, env, count){
   }
   return picked;
 }
+function gbBackfillOutdoor(existingExercises, env, needed){
+  // Outdoor push/pull sometimes can't fill 5 slots (some muscles have zero bodyweight
+  // variants) — backfill the gap from legs+core instead of leaving a short workout.
+  const muscleCount = {};
+  existingExercises.forEach(e=>{ muscleCount[e.muscle]=(muscleCount[e.muscle]||0)+1; });
+  const pool = GYMBRO_EXERCISES.filter(e=>{
+    if(e.cat!=='legs' && e.cat!=='core') return false;
+    if(e.env!==env && e.env!=='both') return false;
+    const family = gbLadderFamilyFor(e.id);
+    if(family) return gbCurrentLadderIds(family).includes(e.id);
+    return true;
+  });
+  const scored = pool.map(e=>({...e, score: gbScoreExercise(e, env)}));
+  scored.sort((a,b)=>b.score-a.score);
+  const picked = [];
+  for(const e of scored){
+    const mc = muscleCount[e.muscle]||0;
+    if(mc>=2) continue;
+    picked.push(e);
+    muscleCount[e.muscle] = mc+1;
+    if(picked.length>=needed) break;
+  }
+  // Guarantee at least one plyometric pick among the backfill, if one fits.
+  if(picked.length && !picked.some(e=>e.plyo)){
+    const bestPlyo = scored.find(e=>e.plyo && (muscleCount[e.muscle]||0)<2 && !picked.includes(e));
+    if(bestPlyo){
+      const weakest = picked[picked.length-1];
+      muscleCount[weakest.muscle]--;
+      picked[picked.length-1] = bestPlyo;
+      muscleCount[bestPlyo.muscle] = (muscleCount[bestPlyo.muscle]||0)+1;
+    }
+  }
+  return picked;
+}
 function buildGymbroWorkout(cat){
   const env = gbCurrentEnv;
-  const exercises = cat==='legs_core'
+  let exercises = cat==='legs_core'
     ? gbPickForCategory('legs', env, 3).concat(gbPickForCategory('core', env, 2))
     : gbPickForCategory(cat, env, 5);
-  gbCurrentWorkout = {cat, env, exercises};
+  if(env==='outdoor' && cat!=='legs_core' && exercises.length<5){
+    exercises = exercises.concat(gbBackfillOutdoor(exercises, env, 5-exercises.length));
+  }
+  // Small (20%) chance of a jump rope wildcard as a genuine bonus 6th item — never
+  // replaces anything, never counts toward the muscle cap, can repeat on regeneration.
+  if(Math.random()<0.20){
+    const rope = GYMBRO_EXERCISES.find(e=>e.id==='jump_rope');
+    if(rope) exercises = exercises.concat(rope);
+  }
+  gbCurrentWorkout = {cat, env, exercises: exercises.map(e=>({...e, done:false}))};
   renderGymbroWorkout();
+}
+function gbSwapExercise(exId){
+  if(!gbCurrentWorkout) return;
+  const idx = gbCurrentWorkout.exercises.findIndex(e=>e.id===exId);
+  if(idx===-1) return;
+  const oldEx = gbCurrentWorkout.exercises[idx];
+  const env = gbCurrentWorkout.env;
+  const inWorkout = new Set(gbCurrentWorkout.exercises.map(e=>e.id));
+  const pool = GYMBRO_EXERCISES.filter(e=>{
+    if(inWorkout.has(e.id) || e.id===oldEx.id) return false;
+    if(e.cat!==oldEx.cat) return false;
+    if(e.env!==env && e.env!=='both') return false;
+    const family = gbLadderFamilyFor(e.id);
+    if(family) return gbCurrentLadderIds(family).includes(e.id);
+    return true;
+  });
+  const others = gbCurrentWorkout.exercises.filter((e,i)=>i!==idx);
+  const muscleCount = {};
+  others.forEach(e=>{ muscleCount[e.muscle]=(muscleCount[e.muscle]||0)+1; });
+  const sameMuscleFit = pool.filter(e=>e.muscle===oldEx.muscle && (muscleCount[e.muscle]||0)<2);
+  const anyFit = pool.filter(e=>(muscleCount[e.muscle]||0)<2);
+  const candidates = sameMuscleFit.length ? sameMuscleFit : anyFit;
+  if(!candidates.length){ showToast('Nenašel jsem žádnou rozumnou náhradu pro tenhle cvik.'); return; }
+  const scored = candidates.map(e=>({...e, score: gbScoreExercise(e, env)}));
+  scored.sort((a,b)=>b.score-a.score);
+  const newEx = {...scored[0], done:false};
+  gbPushUndo({type:'swap', oldId:oldEx.id, newId:newEx.id});
+  gbCurrentWorkout.exercises[idx] = newEx;
+  renderGymbroWorkout();
+}
+function gbToggleDone(exId){
+  if(!gbCurrentWorkout) return;
+  const ex = gbCurrentWorkout.exercises.find(e=>e.id===exId);
+  if(ex) ex.done = !ex.done;
+  renderGymbroWorkout();
+}
+function gbReorderExercise(draggedId, targetId){
+  if(!gbCurrentWorkout || draggedId===targetId) return;
+  const arr = gbCurrentWorkout.exercises;
+  const fromIdx = arr.findIndex(e=>e.id===draggedId);
+  const toIdx = arr.findIndex(e=>e.id===targetId);
+  if(fromIdx===-1 || toIdx===-1) return;
+  const [item] = arr.splice(fromIdx,1);
+  arr.splice(toIdx,0,item);
+  renderGymbroWorkout();
+}
+function bindGbDrag(el, exId){
+  let dragging=false;
+  el.addEventListener('pointerdown', e=>{
+    dragging=true; try{ el.setPointerCapture(e.pointerId); }catch(err){}
+    el.classList.add('dragging'); e.preventDefault();
+  });
+  el.addEventListener('pointermove', e=>{
+    if(!dragging) return;
+    document.querySelectorAll('.gb-ex-card').forEach(c=>c.classList.remove('drop-hover'));
+    const hovered = document.elementFromPoint(e.clientX, e.clientY);
+    const targetEl = hovered ? hovered.closest('.gb-ex-card') : null;
+    if(targetEl && targetEl!==el.closest('.gb-ex-card')) targetEl.classList.add('drop-hover');
+  });
+  el.addEventListener('pointerup', e=>{
+    if(!dragging) return;
+    dragging=false;
+    document.querySelectorAll('.gb-ex-card').forEach(c=>c.classList.remove('drop-hover'));
+    const hovered = document.elementFromPoint(e.clientX, e.clientY);
+    const targetEl = hovered ? hovered.closest('.gb-ex-card') : null;
+    if(targetEl && targetEl.dataset.exId) gbReorderExercise(exId, targetEl.dataset.exId);
+    else renderGymbroWorkout();
+  });
+  el.addEventListener('pointercancel', ()=>{ dragging=false; renderGymbroWorkout(); });
 }
 function renderGymbroWorkout(){
   const wrap = document.getElementById('gb-workout-wrap');
   if(!gbCurrentWorkout){ wrap.innerHTML=''; return; }
   const w = gbCurrentWorkout;
   wrap.innerHTML = `<div class="glass">
-    <p class="field-label">${GB_CAT_LABEL[w.cat]} · ${w.env==='gym'?'🏋️ Posilovna':'🌳 Venkovní posilovna'}</p>
+    <p class="field-label">${GB_CAT_LABEL[w.cat]||w.cat} · ${w.env==='gym'?'🏋️ Posilovna':'🌳 Venkovní posilovna'}</p>
     ${w.exercises.map(e=>{
       const effSets = gbEffectiveSets(e);
       const family = gbLadderFamilyFor(e.id);
       const canLevelUp = family && (state.gymbroLadderLevel[family]||0) < GB_LADDERS[family].length-1;
-      const levelBtn = canLevelUp ? `<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();gbLevelUp('${e.id}')">⬆️ Zvládám, chci těžší</button>` : '';
-      return `<div class="journal-entry">
-        <div style="cursor:pointer;" onclick="openGbExerciseModal('${e.id}')">
-          <div class="jdate">${e.key?'⭐ ':''}${escapeHTML(e.name)} — ${effSets} <span style="font-size:11px;opacity:.6;">ℹ️ detail</span></div>
-          <div class="jtext">${escapeHTML(e.desc)}</div>
+      const canLevelDown = family && (state.gymbroLadderLevel[family]||0) > 0;
+      const levelBtns = family ? `
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();gbLevelUp('${e.id}')" ${canLevelUp?'':'disabled style="opacity:.35;"'}>⬆️ Chci těžší</button>
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();gbLevelDown('${e.id}')" ${canLevelDown?'':'disabled style="opacity:.35;"'}>⬇️ Chci lehčí</button>` : '';
+      return `<div class="journal-entry gb-ex-card" data-ex-id="${e.id}" style="${e.done?'opacity:.55;':''}">
+        <div style="display:flex;gap:8px;align-items:flex-start;">
+          <span class="gb-drag-handle" style="cursor:grab;padding:4px;touch-action:none;">⠿</span>
+          <input type="checkbox" ${e.done?'checked':''} onclick="event.stopPropagation();gbToggleDone('${e.id}')" style="margin-top:4px;width:20px;height:20px;">
+          <div style="flex:1;cursor:pointer;" onclick="openGbExerciseModal('${e.id}')">
+            <div class="jdate" style="${e.done?'text-decoration:line-through;':''}">${e.key?'⭐ ':''}${escapeHTML(e.name)} — ${effSets} <span style="font-size:11px;opacity:.6;">ℹ️ detail</span></div>
+            <div class="jtext">${escapeHTML(e.desc)}</div>
+          </div>
         </div>
         <div class="btn-row" style="margin-top:8px;">
-          <button class="btn btn-ghost btn-sm" onclick="gbAdjustSets('${e.id}',-1)">🔽</button>
           <button class="btn btn-ghost btn-sm" onclick="gbAdjustSets('${e.id}',1)">🔼</button>
-          ${levelBtn}
+          <button class="btn btn-ghost btn-sm" onclick="gbAdjustSets('${e.id}',-1)">🔽</button>
+          <button class="btn btn-ghost btn-sm" onclick="gbSwapExercise('${e.id}')">🔄 Vyměnit</button>
+          ${levelBtns}
         </div>
       </div>`;
     }).join('')}
@@ -1985,14 +2193,117 @@ function renderGymbroWorkout(){
       <button class="btn btn-ghost btn-sm" style="align-self:center;" onclick="buildGymbroWorkout('${w.cat}')">🔄 Jiná sestava</button>
     </div>
   </div>`;
+  wrap.querySelectorAll('.gb-drag-handle').forEach(handle=>{
+    const card = handle.closest('.gb-ex-card');
+    if(card) bindGbDrag(handle, card.dataset.exId);
+  });
 }
+
+const GB_STRETCH_TIP = {
+  chest:'Opři se rukou o rám dveří a mírně pootoč tělo do strany.',
+  shoulders:'Přitáhni jednu paži přes hrudník druhou rukou.',
+  triceps:'Paži za hlavu, druhou rukou mírně tlač loket dolů.',
+  back:'Kočičí hřbet, nebo sed s předklonem a rukama vpřed.',
+  rear_delts:'Paže přes hrudník, druhou rukou přitáhni k tělu.',
+  biceps:'Paže natažená, dlaň k zemi, mírný tah zápěstí opačným směrem.',
+  quads:'Ve stoje přitáhni patu k hýždi, koleno u kolena.',
+  hamstrings:'Předklon s jednou nataženou nohou opřenou třeba o schod.',
+  glutes:'Vsedě kotník přes koleno druhé nohy, jemný předklon.',
+  calves:'Výpad vpřed, zadní pata na zemi, tlač boky vpřed.',
+  abs:'Leh na břiše, zvedni horní část těla (pozice kobra).',
+  obliques:'Ve stoje pomalý úklon do strany, ruka nad hlavou.',
+  lower_back:'Embryo pozice — kolena přitažená k hrudníku.'
+};
+function gbLastWorkoutSummary(){
+  if(!state.gymbroLog.length) return null;
+  const last = state.gymbroLog.reduce((a,b)=> a.date>b.date ? a : b);
+  return 'Naposledy jsi cvičil '+(GB_CAT_LABEL[last.cat]||last.cat)+' v '+(last.env==='gym'?'posilovně':'venkovní posilovně')+'.';
+}
+function renderGbLastWorkoutInfo(){
+  const el = document.getElementById('gb-last-workout-info');
+  if(!el) return;
+  const summary = gbLastWorkoutSummary();
+  el.innerHTML = summary ? `<p class="location-note" style="margin-bottom:10px;">📋 ${summary}</p>` : '';
+}
+async function openGbPostWorkoutModal(workout){
+  const muscles = [...new Set(workout.exercises.map(e=>e.muscle))];
+  document.getElementById('gb-postworkout-content').innerHTML = '<p class="jtext" style="margin-bottom:10px;">Pár tipů na protažení toho, co jsi právě zatížil:</p>'
+    + muscles.map(m=>`<div class="journal-entry"><div class="jtext">${escapeHTML(GB_STRETCH_TIP[m]||'Pár minut lehkého protažení.')}</div></div>`).join('');
+  document.getElementById('gb-postworkout-gif').innerHTML = '';
+  document.getElementById('gb-postworkout-modal').classList.add('show');
+  if(state.giphyKey){
+    try{
+      const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${encodeURIComponent(state.giphyKey)}&q=tom+selleck&limit=15&rating=g`);
+      if(res.ok){
+        const data = await res.json();
+        if(data.data && data.data.length){
+          const pick = data.data[Math.floor(Math.random()*data.data.length)];
+          const gifUrl = pick.images && pick.images.original && pick.images.original.url;
+          if(gifUrl) document.getElementById('gb-postworkout-gif').innerHTML = `<img src="${gifUrl}" style="width:100%;border-radius:16px;margin-bottom:10px;">`;
+        }
+      }
+    }catch(e){ console.warn('Giphy fetch failed', e); }
+  }
+}
+function closeGbPostWorkoutModal(){ document.getElementById('gb-postworkout-modal').classList.remove('show'); }
 function finishGymbroWorkout(){
   if(!gbCurrentWorkout) return;
-  state.gymbroLog.push({id:'gb'+Date.now(), date:todayStr(), cat:gbCurrentWorkout.cat, env:gbCurrentWorkout.env, exercises:gbCurrentWorkout.exercises.map(e=>({id:e.id, name:e.name}))});
+  const logId = 'gb'+Date.now();
+  const workoutSnapshot = JSON.parse(JSON.stringify(gbCurrentWorkout));
+  gbPushUndo({type:'finish', logId, workoutSnapshot});
+  state.gymbroLog.push({id:logId, date:todayStr(), cat:gbCurrentWorkout.cat, env:gbCurrentWorkout.env, exercises:gbCurrentWorkout.exercises.map(e=>({id:e.id, name:e.name, muscle:e.muscle}))});
   saveState();
+  openGbPostWorkoutModal(gbCurrentWorkout);
   gbCurrentWorkout = null;
   document.getElementById('gb-workout-wrap').innerHTML = '';
+  renderGbLastWorkoutInfo();
   showToast('💪 Trénink zapsán do GymBro deníku');
+}
+
+/* ---- App-wide restart: clears progress, keeps API keys / favorites / GIF cache / custom activities ---- */
+function startAppRestart(){
+  const wrap = document.getElementById('restart-confirm-wrap');
+  wrap.innerHTML = `<p class="location-note" style="color:#b23b3b;margin:8px 0;">Fakt smazat všechen postup? Tohle nejde vrátit zpět.</p>
+    <div class="btn-row">
+      <button class="btn btn-leaf btn-sm" style="background:linear-gradient(180deg,#ffb3b3,#e05a5a);color:#fff;" onclick="confirmAppRestart()">Ano, smazat</button>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('restart-confirm-wrap').innerHTML=''">Zrušit</button>
+    </div>`;
+}
+function confirmAppRestart(){
+  const keep = {
+    giphyKey: state.giphyKey, discordWebhook: state.discordWebhook, mapyApiKey: state.mapyApiKey,
+    workoutxKey: state.workoutxKey, favoritePlaces: state.favoritePlaces, gymbroGifCache: state.gymbroGifCache,
+    gymbroGifCandidates: state.gymbroGifCandidates,
+    activities: state.activities
+  };
+  state = Object.assign(getDefaultState(), keep);
+  saveState();
+  document.getElementById('restart-confirm-wrap').innerHTML = '';
+  showToast('🗑️ Appka restartována — API klíče a oblíbená místa zůstaly');
+  renderAll();
+  renderGbLastWorkoutInfo();
+}
+
+/* ---- Alternate GIF: keep a few extra candidates from the original search, offer a confirm-gated swap ---- */
+function gbStartAltGif(exId){
+  const wrap = document.getElementById('gb-modal-gif-alt-wrap');
+  const candidates = (state.gymbroGifCandidates && state.gymbroGifCandidates[exId]) || [];
+  if(!candidates.length){ wrap.innerHTML = '<p class="empty-note">Žádný další kandidát není uložený.</p>'; return; }
+  wrap.innerHTML = `<p class="location-note">Vyměnit za jiný nalezený GIF?</p>
+    <div class="btn-row">
+      <button class="btn btn-leaf btn-sm" onclick="gbConfirmAltGif('${exId}')">Ano, vyměnit</button>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('gb-modal-gif-alt-wrap').innerHTML=''">Zrušit</button>
+    </div>`;
+}
+function gbConfirmAltGif(exId){
+  const candidates = state.gymbroGifCandidates[exId];
+  if(!candidates || !candidates.length) return;
+  const next = candidates.shift(); // rotate: take the next candidate, cycle it to the back for next time
+  candidates.push(state.gymbroGifCache[exId]);
+  state.gymbroGifCache[exId] = next;
+  saveState();
+  renderGbGif(next);
+  document.getElementById('gb-modal-gif-alt-wrap').innerHTML = '';
 }
 
 /* ---- Exercise detail popup: text always shown, GIF fetched from WorkoutX (optional, cached) ---- */
@@ -2006,21 +2317,26 @@ async function openGbExerciseModal(exId){
     <p class="jtext"><strong>💪 Zapojené svaly:</strong> ${escapeHTML(ex.muscles)}</p>`;
   const gifWrap = document.getElementById('gb-modal-gif-wrap');
   gifWrap.innerHTML = '';
+  document.getElementById('gb-modal-gif-alt-wrap').innerHTML = '';
   document.getElementById('gb-exercise-modal').classList.add('show');
 
   if(state.gymbroGifCache && state.gymbroGifCache[exId]){
     renderGbGif(state.gymbroGifCache[exId]);
+    gbRenderAltGifLink(exId);
     return;
   }
   if(!state.workoutxKey) return; // no key set — text-only popup, exactly as agreed
   gifWrap.innerHTML = '<p class="empty-note">🎬 Hledám ukázku…</p>';
   try{
-    const url = await fetchWorkoutxGif(ex.gifQuery, ex.env);
-    if(url){
+    const found = await fetchWorkoutxGif(ex.gifQuery, ex.env);
+    if(found){
       state.gymbroGifCache = state.gymbroGifCache || {};
-      state.gymbroGifCache[exId] = url;
+      state.gymbroGifCache[exId] = found.best;
+      state.gymbroGifCandidates = state.gymbroGifCandidates || {};
+      state.gymbroGifCandidates[exId] = found.alternates;
       saveState();
-      renderGbGif(url);
+      renderGbGif(found.best);
+      gbRenderAltGifLink(exId);
     } else {
       gifWrap.innerHTML = ''; // not found — text-only, no wrong/mismatched image
     }
@@ -2028,6 +2344,11 @@ async function openGbExerciseModal(exId){
     console.warn('WorkoutX GIF fetch failed', e);
     gifWrap.innerHTML = '';
   }
+}
+function gbRenderAltGifLink(exId){
+  const wrap = document.getElementById('gb-modal-gif-alt-wrap');
+  const candidates = (state.gymbroGifCandidates && state.gymbroGifCandidates[exId]) || [];
+  wrap.innerHTML = candidates.length ? `<p class="location-note" style="cursor:pointer;text-decoration:underline;" onclick="gbStartAltGif('${exId}')">Nesedí GIF? Zkusit jiný</p>` : '';
 }
 function gbNameMatchScore(candidateName, query){
   const c = (candidateName||'').toLowerCase();
@@ -2057,13 +2378,19 @@ async function fetchWorkoutxGif(query, env){
   if(!results || !results.length) return null;
   const scored = results.map(r=>({...r, _score: gbScoreWorkoutxResult(r, query, env)}));
   scored.sort((a,b)=>b._score-a._score);
-  const best = scored[0];
-  if(best.gifUrl) return best.gifUrl;
-  // Name-search sometimes returns a trimmed record — fetch the full one by ID for the GIF.
-  const detailRes = await fetch(`https://api.workoutxapp.com/v1/exercises/exercise/${best.id}`, {headers:{'X-WorkoutX-Key': state.workoutxKey}});
-  if(!detailRes.ok) return null;
-  const detail = await detailRes.json();
-  return detail.gifUrl || null;
+  // Resolve GIFs for the top few candidates (not just the winner) — costs a couple extra
+  // requests once per exercise (cached after), but gives "try another" real options.
+  const topN = scored.slice(0, 3);
+  const resolved = [];
+  for(const r of topN){
+    if(r.gifUrl){ resolved.push(r.gifUrl); continue; }
+    try{
+      const detailRes = await fetch(`https://api.workoutxapp.com/v1/exercises/exercise/${r.id}`, {headers:{'X-WorkoutX-Key': state.workoutxKey}});
+      if(detailRes.ok){ const detail = await detailRes.json(); if(detail.gifUrl) resolved.push(detail.gifUrl); }
+    }catch(e){ /* skip this one candidate, keep going */ }
+  }
+  if(!resolved.length) return null;
+  return {best: resolved[0], alternates: resolved.slice(1)};
 }
 function renderGbGif(url){
   // A plain <img> tag can't send the X-WorkoutX-Key header, but their API also accepts
