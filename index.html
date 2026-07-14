@@ -2268,7 +2268,7 @@ async function openGbPostWorkoutModal(workout){
   document.getElementById('gb-postworkout-modal').classList.add('show');
   if(state.giphyKey){
     try{
-      const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${encodeURIComponent(state.giphyKey)}&q=gullible&limit=15&rating=g`);
+      const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${encodeURIComponent(state.giphyKey)}&q=tom+selleck&limit=15&rating=g`);
       if(res.ok){
         const data = await res.json();
         if(data.data && data.data.length){
