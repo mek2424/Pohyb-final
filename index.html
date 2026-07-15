@@ -2409,6 +2409,7 @@ function renderGbManage(){
   if(gbManageView==='hidden-list'){ renderGbHiddenList(wrap); return; }
   renderGbManageList(wrap);
 }
+let gbFilterCat = 'all', gbFilterEnv = 'all', gbFilterMuscle = 'all', gbFilterSearch = '';
 function renderGbManageList(wrap){
   const tabs = `<div class="chip-row" style="margin-bottom:10px;">
     <button class="chip ${gbManageTab==='exercises'?'selected':''}" onclick="gbSwitchManageTab('exercises')">Cviky</button>
@@ -2416,19 +2417,23 @@ function renderGbManageList(wrap){
   </div>`;
   if(gbManageTab==='exercises'){
     const all = gbAllExercises();
-    const customIds = new Set((state.gymbroCustomExercises||[]).map(e=>e.id));
-    const rows = all.map(e=>`<div class="journal-entry">
-        <div class="jdate">${escapeHTML(e.name)} <span style="font-size:11px;opacity:.6;">(${e.cat}${e.muscle?', '+escapeHTML(e.muscle):''})</span></div>
-        <div class="btn-row" style="margin-top:6px;">
-          <button class="btn btn-ghost btn-sm" onclick="gbStartEditExercise('${e.id}')">✏️ Upravit</button>
-          ${customIds.has(e.id)
-            ? `<button class="btn btn-ghost btn-sm" onclick="gbDeleteCustomExercise('${e.id}')">🗑 Smazat</button>`
-            : `<button class="btn btn-ghost btn-sm" onclick="gbHideBuiltinExercise('${e.id}')">🙈 Skrýt</button>`}
-        </div></div>`).join('');
-    const hiddenCount = (state.gymbroHiddenBuiltins||[]).length;
-    const hiddenNote = hiddenCount ? `<p class="location-note" style="cursor:pointer;text-decoration:underline;" onclick="gbManageView='hidden-list'; renderGbManage();">Skryto: ${hiddenCount} cviků — zobrazit / obnovit</p>` : '';
-    wrap.innerHTML = tabs + `<button class="btn btn-leaf btn-sm" style="margin-bottom:10px;" onclick="gbStartNewExercise()">+ Nový cvik</button>` + hiddenNote + rows;
-  } else {
+    const muscles = [...new Set(all.map(e=>e.muscle).filter(Boolean))].sort();
+    const catChip = (val,label) => `<button class="chip ${gbFilterCat===val?'selected':''}" onclick="gbSetFilter('cat','${val}')">${label}</button>`;
+    const envChip = (val,label) => `<button class="chip ${gbFilterEnv===val?'selected':''}" onclick="gbSetFilter('env','${val}')">${label}</button>`;
+    const filterUI = `
+      <input type="text" id="gbf-search" placeholder="Hledat podle jména…" value="${escapeAttr(gbFilterSearch)}" oninput="gbSetSearch(this.value)" style="margin-bottom:8px;">
+      <div class="chip-row" style="margin-bottom:6px;">${catChip('all','Vše')}${catChip('push','Přední vršek')}${catChip('pull','Zadní vršek')}${catChip('legs','Nohy')}${catChip('core','Core')}</div>
+      <div class="chip-row" style="margin-bottom:6px;">${envChip('all','Vše')}${envChip('gym','🏋️ Posilovna')}${envChip('outdoor','🌳 Venkovní')}</div>
+      <select id="gbf-muscle-filter" onchange="gbSetFilter('muscle', this.value)" style="width:100%;padding:11px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.9);background:rgba(255,255,255,.65);font-weight:700;margin-bottom:10px;">
+        <option value="all" ${gbFilterMuscle==='all'?'selected':''}>Všechny svaly</option>
+        ${muscles.map(m=>`<option value="${escapeAttr(m)}" ${gbFilterMuscle===m?'selected':''}>${escapeHTML(m)}</option>`).join('')}
+      </select>
+      <div id="gb-exercise-list-results"></div>`;
+    wrap.innerHTML = tabs + `<button class="btn btn-leaf btn-sm" style="margin-bottom:10px;" onclick="gbStartNewExercise()">+ Nový cvik</button>` + filterUI;
+    renderGbExerciseListResults();
+    return;
+  }
+  {
     const ladders = gbAllLadders();
     const rows = Object.keys(ladders).map(fam=>{
       const chain = ladders[fam].map(level=>level.map(id=>{ const ex=gbFindExercise(id); return ex?ex.name:id; }).join(' / ')).join(' → ');
@@ -2442,6 +2447,38 @@ function renderGbManageList(wrap){
   }
 }
 function gbSwitchManageTab(tab){ gbManageTab = tab; renderGbManage(); }
+function renderGbExerciseListResults(){
+  const resultsWrap = document.getElementById('gb-exercise-list-results');
+  if(!resultsWrap) return;
+  const all = gbAllExercises();
+  const customIds = new Set((state.gymbroCustomExercises||[]).map(e=>e.id));
+  const filtered = all.filter(e=>{
+    if(gbFilterCat!=='all' && e.cat!==gbFilterCat) return false;
+    if(gbFilterEnv!=='all' && e.env!==gbFilterEnv && e.env!=='both') return false;
+    if(gbFilterMuscle!=='all' && e.muscle!==gbFilterMuscle) return false;
+    if(gbFilterSearch && !e.name.toLowerCase().includes(gbFilterSearch.toLowerCase())) return false;
+    return true;
+  });
+  const rows = filtered.map(e=>`<div class="journal-entry">
+      <div class="jdate">${escapeHTML(e.name)} <span style="font-size:11px;opacity:.6;">(${e.cat}${e.muscle?', '+escapeHTML(e.muscle):''})</span></div>
+      <div class="btn-row" style="margin-top:6px;">
+        <button class="btn btn-ghost btn-sm" onclick="gbStartEditExercise('${e.id}')">✏️ Upravit</button>
+        ${customIds.has(e.id)
+          ? `<button class="btn btn-ghost btn-sm" onclick="gbDeleteCustomExercise('${e.id}')">🗑 Smazat</button>`
+          : `<button class="btn btn-ghost btn-sm" onclick="gbHideBuiltinExercise('${e.id}')">🙈 Skrýt</button>`}
+      </div></div>`).join('');
+  const hiddenCount = (state.gymbroHiddenBuiltins||[]).length;
+  const hiddenNote = hiddenCount ? `<p class="location-note" style="cursor:pointer;text-decoration:underline;" onclick="gbManageView='hidden-list'; renderGbManage();">Skryto: ${hiddenCount} cviků — zobrazit / obnovit</p>` : '';
+  const countNote = `<p class="location-note">${filtered.length} z ${all.length} cviků</p>`;
+  resultsWrap.innerHTML = countNote + hiddenNote + (rows || '<p class="empty-note">Žádný cvik neodpovídá filtru.</p>');
+}
+function gbSetFilter(kind, val){
+  if(kind==='cat') gbFilterCat = val;
+  if(kind==='env') gbFilterEnv = val;
+  if(kind==='muscle') gbFilterMuscle = val;
+  renderGbManage();
+}
+function gbSetSearch(val){ gbFilterSearch = val; renderGbExerciseListResults(); }
 function renderGbHiddenList(wrap){
   const hidden = state.gymbroHiddenBuiltins||[];
   const rows = hidden.map(id=>{
