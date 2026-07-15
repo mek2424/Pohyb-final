@@ -401,6 +401,14 @@
       <div id="gb-calc-result" style="margin-top:10px;"></div>
     </div>
 
+    <div class="glass">
+      <div class="loc-picker-row" style="margin-bottom:4px;">
+        <p class="field-label" style="margin:0;">🛠️ Cviky a žebříčky</p>
+        <button class="btn btn-ghost btn-sm" onclick="gbOpenManageModal()">Spravovat</button>
+      </div>
+      <p class="location-note">Uprav popisy, přidej vlastní cviky nebo si postav vlastní žebříček obtížnosti.</p>
+    </div>
+
     <div class="glass small" style="opacity:.9;border:1px solid rgba(220,80,80,.35);">
       <div class="loc-picker-row"><span class="loc-text">🗑️ Restart jen GymBro</span></div>
       <p class="location-note" style="margin-top:6px;">Smaže jen deník tréninků, úrovně žebříčků a upravenou zátěž. Zbytek appky (Pohyb, streak, XP) i uložené GIFy zůstanou beze změny.</p>
@@ -445,6 +453,14 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="gb-manage-modal">
+  <div class="glass modal-card">
+    <p class="field-label" style="font-size:17px;">🛠️ Cviky a žebříčky</p>
+    <div id="gb-manage-content"></div>
+    <button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="closeGbManageModal()">Zavřít</button>
+  </div>
+</div>
+
 <div class="toast" id="toast">✓ Zapsáno</div>
 
 <nav class="bottom-nav">
@@ -482,7 +498,7 @@ function getDefaultState(){
     activities: JSON.parse(JSON.stringify(DEFAULT_ACTIVITIES)),
     logs: [], restDays: [], frozenDays: [], freezesUsed: 0,
     lastReconciled: todayStr(), lastAction: null,
-    stickers: [], journal: [], giphyKey: null, discordWebhook: null, lastBackupAt: null, mapyApiKey: null, favoritePlaces: [], gymbroLog: [], workoutxKey: null, gymbroGifCache: {}, gymbroLadderLevel: {}, gymbroCustomSets: {}, gymbroUndoStack: [], gymbroGifCandidates: {}
+    stickers: [], journal: [], giphyKey: null, discordWebhook: null, lastBackupAt: null, mapyApiKey: null, favoritePlaces: [], gymbroLog: [], workoutxKey: null, gymbroGifCache: {}, gymbroLadderLevel: {}, gymbroCustomSets: {}, gymbroUndoStack: [], gymbroGifCandidates: {}, gymbroCustomExercises: [], gymbroHiddenBuiltins: [], gymbroExerciseOverrides: {}, gymbroCustomLadders: {}, gymbroCustomGifs: {}
   };
 }
 
@@ -1929,6 +1945,15 @@ function gbScoreExercise(e, env){
   const envBonus = (env==='gym' && e.env==='gym') ? 3 : 0;
   return gbLastUsedDays(e.id) + Math.random()*3 + (e.key?2:0) + envBonus;
 }
+function gbAllExercises(){
+  const hidden = state.gymbroHiddenBuiltins||[];
+  const overrides = state.gymbroExerciseOverrides||{};
+  const builtins = GYMBRO_EXERCISES.filter(e=>!hidden.includes(e.id)).map(e=>({...e, ...(overrides[e.id]||{})}));
+  const customs = (state.gymbroCustomExercises||[]).map(e=>({...e, ...(overrides[e.id]||{})}));
+  return builtins.concat(customs);
+}
+function gbFindExercise(exId){ return gbAllExercises().find(e=>e.id===exId); }
+function gbAllLadders(){ return Object.assign({}, GB_LADDERS, state.gymbroCustomLadders||{}); }
 const GB_LADDERS = {
   // Each level is a LIST of ids — the top level of pullups includes all three full
   // bodyweight-pull variants (grip style stops mattering once you can do any of them).
@@ -1938,8 +1963,8 @@ const GB_LADDERS = {
   tuck_jump_small: [['tuck_jump_small'], ['tuck_jump_full']],
   lateral_bound: [['lateral_bound'], ['lateral_bound_continuous']]
 };
-function gbLadderFamilyFor(exId){ return Object.keys(GB_LADDERS).find(fam=>GB_LADDERS[fam].some(level=>level.includes(exId))) || null; }
-function gbCurrentLadderIds(family){ const level = state.gymbroLadderLevel[family]||0; return GB_LADDERS[family][Math.min(level, GB_LADDERS[family].length-1)]; }
+function gbLadderFamilyFor(exId){ const ladders=gbAllLadders(); return Object.keys(ladders).find(fam=>ladders[fam].some(level=>level.includes(exId))) || null; }
+function gbCurrentLadderIds(family){ const ladders=gbAllLadders(); const level = state.gymbroLadderLevel[family]||0; return ladders[family][Math.min(level, ladders[family].length-1)]; }
 
 /* ---- Undo, up to 3 steps, for GymBro's own adjustments ---- */
 function gbPushUndo(action){
@@ -1959,7 +1984,7 @@ function gbUndo(){
   } else if(action.type==='swap'){
     if(gbCurrentWorkout){
       const idx = gbCurrentWorkout.exercises.findIndex(e=>e.id===action.newId);
-      const oldEx = GYMBRO_EXERCISES.find(x=>x.id===action.oldId);
+      const oldEx = gbFindExercise(action.oldId);
       if(idx!==-1 && oldEx) gbCurrentWorkout.exercises[idx] = oldEx;
     }
   } else if(action.type==='finish'){
@@ -1973,13 +1998,13 @@ function gbUndo(){
 function gbLevelUp(exId){
   const family = gbLadderFamilyFor(exId);
   if(!family) return;
-  const maxLevel = GB_LADDERS[family].length-1;
+  const maxLevel = gbAllLadders()[family].length-1;
   const current = state.gymbroLadderLevel[family]||0;
   if(current>=maxLevel){ showToast('Už jsi na nejtěžší úrovni tohohle cviku 💪'); return; }
   gbPushUndo({type:'ladder', family, prevLevel:current});
   state.gymbroLadderLevel[family] = current+1;
   saveState();
-  const newEx = GYMBRO_EXERCISES.find(x=>x.id===gbCurrentLadderIds(family)[0]);
+  const newEx = gbFindExercise(gbCurrentLadderIds(family)[0]);
   if(gbCurrentWorkout){
     const idx = gbCurrentWorkout.exercises.findIndex(e=>e.id===exId);
     if(idx!==-1 && newEx) gbCurrentWorkout.exercises[idx] = newEx;
@@ -1995,7 +2020,7 @@ function gbLevelDown(exId){
   gbPushUndo({type:'ladder', family, prevLevel:current});
   state.gymbroLadderLevel[family] = current-1;
   saveState();
-  const newEx = GYMBRO_EXERCISES.find(x=>x.id===gbCurrentLadderIds(family)[0]);
+  const newEx = gbFindExercise(gbCurrentLadderIds(family)[0]);
   if(gbCurrentWorkout){
     const idx = gbCurrentWorkout.exercises.findIndex(e=>e.id===exId);
     if(idx!==-1 && newEx) gbCurrentWorkout.exercises[idx] = newEx;
@@ -2029,7 +2054,7 @@ function gbBumpSets(str, dir){
 }
 function gbEffectiveSets(ex){ return (state.gymbroCustomSets && state.gymbroCustomSets[ex.id]) || ex.sets; }
 function gbAdjustSets(exId, dir){
-  const ex = GYMBRO_EXERCISES.find(e=>e.id===exId);
+  const ex = gbFindExercise(exId);
   if(!ex) return;
   const prevValue = (state.gymbroCustomSets && state.gymbroCustomSets[exId]) || null;
   gbPushUndo({type:'sets', exId, prevValue});
@@ -2043,7 +2068,7 @@ function gbPickForCategory(cat, env, count){
   const MUSCLE_CAP = 2;
   // Ladder families only ever offer ONE rung as a candidate — whichever matches the user's
   // current level — so the generator can't pick two rungs of the same ladder at once.
-  const pool = GYMBRO_EXERCISES.filter(e=>{
+  const pool = gbAllExercises().filter(e=>{
     if(e.cat!==cat || (e.env!==env && e.env!=='both')) return false;
     const family = gbLadderFamilyFor(e.id);
     if(family) return gbCurrentLadderIds(family).includes(e.id);
@@ -2077,7 +2102,7 @@ function gbBackfillOutdoor(existingExercises, env, needed){
   // variants) — backfill the gap from legs+core instead of leaving a short workout.
   const muscleCount = {};
   existingExercises.forEach(e=>{ muscleCount[e.muscle]=(muscleCount[e.muscle]||0)+1; });
-  const pool = GYMBRO_EXERCISES.filter(e=>{
+  const pool = gbAllExercises().filter(e=>{
     if(e.cat!=='legs' && e.cat!=='core') return false;
     if(e.env!==env && e.env!=='both') return false;
     const family = gbLadderFamilyFor(e.id);
@@ -2117,7 +2142,7 @@ function buildGymbroWorkout(cat){
   // Small (20%) chance of a jump rope wildcard as a genuine bonus 6th item — never
   // replaces anything, never counts toward the muscle cap, can repeat on regeneration.
   if(Math.random()<0.20){
-    const rope = GYMBRO_EXERCISES.find(e=>e.id==='jump_rope');
+    const rope = gbFindExercise('jump_rope');
     if(rope) exercises = exercises.concat(rope);
   }
   gbCurrentWorkout = {cat, env, exercises: exercises.map(e=>({...e, done:false}))};
@@ -2130,7 +2155,7 @@ function gbSwapExercise(exId){
   const oldEx = gbCurrentWorkout.exercises[idx];
   const env = gbCurrentWorkout.env;
   const inWorkout = new Set(gbCurrentWorkout.exercises.map(e=>e.id));
-  const pool = GYMBRO_EXERCISES.filter(e=>{
+  const pool = gbAllExercises().filter(e=>{
     if(inWorkout.has(e.id) || e.id===oldEx.id) return false;
     if(e.cat!==oldEx.cat) return false;
     if(e.env!==env && e.env!=='both') return false;
@@ -2201,7 +2226,7 @@ function renderGymbroWorkout(){
     ${w.exercises.map(e=>{
       const effSets = gbEffectiveSets(e);
       const family = gbLadderFamilyFor(e.id);
-      const canLevelUp = family && (state.gymbroLadderLevel[family]||0) < GB_LADDERS[family].length-1;
+      const canLevelUp = family && (state.gymbroLadderLevel[family]||0) < gbAllLadders()[family].length-1;
       const canLevelDown = family && (state.gymbroLadderLevel[family]||0) > 0;
       const levelBtns = family ? `
           <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();gbLevelUp('${e.id}')" ${canLevelUp?'':'disabled style="opacity:.35;"'}>⬆️ Chci těžší</button>
@@ -2268,7 +2293,7 @@ async function openGbPostWorkoutModal(workout){
   document.getElementById('gb-postworkout-modal').classList.add('show');
   if(state.giphyKey){
     try{
-      const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${encodeURIComponent(state.giphyKey)}&q=tom+selleck&limit=15&rating=g`);
+      const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${encodeURIComponent(state.giphyKey)}&q=gullible&limit=15&rating=g`);
       if(res.ok){
         const data = await res.json();
         if(data.data && data.data.length){
@@ -2365,8 +2390,252 @@ function gbConfirmAltGif(exId){
 }
 
 /* ---- Exercise detail popup: text always shown, GIF fetched from WorkoutX (optional, cached) ---- */
+/* ================= GymBro exercise & ladder management ================= */
+let gbManageView = 'list', gbManageTab = 'exercises', gbEditingExId = null, gbEditingLadderFamily = null, gbNewLadderPicks = [], gbPendingGifUpload = null;
+
+function gbOpenManageModal(){
+  gbManageView = 'list'; gbManageTab = 'exercises';
+  document.getElementById('gb-manage-modal').classList.add('show');
+  renderGbManage();
+}
+function closeGbManageModal(){ document.getElementById('gb-manage-modal').classList.remove('show'); }
+
+function renderGbManage(){
+  const wrap = document.getElementById('gb-manage-content');
+  if(gbManageView==='edit-exercise' || gbManageView==='new-exercise'){ renderGbExerciseForm(wrap, gbEditingExId); return; }
+  if(gbManageView==='edit-ladder'){ renderGbLadderEditor(wrap, gbEditingLadderFamily); return; }
+  if(gbManageView==='add-ladder-level'){ renderGbAddLadderLevel(wrap, gbEditingLadderFamily); return; }
+  if(gbManageView==='new-ladder'){ renderGbLadderPicker(wrap); return; }
+  if(gbManageView==='hidden-list'){ renderGbHiddenList(wrap); return; }
+  renderGbManageList(wrap);
+}
+function renderGbManageList(wrap){
+  const tabs = `<div class="chip-row" style="margin-bottom:10px;">
+    <button class="chip ${gbManageTab==='exercises'?'selected':''}" onclick="gbSwitchManageTab('exercises')">Cviky</button>
+    <button class="chip ${gbManageTab==='ladders'?'selected':''}" onclick="gbSwitchManageTab('ladders')">Žebříčky</button>
+  </div>`;
+  if(gbManageTab==='exercises'){
+    const all = gbAllExercises();
+    const customIds = new Set((state.gymbroCustomExercises||[]).map(e=>e.id));
+    const rows = all.map(e=>`<div class="journal-entry">
+        <div class="jdate">${escapeHTML(e.name)} <span style="font-size:11px;opacity:.6;">(${e.cat}${e.muscle?', '+escapeHTML(e.muscle):''})</span></div>
+        <div class="btn-row" style="margin-top:6px;">
+          <button class="btn btn-ghost btn-sm" onclick="gbStartEditExercise('${e.id}')">✏️ Upravit</button>
+          ${customIds.has(e.id)
+            ? `<button class="btn btn-ghost btn-sm" onclick="gbDeleteCustomExercise('${e.id}')">🗑 Smazat</button>`
+            : `<button class="btn btn-ghost btn-sm" onclick="gbHideBuiltinExercise('${e.id}')">🙈 Skrýt</button>`}
+        </div></div>`).join('');
+    const hiddenCount = (state.gymbroHiddenBuiltins||[]).length;
+    const hiddenNote = hiddenCount ? `<p class="location-note" style="cursor:pointer;text-decoration:underline;" onclick="gbManageView='hidden-list'; renderGbManage();">Skryto: ${hiddenCount} cviků — zobrazit / obnovit</p>` : '';
+    wrap.innerHTML = tabs + `<button class="btn btn-leaf btn-sm" style="margin-bottom:10px;" onclick="gbStartNewExercise()">+ Nový cvik</button>` + hiddenNote + rows;
+  } else {
+    const ladders = gbAllLadders();
+    const rows = Object.keys(ladders).map(fam=>{
+      const chain = ladders[fam].map(level=>level.map(id=>{ const ex=gbFindExercise(id); return ex?ex.name:id; }).join(' / ')).join(' → ');
+      return `<div class="journal-entry">
+        <div class="jdate">${escapeHTML(fam)}</div>
+        <div class="jtext">${escapeHTML(chain)}</div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="gbStartEditLadder('${fam}')">✏️ Upravit</button>
+      </div>`;
+    }).join('');
+    wrap.innerHTML = tabs + `<button class="btn btn-leaf btn-sm" style="margin-bottom:10px;" onclick="gbStartNewLadder()">+ Nový žebříček</button>` + rows;
+  }
+}
+function gbSwitchManageTab(tab){ gbManageTab = tab; renderGbManage(); }
+function renderGbHiddenList(wrap){
+  const hidden = state.gymbroHiddenBuiltins||[];
+  const rows = hidden.map(id=>{
+    const ex = GYMBRO_EXERCISES.find(e=>e.id===id);
+    return `<div class="journal-entry"><div class="jdate">${ex?escapeHTML(ex.name):id}</div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="gbUnhideBuiltinExercise('${id}')">Vrátit do nabídky</button></div>`;
+  }).join('');
+  wrap.innerHTML = '<p class="field-label">Skryté cviky</p>' + (rows || '<p class="empty-note">Žádné.</p>')
+    + `<button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="gbManageView='list'; renderGbManage();">Zpět</button>`;
+}
+function gbHideBuiltinExercise(exId){
+  state.gymbroHiddenBuiltins = state.gymbroHiddenBuiltins || [];
+  if(!state.gymbroHiddenBuiltins.includes(exId)) state.gymbroHiddenBuiltins.push(exId);
+  saveState(); showToast('Cvik skryt z generování'); renderGbManage();
+}
+function gbUnhideBuiltinExercise(exId){
+  state.gymbroHiddenBuiltins = (state.gymbroHiddenBuiltins||[]).filter(id=>id!==exId);
+  saveState(); renderGbManage();
+}
+function gbDeleteCustomExercise(exId){
+  state.gymbroCustomExercises = (state.gymbroCustomExercises||[]).filter(e=>e.id!==exId);
+  if(state.gymbroExerciseOverrides) delete state.gymbroExerciseOverrides[exId];
+  if(state.gymbroCustomGifs) delete state.gymbroCustomGifs[exId];
+  saveState(); showToast('Cvik smazán'); renderGbManage();
+}
+function gbStartEditExercise(exId){ gbManageView='edit-exercise'; gbEditingExId=exId; gbPendingGifUpload=null; renderGbManage(); }
+function gbStartNewExercise(){ gbManageView='new-exercise'; gbEditingExId=null; gbPendingGifUpload=null; renderGbManage(); }
+function renderGbExerciseForm(wrap, exId){
+  const ex = exId ? gbFindExercise(exId) : null;
+  const taStyle = 'width:100%;min-height:50px;padding:11px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.9);background:rgba(255,255,255,.65);margin-bottom:10px;font-family:inherit;';
+  const selStyle = 'width:100%;padding:11px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.9);background:rgba(255,255,255,.65);font-weight:700;margin-bottom:10px;';
+  const existingGif = exId && state.gymbroCustomGifs && state.gymbroCustomGifs[exId];
+  wrap.innerHTML = `
+    <input type="text" id="gbf-name" placeholder="Název cviku" value="${ex?escapeAttr(ex.name):''}">
+    <select id="gbf-cat" style="${selStyle}">
+      <option value="push" ${ex&&ex.cat==='push'?'selected':''}>Přední vršek</option>
+      <option value="pull" ${ex&&ex.cat==='pull'?'selected':''}>Zadní vršek</option>
+      <option value="legs" ${ex&&ex.cat==='legs'?'selected':''}>Nohy</option>
+      <option value="core" ${ex&&ex.cat==='core'?'selected':''}>Core</option>
+    </select>
+    <select id="gbf-env" style="${selStyle}">
+      <option value="gym" ${ex&&ex.env==='gym'?'selected':''}>Jen posilovna</option>
+      <option value="outdoor" ${ex&&ex.env==='outdoor'?'selected':''}>Jen venkovní</option>
+      <option value="both" ${(!ex||ex.env==='both')?'selected':''}>Obojí</option>
+    </select>
+    <input type="text" id="gbf-muscle" placeholder="Sval (např. chest, back, quads, abs...)" value="${ex?escapeAttr(ex.muscle||''):''}">
+    <input type="text" id="gbf-sets" placeholder="Série (např. 3×10)" value="${ex?escapeAttr(ex.sets||''):''}">
+    <textarea id="gbf-desc" placeholder="Krátký popis (na kartě)" style="${taStyle}">${ex?escapeHTML(ex.desc||''):''}</textarea>
+    <textarea id="gbf-detail" placeholder="Jak na to (detailní popis)" style="${taStyle}min-height:70px;">${ex?escapeHTML(ex.detail||''):''}</textarea>
+    <textarea id="gbf-caution" placeholder="Na co si dát pozor" style="${taStyle}">${ex?escapeHTML(ex.caution||''):''}</textarea>
+    <textarea id="gbf-muscles" placeholder="Zapojené svaly (do popupu)" style="${taStyle}">${ex?escapeHTML(ex.muscles||''):''}</textarea>
+    <input type="text" id="gbf-gifquery" placeholder="Anglické klíčové slovo pro hledání GIFu" value="${ex?escapeAttr(ex.gifQuery||''):''}">
+    <p class="field-label">Vlastní GIF (nepovinné — nahraje se, i když appka žádný nenajde)</p>
+    <input type="file" id="gbf-gif-upload" accept="image/gif,image/*" onchange="gbHandleGifUpload(event)">
+    <div id="gbf-gif-preview">${existingGif?`<img src="${existingGif}" style="max-width:100%;border-radius:12px;margin-top:8px;">`:''}</div>
+    <div class="btn-row" style="margin-top:10px;">
+      <button class="btn btn-leaf btn-sm" onclick="gbSaveExerciseForm('${exId||''}')">Uložit</button>
+      <button class="btn btn-ghost btn-sm" onclick="gbManageView='list'; renderGbManage();">Zpět</button>
+    </div>`;
+}
+function gbHandleGifUpload(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  if(file.size > 2*1024*1024){ showToast('GIF je moc velký (max 2 MB)'); event.target.value=''; return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    gbPendingGifUpload = e.target.result;
+    document.getElementById('gbf-gif-preview').innerHTML = `<img src="${gbPendingGifUpload}" style="max-width:100%;border-radius:12px;margin-top:8px;">`;
+  };
+  reader.readAsDataURL(file);
+}
+function gbSaveExerciseForm(existingId){
+  const name = document.getElementById('gbf-name').value.trim();
+  if(!name){ showToast('Napiš název cviku'); return; }
+  const fields = {
+    name, cat: document.getElementById('gbf-cat').value, env: document.getElementById('gbf-env').value,
+    muscle: document.getElementById('gbf-muscle').value.trim()||'other', sets: document.getElementById('gbf-sets').value.trim()||'3×10',
+    desc: document.getElementById('gbf-desc').value.trim(), detail: document.getElementById('gbf-detail').value.trim(),
+    caution: document.getElementById('gbf-caution').value.trim(), muscles: document.getElementById('gbf-muscles').value.trim(),
+    gifQuery: document.getElementById('gbf-gifquery').value.trim()
+  };
+  let targetId = existingId;
+  if(existingId){
+    const isCustom = (state.gymbroCustomExercises||[]).some(e=>e.id===existingId);
+    if(isCustom){
+      const idx = state.gymbroCustomExercises.findIndex(e=>e.id===existingId);
+      state.gymbroCustomExercises[idx] = {...state.gymbroCustomExercises[idx], ...fields};
+    } else {
+      state.gymbroExerciseOverrides = state.gymbroExerciseOverrides || {};
+      state.gymbroExerciseOverrides[existingId] = fields;
+    }
+  } else {
+    targetId = 'custom_'+Date.now();
+    state.gymbroCustomExercises = state.gymbroCustomExercises || [];
+    state.gymbroCustomExercises.push({id:targetId, ...fields});
+  }
+  if(gbPendingGifUpload){
+    state.gymbroCustomGifs = state.gymbroCustomGifs || {};
+    state.gymbroCustomGifs[targetId] = gbPendingGifUpload;
+  }
+  gbPendingGifUpload = null;
+  saveState();
+  showToast('✅ Cvik uložen');
+  gbManageView = 'list';
+  renderGbManage();
+}
+
+/* ---- Ladder builder ---- */
+function gbStartEditLadder(family){ gbManageView='edit-ladder'; gbEditingLadderFamily=family; renderGbManage(); }
+function renderGbLadderEditor(wrap, family){
+  const levels = gbAllLadders()[family] || [];
+  const rows = levels.map((level, i)=>{
+    const names = level.map(id=>{ const ex=gbFindExercise(id); return ex?ex.name:id; }).join(' / ');
+    return `<div class="journal-entry">
+      <div class="jdate">Level ${i}: ${escapeHTML(names)}</div>
+      ${levels.length>1 ? `<button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="gbRemoveLadderLevel('${family}',${i})">🗑 Smazat úroveň</button>` : ''}
+    </div>`;
+  }).join('');
+  wrap.innerHTML = `<p class="field-label">${escapeHTML(family)}</p>${rows}
+    <button class="btn btn-leaf btn-sm" style="margin:10px 0;" onclick="gbManageView='add-ladder-level'; renderGbManage();">+ Přidat těžší úroveň</button><br>
+    <button class="btn btn-ghost btn-sm" onclick="gbManageView='list'; gbManageTab='ladders'; renderGbManage();">Zpět</button>`;
+}
+function renderGbAddLadderLevel(wrap, family){
+  const ladders = gbAllLadders();
+  const usedIds = new Set(Object.values(ladders).flat(2));
+  const available = gbAllExercises().filter(e=>!usedIds.has(e.id));
+  if(!available.length){ wrap.innerHTML = '<p class="empty-note">Všechny cviky už jsou v nějakém žebříčku.</p><button class="btn btn-ghost btn-sm" onclick="gbStartEditLadder(\''+family+'\')">Zpět</button>'; return; }
+  const options = available.map(e=>`<option value="${e.id}">${escapeAttr(e.name)}</option>`).join('');
+  wrap.innerHTML = `<p class="field-label">Přidat těžší úroveň k ${escapeHTML(family)}</p>
+    <select id="gbf-ladder-add-ex" style="width:100%;padding:11px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.9);background:rgba(255,255,255,.65);font-weight:700;margin-bottom:10px;">${options}</select>
+    <div class="btn-row">
+      <button class="btn btn-leaf btn-sm" onclick="gbConfirmAddLadderLevel('${family}')">Přidat</button>
+      <button class="btn btn-ghost btn-sm" onclick="gbStartEditLadder('${family}')">Zpět</button>
+    </div>`;
+}
+function gbConfirmAddLadderLevel(family){
+  const exId = document.getElementById('gbf-ladder-add-ex').value;
+  if(!exId) return;
+  state.gymbroCustomLadders = state.gymbroCustomLadders || {};
+  if(!state.gymbroCustomLadders[family]) state.gymbroCustomLadders[family] = JSON.parse(JSON.stringify(GB_LADDERS[family] || []));
+  state.gymbroCustomLadders[family].push([exId]);
+  saveState();
+  showToast('✅ Nová úroveň přidána');
+  gbStartEditLadder(family);
+}
+function gbRemoveLadderLevel(family, idx){
+  state.gymbroCustomLadders = state.gymbroCustomLadders || {};
+  if(!state.gymbroCustomLadders[family]) state.gymbroCustomLadders[family] = JSON.parse(JSON.stringify(GB_LADDERS[family] || []));
+  state.gymbroCustomLadders[family].splice(idx, 1);
+  const newLen = state.gymbroCustomLadders[family].length;
+  if(newLen===0){ delete state.gymbroCustomLadders[family]; }
+  const clampLen = (gbAllLadders()[family]||[]).length;
+  if(clampLen && (state.gymbroLadderLevel[family]||0) >= clampLen) state.gymbroLadderLevel[family] = clampLen-1;
+  saveState();
+  showToast('Úroveň smazána');
+  gbStartEditLadder(family);
+}
+function gbStartNewLadder(){ gbManageView = 'new-ladder'; gbNewLadderPicks = []; renderGbManage(); }
+function renderGbLadderPicker(wrap){
+  const ladders = gbAllLadders();
+  const usedIds = new Set(Object.values(ladders).flat(2));
+  const available = gbAllExercises().filter(e=>!usedIds.has(e.id) && !gbNewLadderPicks.includes(e.id));
+  const pickedNames = gbNewLadderPicks.map((id,i)=>{ const ex=gbFindExercise(id); return (i+1)+'. '+(ex?ex.name:id); }).join(' → ');
+  if(!available.length && gbNewLadderPicks.length<2){ wrap.innerHTML = '<p class="empty-note">Nezbývá dost volných cviků na nový žebříček.</p><button class="btn btn-ghost btn-sm" onclick="gbManageView=\'list\';renderGbManage();">Zpět</button>'; return; }
+  const options = available.map(e=>`<option value="${e.id}">${escapeAttr(e.name)}</option>`).join('');
+  wrap.innerHTML = `<p class="field-label">Nový žebříček — od nejlehčího po nejtěžší</p>
+    <p class="jtext" style="margin-bottom:10px;">${pickedNames ? escapeHTML(pickedNames) : '(zatím nic vybráno)'}</p>
+    ${available.length ? `<select id="gbf-ladder-pick" style="width:100%;padding:11px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.9);background:rgba(255,255,255,.65);font-weight:700;margin-bottom:10px;">${options}</select>
+    <button class="btn btn-ghost btn-sm" onclick="gbAddToNewLadder()">+ Přidat do žebříčku</button>` : ''}
+    <div class="btn-row" style="margin-top:10px;">
+      ${gbNewLadderPicks.length>=2 ? `<button class="btn btn-leaf btn-sm" onclick="gbSaveNewLadder()">Uložit žebříček</button>` : ''}
+      <button class="btn btn-ghost btn-sm" onclick="gbManageView='list'; gbManageTab='ladders'; renderGbManage();">Zrušit</button>
+    </div>`;
+}
+function gbAddToNewLadder(){
+  const sel = document.getElementById('gbf-ladder-pick');
+  if(!sel || !sel.value) return;
+  gbNewLadderPicks.push(sel.value);
+  renderGbManage();
+}
+function gbSaveNewLadder(){
+  if(gbNewLadderPicks.length<2) return;
+  const familyKey = gbNewLadderPicks[0];
+  state.gymbroCustomLadders = state.gymbroCustomLadders || {};
+  state.gymbroCustomLadders[familyKey] = gbNewLadderPicks.map(id=>[id]);
+  saveState();
+  showToast('✅ Nový žebříček uložen');
+  gbNewLadderPicks = [];
+  gbManageView='list'; gbManageTab='ladders';
+  renderGbManage();
+}
+
 async function openGbExerciseModal(exId){
-  const ex = GYMBRO_EXERCISES.find(e=>e.id===exId);
+  const ex = gbFindExercise(exId);
   if(!ex) return;
   document.getElementById('gb-modal-title').textContent = (ex.key?'⭐ ':'') + ex.name;
   document.getElementById('gb-modal-content').innerHTML = `
@@ -2382,6 +2651,10 @@ async function openGbExerciseModal(exId){
     // Fixed by request for this specific exercise — not from WorkoutX, so no api-key
     // param and no "try another" (there's nothing else to try).
     gifWrap.innerHTML = `<img src="${ex.hardcodedGif}" alt="Ukázka cviku" style="width:100%;border-radius:16px;margin-bottom:10px;display:block;">`;
+    return;
+  }
+  if(state.gymbroCustomGifs && state.gymbroCustomGifs[exId]){
+    gifWrap.innerHTML = `<img src="${state.gymbroCustomGifs[exId]}" alt="Ukázka cviku" style="width:100%;border-radius:16px;margin-bottom:10px;display:block;">`;
     return;
   }
   if(state.gymbroGifCache && state.gymbroGifCache[exId]){
