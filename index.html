@@ -115,6 +115,13 @@
   .act-card.add-card{background:rgba(255,255,255,.35);border:2px dashed rgba(255,255,255,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--aqua-deeper);}
   .edit-fab{position:absolute;top:6px;right:6px;width:25px;height:25px;border-radius:50%;background:rgba(255,255,255,.92);border:1px solid rgba(255,255,255,.95);font-size:11px;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 2px 6px rgba(3,86,133,.25);z-index:2;}
 
+  .gb-tabs{display:flex;gap:4px;padding:4px;border-radius:999px;background:rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.8);margin-bottom:12px;}
+  .gb-tab{flex:1;border:none;background:transparent;border-radius:999px;padding:8px 6px;font-family:'Baloo 2',sans-serif;font-weight:800;font-size:14px;color:var(--ink-soft);display:flex;flex-direction:column;align-items:center;line-height:1.15;transition:background .2s ease;}
+  .gb-tab small{font-family:'Nunito',sans-serif;font-weight:700;font-size:11px;opacity:.8;}
+  .gb-tab.on{background:linear-gradient(180deg,#7fe0ff,#0288d1);color:#fff;box-shadow:0 4px 10px rgba(2,136,209,.35), inset 0 1px 1px rgba(255,255,255,.6);}
+  .gb-tab.counter.on{background:linear-gradient(180deg,#ffe9b0,#f4a93b);color:#5a3c0a;box-shadow:0 4px 10px rgba(244,169,59,.35), inset 0 1px 1px rgba(255,255,255,.6);}
+  .gb-counter-intro{background:rgba(255,209,102,.25);border:1px solid rgba(244,169,59,.4);border-radius:var(--radius-sm);padding:11px 14px;margin-bottom:10px;}
+  .gb-counter-card{border-left:4px solid var(--sun-deep);}
   .toast{position:fixed;top:18px;left:50%;transform:translateX(-50%) translateY(-160%);z-index:200;background:linear-gradient(160deg,#fff,rgba(255,255,255,.9));border:1px solid rgba(255,255,255,.9);border-radius:999px;padding:11px 16px;font-family:'Baloo 2',sans-serif;font-weight:700;color:var(--aqua-deeper);box-shadow:0 10px 26px rgba(3,86,133,.3);transition:transform .4s cubic-bezier(.34,1.56,.64,1);display:flex;align-items:center;gap:8px;white-space:nowrap;font-size:13.5px;max-width:92vw;min-width:180px;justify-content:center;}
   .toast.show{transform:translateX(-50%) translateY(0);}
   .toast-undo{background:var(--aqua-deep);color:#fff;border:none;border-radius:999px;padding:5px 12px;font-size:12px;font-weight:800;font-family:'Baloo 2',sans-serif;flex-shrink:0;}
@@ -2128,13 +2135,79 @@ const GYMBRO_EXERCISES = [
   {id:'ab_crunch_machine', name:'Břišní stroj (crunch)', cat:'core', env:'gym', muscle:'abs', sets:'3×12–15', desc:'Zkracovačky na stroji s vedeným odporem, izoluje břicho bez zapojení krku.', gifQuery:'ab crunch machine',
     detail:'Sedíš na stroji, hrudník opřený o horní opěrku, ohýbáš se dopředu proti odporu stroje, pak se pomalu vracíš zpět.',
     caution:'Pohyb jde z břicha, ne z tažení hlavou dopředu.',
-    muscles:'Přímý břišní sval, izolovaně.'}
+    muscles:'Přímý břišní sval, izolovaně.'},
+  /* ---- Vyrovnání (counter): lehké doplňkové cviky pro protilehlé svaly. cat:'counter', counterFor = ke kterým módům patří.
+     Jen posilování – protažení nabízí appka zvlášť v okně po tréninku. Dávkování: 2 série, s rezervou, pomalu. ---- */
+  {id:'prone_y_raise', name:'Y zdvih vleže na břiše', cat:'counter', counterFor:['push'], env:'both', muscle:'lower_trap', sets:'2×10–12', desc:'Vleže na břiše zvedáš natažené paže do tvaru Y, dolní trapéz a lopatky.', gifQuery:'prone y raise',
+    detail:'Lehneš si na břicho, čelo nad podložkou, paže natažené nad hlavou do tvaru písmene Y, palce nahoru. Nejdřív stáhneš lopatky dolů a k sobě, pak zvedneš paže pár centimetrů nad zem, chvilku vydržíš a pomalu spouštíš.',
+    caution:'Nezvedej ramena k uším a neprohýbej se v bedrech – stačí malý rozsah, pohyb jde z lopatek.',
+    muscles:'Dolní a střední trapéz, zadní delty.'},
+  {id:'incline_prone_y', name:'Y zdvih na šikmé lavici', cat:'counter', counterFor:['push'], env:'gym', muscle:'lower_trap', sets:'2×10–12', desc:'Hrudníkem opřený o šikmou lavici zvedáš lehké jednoručky do tvaru Y.', gifQuery:'incline y raise dumbbell',
+    detail:'Lehneš si hrudníkem na lavici nastavenou zhruba na 30–45°, v rukou velmi lehké jednoručky (1–4 kg). Paže visí dolů, palce nahoru. Stáhneš lopatky dolů a zvedáš natažené paže šikmo vpřed nahoru do tvaru Y, pak pomalu spouštíš.',
+    caution:'Váha opravdu lehká – když se začnou zvedat ramena k uším nebo švihat trup, je moc těžká.',
+    muscles:'Dolní trapéz, střední trapéz, zadní delty.'},
+  {id:'prone_t_raise', name:'T zdvih vleže na břiše', cat:'counter', counterFor:['push'], env:'both', muscle:'rear_delts', sets:'2×12', desc:'Vleže na břiše zvedáš paže do stran do tvaru T, zadní ramena a střed zad.', gifQuery:'prone t raise',
+    detail:'Lehneš si na břicho, paže upažené do stran do tvaru písmene T, palce nahoru. Stáhneš lopatky k sobě a zvedneš paže pár centimetrů nad zem, chvilku vydržíš a pomalu spouštíš.',
+    caution:'Hlava zůstává v prodloužení páteře, nezakláněj ji. Pohyb je malý a kontrolovaný.',
+    muscles:'Zadní delty, střední trapéz, rhomboidy.'},
+  {id:'band_pull_apart', name:'Roztahování gumy před tělem', cat:'counter', counterFor:['push'], env:'gym', muscle:'rear_delts', sets:'2×15', desc:'Natažené paže před tělem roztahuješ gumu do stran, zadní ramena a lopatky.', gifQuery:'band pull apart',
+    detail:'Stojíš, v rukou odporová guma na šíři ramen, paže natažené před sebou ve výšce ramen. Roztahuješ gumu do stran, dokud se ti nedotkne hrudníku, lopatky se u toho stahují k sobě. Pomalu se vracíš zpět.',
+    caution:'Nezvedej ramena k uším a neprohýbej se v zádech. Když nemáš gumu, dej si místo toho T zdvih vleže.',
+    muscles:'Zadní delty, střední trapéz, rhomboidy.'},
+  {id:'prone_w_raise', name:'W zdvih vleže na břiše', cat:'counter', counterFor:['push','pull'], env:'both', muscle:'rotator_cuff', sets:'2×10–12', desc:'Vleže na břiše s lokty u těla vytáčíš předloktí nahoru, vnější rotátory ramene.', gifQuery:'prone w raise',
+    detail:'Lehneš si na břicho, lokty pokrčené a přitažené k bokům, ruce u ramen – paže tvoří písmeno W. Stáhneš lopatky dolů k sobě, zvedneš lokty i dlaně nad zem a vytočíš předloktí mírně nahoru (palce míří ke stropu). Chvilku vydržíš a spouštíš.',
+    caution:'Pohyb je malý – jde o vnější rotaci v rameni, ne o co nejvyšší zvednutí.',
+    muscles:'Vnější rotátory ramene, dolní a střední trapéz.'},
+  {id:'side_lying_external_rotation', name:'Vnější rotace vleže na boku', cat:'counter', counterFor:['push','pull'], env:'gym', muscle:'rotator_cuff', sets:'2×12–15/ruku', desc:'Vleže na boku vytáčíš lehkou jednoručku od břicha nahoru, rotátorová manžeta.', gifQuery:'side lying external rotation',
+    detail:'Lehneš si na bok, horní loket pokrčený v pravém úhlu a opřený o bok (můžeš si pod něj dát složený ručník). V ruce velmi lehká jednoručka (1–3 kg) u břicha. Předloktí pomalu vytáčíš nahoru, loket zůstává přitisknutý k tělu, a pomalu vracíš.',
+    caution:'Loket se nesmí odlepit od boku a nekruť trupem dozadu. Stačí opravdu lehká váha.',
+    muscles:'Infraspinatus, teres minor (vnější rotátory), střední trapéz.'},
+  {id:'cable_external_rotation', name:'Vnější rotace na kladce', cat:'counter', counterFor:['push','pull'], env:'gym', muscle:'rotator_cuff', sets:'2×12–15/ruku', desc:'Bokem ke kladce ve výšce lokte vytáčíš předloktí ven, rotátorová manžeta.', gifQuery:'cable external rotation',
+    detail:'Stoupneš si bokem ke kladce nastavené ve výšce lokte, rukojeť držíš vzdálenější rukou. Loket pokrčený v pravém úhlu a přitisknutý k boku. Předloktí vytáčíš od břicha ven, pak se pomalu vracíš.',
+    caution:'Nejnižší nebo druhá nejnižší zátěž. Loket zůstává u těla, pohyb nejde z trupu.',
+    muscles:'Vnější rotátory ramene (infraspinatus, teres minor).'},
+  {id:'pushup_plus', name:'Klik plus', cat:'counter', counterFor:['pull'], env:'both', muscle:'serratus', sets:'2×10–12', desc:'Na konci kliku ještě dotlačíš lopatky od sebe, přední pilovitý sval.', gifQuery:'push up plus',
+    detail:'Uděláš klasický klik (nebo klik z kolen). V horní poloze, s propnutými lokty, ještě dotlačíš hrudník od země tak, aby se lopatky roztáhly od sebe a záda se lehce zakulatila. Chvilku vydržíš, uvolníš a pokračuješ dalším opakováním.',
+    caution:'Plus fáze je malý pohyb z lopatek, ne z beder. Když je klik moc těžký, dělej ho z kolen nebo o lavičku – tady jde o lopatky, ne o hrudník.',
+    muscles:'Přední pilovitý sval (serratus anterior), stabilizace lopatky.'},
+  {id:'cable_serratus_punch', name:'Serratus punch na kladce', cat:'counter', counterFor:['pull'], env:'gym', muscle:'serratus', sets:'2×12/ruku', desc:'Zády ke kladce tlačíš rukojeť vpřed a na konci dotlačíš lopatkou, přední pilovitý sval.', gifQuery:'cable serratus punch',
+    detail:'Stoupneš si zády ke kladce ve výšce ramen, rukojeť v jedné ruce, paže skoro natažená vpřed. Bez ohýbání lokte posuneš ruku ještě dál vpřed jen pohybem lopatky (jako by ses chtěl natáhnout pro něco na stole), pak pomalu povolíš zpět.',
+    caution:'Loket se neohýbá a trup se netočí – pohyb je jen pár centimetrů a jde z lopatky.',
+    muscles:'Přední pilovitý sval, stabilizace lopatky.'},
+  {id:'wall_slide', name:'Klouzání předloktím po zdi', cat:'counter', counterFor:['pull'], env:'both', muscle:'serratus', sets:'2×10', desc:'Předloktí na zdi, posouváš je nahoru nad hlavu, lopatky do horní rotace.', gifQuery:'wall slide serratus',
+    detail:'Stoupneš si čelem ke zdi, předloktí opřená o zeď na šíři ramen, lokty v úrovni ramen. Lehce zatlačíš předloktí do zdi a posouváš je nahoru, dokud nejsou paže skoro natažené nad hlavou. Nahoře lehce odlepíš ruce od zdi, pak pomalu sjedeš zpět.',
+    caution:'Neprohýbej se v bedrech a nezvedej ramena k uším – lopatky mají klouzat kolem hrudníku.',
+    muscles:'Přední pilovitý sval, dolní trapéz.'},
+  {id:'reverse_wrist_curl', name:'Obrácený zdvih zápěstí', cat:'counter', counterFor:['pull'], env:'gym', muscle:'forearm_ext', sets:'2×15', desc:'Předloktí na stehně, dlaň dolů, zvedáš hřbet ruky s lehkou jednoručkou.', gifQuery:'reverse wrist curl',
+    detail:'Sedneš si, předloktí opřené o stehno nebo lavici, dlaň směřuje k zemi a zápěstí přečnívá přes okraj. S lehkou jednoručkou pomalu zvedáš hřbet ruky nahoru a pomalu spouštíš.',
+    caution:'Opravdu lehká váha a pomalý pohyb. Po tazích jsou natahovače předloktí unavené a snadno se přetíží.',
+    muscles:'Natahovače zápěstí a prstů (protiváha k úchopu).'},
+  {id:'finger_extension_manual', name:'Roztahování prstů proti odporu', cat:'counter', counterFor:['pull'], env:'both', muscle:'forearm_ext', sets:'2×15/ruku', desc:'Roztahuješ prsty proti gumičce nebo druhé ruce, protiváha k úchopu.', gifQuery:'finger extension exercise',
+    detail:'Na špičky prstů si navlékneš gumičku (nebo je obejmeš druhou rukou, která klade odpor). Prsty z pěsti rozevíráš co nejvíc do stran a od sebe, chvilku vydržíš a pomalu je necháš zavřít.',
+    caution:'Plynulý pohyb bez škubání. Mělo by to být příjemně namáhavé, ne bolestivé.',
+    muscles:'Natahovače prstů a zápěstí.'},
+  {id:'side_lying_hip_abduction', name:'Unožování vleže na boku', cat:'counter', counterFor:['legs_core'], env:'both', muscle:'glute_med', sets:'2×12–15/nohu', desc:'Vleže na boku zvedáš nataženou horní nohu, střední hýžďový sval.', gifQuery:'side lying hip abduction',
+    detail:'Lehneš si na bok, spodní noha lehce pokrčená, horní natažená v prodloužení těla. Špička míří dopředu, pata vede. Zvedneš horní nohu zhruba o 30–40 cm, chvilku vydržíš a pomalu spouštíš.',
+    caution:'Nevytáčej špičku ke stropu a nepřetáčej pánev dozadu – jinak práci převezmou flexory kyčle místo hýždě.',
+    muscles:'Střední hýžďový sval, stabilita pánve a kolena.'},
+  {id:'band_lateral_walk', name:'Boční chůze s gumou', cat:'counter', counterFor:['legs_core'], env:'gym', muscle:'glute_med', sets:'2×10 kroků/stranu', desc:'Guma nad koleny nebo u kotníků, v podřepu krokuješ do strany, střední hýžďový sval.', gifQuery:'banded lateral walk',
+    detail:'Navlékneš si gumu nad kolena (těžší varianta u kotníků), mírně pokrčíš kolena a boky. Děláš malé kroky do strany, guma zůstává pořád napnutá, pak stejně zpátky.',
+    caution:'Kolena tlač lehce ven, nepadají dovnitř. Trup zůstává rovně, nekolébej se ze strany na stranu.',
+    muscles:'Střední a malý hýžďový sval.'},
+  {id:'copenhagen_short', name:'Kodaňské boční prkno (zkrácené)', cat:'counter', counterFor:['legs_core'], env:'both', muscle:'adductors', sets:'2×15–20s/stranu', desc:'Boční prkno s pokrčeným horním kolenem na lavičce, přitahovače stehna.', gifQuery:'copenhagen plank',
+    detail:'Lehneš si na bok vedle lavičky nebo židle, opřený o předloktí. Horní nohu pokrčenou v koleni položíš vnitřní stranou kolena na lavičku. Zvedneš boky, takže tělo tvoří rovnou linii, a vydržíš. Spodní noha může lehce pomáhat, nebo ji zvedni k lavičce.',
+    caution:'Začni krátkou výdrží – přitahovače bývají po nohách hodně slabé místo. Při bolesti v třísle přestaň.',
+    muscles:'Přitahovače stehna, šikmé břišní svaly.'},
+  {id:'tibialis_raise', name:'Zvedání špiček u zdi', cat:'counter', counterFor:['legs_core'], env:'both', muscle:'tibialis', sets:'2×15–20', desc:'Zády opřený o zeď zvedáš špičky nahoru, přední strana holeně.', gifQuery:'tibialis raise',
+    detail:'Opřeš se zády o zeď, paty zhruba 30 cm před ní, nohy natažené. Zvedáš špičky co nejvýš k holeni, paty zůstávají na zemi, a pomalu je spouštíš. Čím dál máš paty od zdi, tím je to těžší.',
+    caution:'Plynule, ne švihem. Pálení v přední části holeně je normální, ostrá bolest ne.',
+    muscles:'Přední sval holenní (protiváha k lýtkům), stabilita kotníku.'}
 ];
 const GB_CAT_LABEL = {push:'Přední vršek těla', pull:'Zadní vršek těla', legs_core:'Nohy + Core'};
 let gbCurrentEnv = 'gym', gbCurrentWorkout = null;
 
 function gbLastUsedDays(exId){
-  const past = state.gymbroLog.filter(w=>w.exercises.some(x=>x.id===exId));
+  const past = state.gymbroLog.filter(w=>w.exercises.concat(w.counter||[]).some(x=>x.id===exId));
   if(!past.length) return 999;
   const last = past.reduce((a,b)=> a.date>b.date ? a : b);
   return daysBetween(last.date, todayStr());
@@ -2190,6 +2263,12 @@ function gbUndo(){
   } else if(action.type==='finish'){
     state.gymbroLog = state.gymbroLog.filter(l=>l.id!==action.logId);
     gbCurrentWorkout = action.workoutSnapshot;
+    gbAfterCounter = null;
+  } else if(action.type==='counter'){
+    const log = state.gymbroLog.find(l=>l.id===action.logId);
+    if(log) delete log.counter;
+    if(!gbCurrentWorkout && log) gbAfterCounter = {...action.counterSnapshot, done:false, open:true};
+    renderGbLastWorkoutInfo();
   }
   saveState();
   showToast('↩️ Vráceno zpět');
@@ -2345,7 +2424,10 @@ function buildGymbroWorkout(cat){
     const rope = gbFindExercise('jump_rope');
     if(rope) exercises = exercises.concat(rope);
   }
-  gbCurrentWorkout = {cat, env, exercises: exercises.map(e=>({...e, done:false}))};
+  gbAfterCounter = null;
+  const counterExercises = gbPickCounter(cat, env).map(e=>({...e, done:false}));
+  gbCurrentWorkout = {cat, env, exercises: exercises.map(e=>({...e, done:false})), view:'main',
+    counter: {cat, env, exercises: counterExercises, done:false}};
   renderGymbroWorkout();
 }
 function gbSwapExercise(exId){
@@ -2419,10 +2501,22 @@ function bindGbDrag(el, exId){
 }
 function renderGymbroWorkout(){
   const wrap = document.getElementById('gb-workout-wrap');
-  if(!gbCurrentWorkout){ wrap.innerHTML=''; return; }
+  if(!gbCurrentWorkout){
+    // Po dokončení tréninku lze vyrovnání otevřít samostatně (nabídka v okně "Trénink hotový").
+    if(gbAfterCounter && gbAfterCounter.open){
+      const c = gbAfterCounter;
+      wrap.innerHTML = `<div class="glass">
+        <p class="field-label">⚖️ Vyrovnání · ${GB_CAT_LABEL[c.cat]||c.cat} · ${c.env==='gym'?'🏋️ Posilovna':'🌳 Venkovní posilovna'}</p>
+        ${gbCounterBodyHTML(c, true)}
+      </div>`;
+    } else wrap.innerHTML='';
+    return;
+  }
   const w = gbCurrentWorkout;
   wrap.innerHTML = `<div class="glass">
     <p class="field-label">${GB_CAT_LABEL[w.cat]||w.cat} · ${w.env==='gym'?'🏋️ Posilovna':'🌳 Venkovní posilovna'}</p>
+    ${gbCounterTabsHTML(w)}
+    ${w.view==='counter' && w.counter ? gbCounterBodyHTML(w.counter, false) : `
     ${w.exercises.map(e=>{
       const effSets = gbEffectiveSets(e);
       const family = gbLadderFamilyFor(e.id);
@@ -2451,12 +2545,132 @@ function renderGymbroWorkout(){
     <div class="btn-row">
       <button class="btn btn-leaf display" onclick="finishGymbroWorkout()">✅ Odcvičeno</button>
       <button class="btn btn-ghost btn-sm" style="align-self:center;" onclick="buildGymbroWorkout('${w.cat}')">🔄 Jiná sestava</button>
-    </div>
+    </div>`}
   </div>`;
   wrap.querySelectorAll('.gb-drag-handle').forEach(handle=>{
     const card = handle.closest('.gb-ex-card');
     if(card) bindGbDrag(handle, card.dataset.exId);
   });
+}
+
+/* ---- Vyrovnání (counter): volitelná záložka se 3 lehkými cviky pro protilehlé svaly ---- */
+let gbAfterCounter = null; // vyrovnání nabídnuté až po dokončení tréninku: {cat, env, exercises, logId, open}
+const GB_COUNTER_HEAD = {push:'k přednímu vršku', pull:'k zadnímu vršku', legs_core:'k nohám a core'};
+const GB_COUNTER_WHY = {
+  push:'Tlaky zatěžují hrudník a přední ramena. Tady posílíš to, co drží lopatky a ramena vzadu – dolní a střední trapéz, zadní delty a vnější rotátory.',
+  pull:'Tahy zatěžují záda, biceps a úchop. Tady posílíš přední pilovitý sval (drží lopatku u hrudníku), vnější rotátory ramene a natahovače prstů jako protiváhu k úchopu.',
+  legs_core:'Dřepy a výpady jedou hlavně dopředu a dozadu. Tady posílíš to, co drží koleno a pánev v ose – střední hýžďový sval, přitahovače stehna a přední stranu holeně.'
+};
+function gbPickCounter(forCat, env){
+  const pool = gbAllExercises().filter(e=>e.cat==='counter' && (e.counterFor||[]).includes(forCat) && (e.env===env || e.env==='both'));
+  const scored = pool.map(e=>({...e, score: gbScoreExercise(e, env)})).sort((a,b)=>b.score-a.score);
+  // Jeden cvik na každou svalovou skupinu, ať vyrovnání pokryje tři různé věci.
+  const picked = [], usedMuscles = new Set();
+  for(const e of scored){
+    if(usedMuscles.has(e.muscle)) continue;
+    picked.push(e); usedMuscles.add(e.muscle);
+    if(picked.length>=3) break;
+  }
+  for(const e of scored){ if(picked.length>=3) break; if(!picked.some(p=>p.id===e.id)) picked.push(e); }
+  return picked;
+}
+function gbActiveCounter(){ return gbCurrentWorkout ? gbCurrentWorkout.counter : gbAfterCounter; }
+function gbSetView(view){
+  if(!gbCurrentWorkout) return;
+  gbCurrentWorkout.view = view;
+  renderGymbroWorkout();
+}
+function gbCounterTabsHTML(w){
+  if(!w.counter || !w.counter.exercises.length) return '';
+  const doneMain = w.exercises.filter(e=>e.done).length;
+  return `<div class="gb-tabs">
+    <button class="gb-tab ${w.view!=='counter'?'on':''}" onclick="gbSetView('main')">Trénink<small>${doneMain} / ${w.exercises.length}</small></button>
+    <button class="gb-tab counter ${w.view==='counter'?'on':''}" onclick="gbSetView('counter')">⚖️ Vyrovnání<small>${w.counter.done?'✅ hotové':'volitelné · ~5 min'}</small></button>
+  </div>`;
+}
+function gbCounterBodyHTML(c, standalone){
+  const cards = c.exercises.map(e=>`<div class="journal-entry gb-counter-card" style="${e.done?'opacity:.55;':''}">
+      <div style="display:flex;gap:8px;align-items:flex-start;">
+        <input type="checkbox" ${e.done?'checked':''} onclick="event.stopPropagation();gbToggleCounterDone('${e.id}')" style="margin-top:4px;width:20px;height:20px;">
+        <div style="flex:1;cursor:pointer;" onclick="openGbExerciseModal('${e.id}')">
+          <div class="jdate" style="${e.done?'text-decoration:line-through;':''}">${escapeHTML(e.name)} — ${escapeHTML(e.sets)} <span style="font-size:11px;opacity:.6;">ℹ️ detail</span></div>
+          <div class="jtext">${escapeHTML(e.desc)}</div>
+        </div>
+      </div>
+      <div class="btn-row" style="margin-top:8px;">
+        <button class="btn btn-ghost btn-sm" onclick="gbSwapCounter('${e.id}')">🔄 Vyměnit</button>
+      </div>
+    </div>`).join('');
+  const intro = `<div class="gb-counter-intro">
+      <div class="jdate">⚖️ Vyrovnání ${GB_COUNTER_HEAD[c.cat]||''}</div>
+      <div class="jtext">${GB_COUNTER_WHY[c.cat]||''}</div>
+      <div class="jtext" style="margin-top:6px;"><strong>Jak:</strong> lehce a pomalu, s rezervou – nikdy do selhání. Nejde o další trénink, ale o zdravá ramena, lopatky a kolena.</div>
+    </div>`;
+  const actions = c.done
+    ? `<p class="location-note" style="text-align:center;">✅ Vyrovnání máš odškrtnuté – zapíše se spolu s tréninkem.</p>
+       <button class="btn btn-ghost btn-sm" onclick="gbSetView('main')">← zpět na trénink</button>`
+    : `<button class="btn btn-sun display" onclick="gbFinishCounter()">⚖️ Vyrovnání hotové</button>
+       ${standalone
+         ? `<button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="gbCloseAfterCounter()">Teď ne</button>`
+         : `<button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="gbSetView('main')">← zpět na trénink</button>`}
+       <p class="location-note" style="text-align:center;margin-top:8px;">Nic se nestane, když ho vynecháš.</p>`;
+  return intro + cards + actions;
+}
+function gbToggleCounterDone(exId){
+  const c = gbActiveCounter(); if(!c) return;
+  const ex = c.exercises.find(e=>e.id===exId);
+  if(ex) ex.done = !ex.done;
+  renderGymbroWorkout();
+}
+function gbSwapCounter(exId){
+  const c = gbActiveCounter(); if(!c) return;
+  const idx = c.exercises.findIndex(e=>e.id===exId);
+  if(idx===-1) return;
+  const oldEx = c.exercises[idx];
+  const inList = new Set(c.exercises.map(e=>e.id));
+  const pool = gbAllExercises().filter(e=>e.cat==='counter' && !inList.has(e.id)
+    && (e.counterFor||[]).includes(c.cat) && (e.env===c.env || e.env==='both'));
+  const sameMuscle = pool.filter(e=>e.muscle===oldEx.muscle);
+  const otherMuscles = new Set(c.exercises.filter((e,i)=>i!==idx).map(e=>e.muscle));
+  const candidates = sameMuscle.length ? sameMuscle : pool.filter(e=>!otherMuscles.has(e.muscle));
+  if(!candidates.length){ showToast('Nenašel jsem žádnou rozumnou náhradu pro tenhle cvik.'); return; }
+  const scored = candidates.map(e=>({...e, score: gbScoreExercise(e, c.env)})).sort((a,b)=>b.score-a.score);
+  c.exercises[idx] = {...scored[0], done:false};
+  renderGymbroWorkout();
+}
+function gbCounterLogEntries(c){ return c.exercises.map(e=>({id:e.id, name:e.name, muscle:e.muscle})); }
+function gbFinishCounter(){
+  const c = gbActiveCounter(); if(!c) return;
+  if(gbCurrentWorkout){
+    // Vyrovnání odcvičené dřív než hlavní trénink – zapíše se spolu s ním.
+    c.done = true;
+    gbCurrentWorkout.view = 'main';
+    renderGymbroWorkout();
+    showToast('⚖️ Vyrovnání hotové – zapíše se s tréninkem');
+    return;
+  }
+  const log = state.gymbroLog.find(l=>l.id===c.logId);
+  if(log){
+    log.counter = gbCounterLogEntries(c);
+    gbPushUndo({type:'counter', logId:c.logId, counterSnapshot: JSON.parse(JSON.stringify(c))});
+    saveState();
+  }
+  gbAfterCounter = null;
+  renderGymbroWorkout();
+  renderGbLastWorkoutInfo();
+  showToast('⚖️ Vyrovnání zapsáno do GymBro deníku');
+}
+function gbOpenAfterCounter(){
+  if(!gbAfterCounter) return;
+  closeGbPostWorkoutModal();
+  gbAfterCounter.open = true;
+  renderGymbroWorkout();
+  const wrap = document.getElementById('gb-workout-wrap');
+  if(wrap) wrap.scrollIntoView({behavior:'smooth', block:'start'});
+}
+function gbCloseAfterCounter(){
+  gbAfterCounter = null;
+  renderGymbroWorkout();
 }
 
 const GB_STRETCH_TIP = {
@@ -2480,7 +2694,7 @@ const GB_STRETCH_TIP = {
 function gbLastWorkoutSummary(){
   if(!state.gymbroLog.length) return null;
   const last = state.gymbroLog.reduce((a,b)=> a.date>b.date ? a : b);
-  return 'Naposledy jsi cvičil '+(GB_CAT_LABEL[last.cat]||last.cat)+' v '+(last.env==='gym'?'posilovně':'venkovní posilovně')+'.';
+  return 'Naposledy jsi cvičil '+(GB_CAT_LABEL[last.cat]||last.cat)+(last.counter?' + vyrovnání':'')+' v '+(last.env==='gym'?'posilovně':'venkovní posilovně')+'.';
 }
 function renderGbLastWorkoutInfo(){
   const el = document.getElementById('gb-last-workout-info');
@@ -2490,7 +2704,10 @@ function renderGbLastWorkoutInfo(){
 }
 async function openGbPostWorkoutModal(workout){
   const muscles = [...new Set(workout.exercises.map(e=>e.muscle))];
-  document.getElementById('gb-postworkout-content').innerHTML = '<p class="jtext" style="margin-bottom:10px;">Pár tipů na protažení toho, co jsi právě zatížil:</p>'
+  const counterOffer = gbAfterCounter
+    ? '<button class="btn btn-sun btn-sm" style="margin-bottom:12px;" onclick="gbOpenAfterCounter()">⚖️ Ještě ~5 minut vyrovnání?</button>'
+    : '';
+  document.getElementById('gb-postworkout-content').innerHTML = counterOffer + '<p class="jtext" style="margin-bottom:10px;">Pár tipů na protažení toho, co jsi právě zatížil:</p>'
     + muscles.map(m=>`<div class="journal-entry"><div class="jtext">${escapeHTML(GB_STRETCH_TIP[m]||'Pár minut lehkého protažení.')}</div></div>`).join('');
   document.getElementById('gb-postworkout-gif').innerHTML = '';
   document.getElementById('gb-postworkout-modal').classList.add('show');
@@ -2514,11 +2731,19 @@ function finishGymbroWorkout(){
   const logId = 'gb'+Date.now();
   const workoutSnapshot = JSON.parse(JSON.stringify(gbCurrentWorkout));
   gbPushUndo({type:'finish', logId, workoutSnapshot});
-  state.gymbroLog.push({id:logId, date:todayStr(), cat:gbCurrentWorkout.cat, env:gbCurrentWorkout.env, exercises:gbCurrentWorkout.exercises.map(e=>({id:e.id, name:e.name, muscle:e.muscle}))});
+  const w = gbCurrentWorkout;
+  const counterDone = !!(w.counter && w.counter.done);
+  const entry = {id:logId, date:todayStr(), cat:w.cat, env:w.env, exercises:w.exercises.map(e=>({id:e.id, name:e.name, muscle:e.muscle}))};
+  if(counterDone) entry.counter = gbCounterLogEntries(w.counter);
+  state.gymbroLog.push(entry);
   saveState();
-  openGbPostWorkoutModal(gbCurrentWorkout);
+  // Neodcvičené vyrovnání se nabídne ještě jednou v okně po tréninku – jen jednou, bez připomínání.
+  gbAfterCounter = (!counterDone && w.counter && w.counter.exercises.length)
+    ? {cat:w.cat, env:w.env, exercises:w.counter.exercises.map(e=>({...e, done:false})), done:false, logId, open:false}
+    : null;
+  openGbPostWorkoutModal(w);
   gbCurrentWorkout = null;
-  document.getElementById('gb-workout-wrap').innerHTML = '';
+  renderGymbroWorkout();
   renderGbLastWorkoutInfo();
   showToast('💪 Trénink zapsán do GymBro deníku');
 }
@@ -2564,6 +2789,7 @@ function confirmGymbroRestart(){
   saveState();
   document.getElementById('gymbro-restart-confirm-wrap').innerHTML = '';
   gbCurrentWorkout = null;
+  gbAfterCounter = null;
   const wrap = document.getElementById('gb-workout-wrap');
   if(wrap) wrap.innerHTML = '';
   showToast('🗑️ GymBro restartován — zbytek appky i uložené GIFy zůstaly');
@@ -2625,7 +2851,7 @@ function renderGbManageList(wrap){
     const envChip = (val,label) => `<button class="chip ${gbFilterEnv===val?'selected':''}" onclick="gbSetFilter('env','${val}')">${label}</button>`;
     const filterUI = `
       <input type="text" id="gbf-search" placeholder="Hledat podle jména…" value="${escapeAttr(gbFilterSearch)}" oninput="gbSetSearch(this.value)" style="margin-bottom:8px;">
-      <div class="chip-row" style="margin-bottom:6px;">${catChip('all','Vše')}${catChip('push','Přední vršek')}${catChip('pull','Zadní vršek')}${catChip('legs','Nohy')}${catChip('core','Core')}</div>
+      <div class="chip-row" style="margin-bottom:6px;">${catChip('all','Vše')}${catChip('push','Přední vršek')}${catChip('pull','Zadní vršek')}${catChip('legs','Nohy')}${catChip('core','Core')}${catChip('counter','⚖️ Vyrovnání')}</div>
       <div class="chip-row" style="margin-bottom:6px;">${envChip('all','Vše')}${envChip('gym','🏋️ Posilovna')}${envChip('outdoor','🌳 Venkovní')}</div>
       <select id="gbf-muscle-filter" onchange="gbSetFilter('muscle', this.value)" style="width:100%;padding:11px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.9);background:rgba(255,255,255,.65);font-weight:700;margin-bottom:10px;">
         <option value="all" ${gbFilterMuscle==='all'?'selected':''}>Všechny svaly</option>
@@ -2716,12 +2942,17 @@ function renderGbExerciseForm(wrap, exId){
   const existingGif = exId && state.gymbroCustomGifs && state.gymbroCustomGifs[exId];
   wrap.innerHTML = `
     <input type="text" id="gbf-name" placeholder="Název cviku" value="${ex?escapeAttr(ex.name):''}">
-    <select id="gbf-cat" style="${selStyle}">
+    <select id="gbf-cat" style="${selStyle}" onchange="document.getElementById('gbf-counterfor-wrap').style.display = this.value==='counter' ? '' : 'none';">
       <option value="push" ${ex&&ex.cat==='push'?'selected':''}>Přední vršek</option>
       <option value="pull" ${ex&&ex.cat==='pull'?'selected':''}>Zadní vršek</option>
       <option value="legs" ${ex&&ex.cat==='legs'?'selected':''}>Nohy</option>
       <option value="core" ${ex&&ex.cat==='core'?'selected':''}>Core</option>
+      <option value="counter" ${ex&&ex.cat==='counter'?'selected':''}>⚖️ Vyrovnání</option>
     </select>
+    <div id="gbf-counterfor-wrap" style="${ex&&ex.cat==='counter'?'':'display:none;'}margin-bottom:10px;">
+      <p class="field-label" style="margin-bottom:4px;">Vyrovnání k:</p>
+      ${[['push','Přední vršek'],['pull','Zadní vršek'],['legs_core','Nohy + Core']].map(([v,l])=>`<label style="display:inline-flex;align-items:center;gap:6px;margin-right:12px;font-weight:700;"><input type="checkbox" class="gbf-counterfor" value="${v}" ${ex&&(ex.counterFor||[]).includes(v)?'checked':''}> ${l}</label>`).join('')}
+    </div>
     <select id="gbf-env" style="${selStyle}">
       <option value="gym" ${ex&&ex.env==='gym'?'selected':''}>Jen posilovna</option>
       <option value="outdoor" ${ex&&ex.env==='outdoor'?'selected':''}>Jen venkovní</option>
@@ -2763,6 +2994,10 @@ function gbSaveExerciseForm(existingId){
     caution: document.getElementById('gbf-caution').value.trim(), muscles: document.getElementById('gbf-muscles').value.trim(),
     gifQuery: document.getElementById('gbf-gifquery').value.trim()
   };
+  if(fields.cat==='counter'){
+    fields.counterFor = [...document.querySelectorAll('.gbf-counterfor:checked')].map(el=>el.value);
+    if(!fields.counterFor.length){ showToast('Vyber, ke kterému módu vyrovnání patří'); return; }
+  }
   let targetId = existingId;
   if(existingId){
     const isCustom = (state.gymbroCustomExercises||[]).some(e=>e.id===existingId);
