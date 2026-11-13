@@ -1,5 +1,5 @@
-const CACHE_NAME = 'pohyb-cache-v2';
-const APP_SHELL = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
+const CACHE_NAME = 'pohyb-cache-v3';
+const APP_SHELL = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png', './icons/icon.svg'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

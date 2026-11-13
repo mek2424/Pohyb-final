@@ -3,229 +3,389 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#4FC3F7">
+<meta name="theme-color" content="#BFEFFF">
 <link rel="manifest" href="manifest.json">
-<link rel="icon" href="icons/icon-192.png">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Pohyb">
-<title>Pohyb — sportovní parťák</title>
+<title>Pohyb</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <style>
   :root{
-    --sky-light:#d6f4ff; --sky:#7fe0ff; --sky-mid:#4fc3f7; --aqua-deep:#0288d1; --aqua-deeper:#016aa8;
-    --leaf:#8fe3a5; --leaf-deep:#3fa96a; --sun:#ffd166; --sun-deep:#f4a93b;
-    --ink:#123a52; --ink-soft:#3a6480;
-    --glass:rgba(255,255,255,.5); --glass-strong:rgba(255,255,255,.78); --glass-border:rgba(255,255,255,.75);
-    --radius-lg:26px; --radius-md:18px; --radius-sm:12px;
+    --ink:#0E3550; --ink-2:#3F6680; --ink-3:#7896AB;
+    --aqua:#1AA3E8; --aqua-deep:#0A78C6; --aqua-soft:#D9F3FF;
+    --leaf:#2FAE66; --leaf-deep:#1E8A4F; --leaf-soft:#DDF6E6;
+    --sun:#F5A524; --sun-deep:#C77A0A; --sun-soft:#FFF1D6;
+    --frost:#8FD8F2; --danger:#C2453D;
+    --glass:rgba(255,255,255,.60); --glass-hi:rgba(255,255,255,.82); --glass-line:rgba(255,255,255,.88);
+    --shadow:0 1px 2px rgba(6,60,100,.06), 0 10px 28px -6px rgba(6,60,100,.16);
+    --shadow-sm:0 1px 2px rgba(6,60,100,.06), 0 4px 12px -4px rgba(6,60,100,.14);
+    --r-lg:24px; --r-md:16px; --r-sm:12px;
+    --gloss-aqua:linear-gradient(180deg,#6FD3FB 0%,#22A6EA 48%,#0B82D2 52%,#0C8BD8 100%);
+    --gloss-leaf:linear-gradient(180deg,#8FE6A0 0%,#38BA6C 48%,#22994F 52%,#27A257 100%);
+    --gloss-sun:linear-gradient(180deg,#FFD98A 0%,#F7B23B 48%,#E8960F 52%,#F0A21E 100%);
   }
-  *{box-sizing:border-box;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;}
   body{
-    font-family:'Nunito',sans-serif; color:var(--ink); min-height:100vh;
-    background:
-      radial-gradient(ellipse 80% 50% at 25% -5%, rgba(255,255,255,.85), transparent 60%),
-      linear-gradient(135deg, var(--sky-light) 0%, var(--sky) 32%, var(--sky-mid) 62%, var(--aqua-deep) 100%);
+    font-family:'Figtree',system-ui,-apple-system,'Segoe UI',sans-serif; color:var(--ink); min-height:100vh; min-height:100dvh;
+    font-size:15px; line-height:1.45; -webkit-font-smoothing:antialiased;
+    background:#BFEFFF;
     overflow-x:hidden; position:relative;
   }
-  h1,h2,h3,.display{font-family:'Baloo 2',sans-serif;}
-  button{font-family:inherit;cursor:pointer;}
-  :focus-visible{outline:3px solid var(--sun-deep); outline-offset:2px; border-radius:8px;}
+  body::before{
+    content:''; position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(60% 40% at 15% 0%, rgba(255,255,255,.95), rgba(255,255,255,0) 70%),
+      radial-gradient(50% 35% at 100% 18%, rgba(170,240,255,.7), rgba(170,240,255,0) 70%),
+      radial-gradient(80% 45% at 85% 105%, rgba(140,230,170,.55), rgba(140,230,170,0) 70%),
+      radial-gradient(70% 40% at 0% 100%, rgba(80,190,240,.45), rgba(80,190,240,0) 70%),
+      linear-gradient(180deg, #EAFAFF 0%, #C6F0FF 38%, #93DDF8 75%, #74CFF2 100%);
+  }
+  h1,h2,h3,p{margin:0;}
+  button{font-family:inherit;cursor:pointer;color:inherit;}
+  :focus-visible{outline:2.5px solid var(--aqua-deep); outline-offset:2px; border-radius:10px;}
+  .ic{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;}
+  .ic.sm{width:18px;height:18px;}
 
   .bg-bubbles{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0;}
-  .bubble{position:absolute;border-radius:50%;background:radial-gradient(circle at 32% 28%, rgba(255,255,255,.95), rgba(255,255,255,.15) 55%, rgba(255,255,255,.05) 75%);box-shadow:0 0 18px rgba(255,255,255,.25);animation:float linear infinite;opacity:0;}
-  @keyframes float{0%{transform:translateY(0) translateX(0);opacity:0;}8%{opacity:.75;}92%{opacity:.5;}100%{transform:translateY(-115vh) translateX(var(--drift,20px));opacity:0;}}
-  @media (prefers-reduced-motion: reduce){.bubble{animation:none;display:none;} *{animation-duration:.001s !important; transition-duration:.15s !important;}}
+  .bubble{position:absolute;border-radius:50%;background:radial-gradient(circle at 32% 28%, rgba(255,255,255,.9), rgba(255,255,255,.12) 55%, rgba(255,255,255,0) 72%);border:1px solid rgba(255,255,255,.35);animation:float linear infinite;opacity:0;}
+  @keyframes float{0%{transform:translateY(0) translateX(0);opacity:0;}10%{opacity:.6;}90%{opacity:.35;}100%{transform:translateY(-115vh) translateX(var(--drift,20px));opacity:0;}}
+  @media (prefers-reduced-motion: reduce){.bubble{display:none;} *{animation-duration:.001s !important; transition-duration:.12s !important;}}
 
-  .app{position:relative;z-index:1;max-width:460px;margin:0 auto;padding:22px 16px 160px;min-height:100vh;}
-  .view{display:none;animation:viewIn .35s ease;}
+  .app{position:relative;z-index:1;max-width:480px;margin:0 auto;padding:calc(14px + env(safe-area-inset-top)) 16px calc(120px + env(safe-area-inset-bottom));min-height:100vh;}
+  .view{display:none;animation:viewIn .3s ease;}
   .view.active{display:block;}
-  @keyframes viewIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+  @keyframes viewIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
 
-  .top-greeting{color:var(--aqua-deeper);text-shadow:0 1px 0 rgba(255,255,255,.5);margin:2px 4px 18px;}
-  .top-greeting .sub{display:block;font-size:14px;color:var(--ink-soft);font-weight:600;margin-top:2px;}
-  .view-title{font-size:22px;margin:2px 4px 16px;color:var(--aqua-deeper);}
+  /* ---------- typography & layout ---------- */
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:6px 2px 16px;min-height:44px;}
+  .topbar .tb-left{display:flex;align-items:center;gap:10px;min-width:0;}
+  .topbar .tb-actions{display:flex;gap:8px;}
+  .eyebrow{font-size:13px;font-weight:600;color:var(--ink-2);text-transform:none;letter-spacing:.01em;}
+  .h1{font-size:27px;font-weight:800;letter-spacing:-.02em;line-height:1.15;color:var(--ink);}
+  .h2{font-size:16px;font-weight:700;letter-spacing:-.01em;color:var(--ink);}
+  .view-title{font-size:24px;font-weight:800;letter-spacing:-.02em;color:var(--ink);margin:0;}
+  .display{font-weight:700;}
+  .muted{color:var(--ink-2);font-size:13px;font-weight:500;}
+  .section-label{font-size:12.5px;font-weight:700;color:var(--ink-2);letter-spacing:.06em;text-transform:uppercase;margin:22px 4px 10px;}
+  .card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;}
+  .link-btn{background:none;border:none;padding:6px 2px;font-weight:700;font-size:13.5px;color:var(--aqua-deep);}
+  .icon-btn{width:42px;height:42px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:var(--glass-hi);border:1px solid var(--glass-line);box-shadow:var(--shadow-sm), inset 0 1px 0 #fff;color:var(--ink-2);padding:0;flex-shrink:0;}
+  .icon-btn:active{transform:scale(.95);}
 
-  .glass{background:linear-gradient(160deg, var(--glass-strong), var(--glass));backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid var(--glass-border);border-radius:var(--radius-lg);box-shadow:0 10px 30px rgba(3,86,133,.18), inset 0 1px 0 rgba(255,255,255,.9);padding:20px;margin-bottom:16px;}
-  .glass.small{padding:14px 16px;border-radius:var(--radius-md);}
+  .glass{position:relative;background:linear-gradient(170deg, var(--glass-hi), var(--glass));backdrop-filter:blur(22px) saturate(1.5);-webkit-backdrop-filter:blur(22px) saturate(1.5);border:1px solid var(--glass-line);border-radius:var(--r-lg);box-shadow:var(--shadow), inset 0 1px 0 rgba(255,255,255,.95);padding:18px;margin-bottom:14px;}
+  .glass.small{padding:14px 16px;border-radius:20px;}
 
-  .orb-wrap{display:flex;flex-direction:column;align-items:center;margin:6px 0 18px;}
-  .orb{width:148px;height:148px;border-radius:50%;position:relative;overflow:hidden;background:radial-gradient(circle at 32% 26%, rgba(255,255,255,.65), rgba(255,255,255,.05) 45%), linear-gradient(160deg, #d6f4ff, #4fc3f7 70%);border:4px solid rgba(255,255,255,.8);box-shadow:0 14px 34px rgba(3,86,133,.35), inset 0 3px 10px rgba(255,255,255,.7);}
-  .orb-fill{position:absolute;bottom:0;left:0;right:0;height:0%;background:linear-gradient(180deg, rgba(143,227,165,.92), rgba(63,169,106,.95));transition:height 1s cubic-bezier(.34,1.4,.4,1);}
-  .orb-fill::after{content:'';position:absolute;top:-7px;left:-10%;right:-10%;height:16px;background:radial-gradient(ellipse at center, rgba(255,255,255,.55), transparent 70%);}
+  /* ---------- hero (level + stats) ---------- */
+  .hero-row{display:flex;align-items:center;gap:16px;}
+  .orb{width:84px;height:84px;border-radius:50%;position:relative;overflow:hidden;flex-shrink:0;background:radial-gradient(circle at 50% 120%, #4FC3F7, #BDEBFF 70%);box-shadow:0 8px 18px -4px rgba(10,120,198,.45), inset 0 0 0 3px rgba(255,255,255,.9), inset 0 -6px 14px rgba(10,120,198,.25);}
+  .orb::after{content:'';position:absolute;top:5px;left:14%;right:14%;height:42%;border-radius:50%;background:linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,0));z-index:3;pointer-events:none;}
+  .orb-fill{position:absolute;bottom:0;left:0;right:0;height:0%;background:linear-gradient(180deg,#8FE6A0,#2FAE66);transition:height 1s cubic-bezier(.34,1.3,.4,1);}
+  .orb-fill::after{content:'';position:absolute;top:-5px;left:-10%;right:-10%;height:10px;border-radius:50%;background:rgba(255,255,255,.45);}
   .orb-content{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:2;}
-  .orb-level-num{font-family:'Baloo 2',sans-serif;font-weight:800;font-size:38px;color:#0d3a52;text-shadow:0 1px 0 rgba(255,255,255,.6);line-height:1;}
-  .orb-level-label{font-size:11px;font-weight:700;letter-spacing:.06em;color:#0d3a52;text-transform:uppercase;opacity:.75;}
-  .xp-caption{margin-top:10px;font-weight:700;color:var(--aqua-deeper);font-size:14px;}
+  .orb-level-num{font-weight:800;font-size:30px;color:#08324D;line-height:1;letter-spacing:-.02em;}
+  .orb-level-label{font-size:10px;font-weight:700;letter-spacing:.1em;color:#08324D;text-transform:uppercase;opacity:.7;margin-top:2px;}
+  .hero-info{flex:1;min-width:0;}
+  .hero-msg{font-size:15.5px;font-weight:700;color:var(--ink);line-height:1.3;margin-bottom:10px;}
+  .xp-bar{height:10px;border-radius:999px;background:rgba(10,120,198,.12);box-shadow:inset 0 1px 2px rgba(6,60,100,.15);overflow:hidden;}
+  .xp-bar i{display:block;height:100%;width:0;border-radius:999px;background:var(--gloss-leaf);box-shadow:inset 0 1px 0 rgba(255,255,255,.6);transition:width 1s cubic-bezier(.34,1.3,.4,1);}
+  .xp-caption{margin-top:6px;font-weight:600;color:var(--ink-2);font-size:12.5px;}
+  .stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px;}
+  .stat{background:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.9);border-radius:14px;padding:10px 8px;text-align:center;box-shadow:inset 0 1px 0 #fff;}
+  .stat-val{display:block;font-size:20px;font-weight:800;letter-spacing:-.02em;color:var(--ink);line-height:1.1;}
+  .stat-lbl{display:block;font-size:11.5px;font-weight:600;color:var(--ink-2);margin-top:2px;}
+  .stat.freeze .stat-val{color:#1584BE;}
+  .stat.comeback .stat-val{color:var(--leaf-deep);}
 
-  .streak-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;}
-  .streak-head h3{margin:0;font-size:16px;color:var(--ink);}
-  .freeze-chip{display:flex;align-items:center;gap:5px;font-weight:700;font-size:13px;color:var(--aqua-deeper);background:rgba(255,255,255,.55);padding:4px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.8);}
-  .streak-dots{display:flex;gap:4px;width:100%;}
-  .dot{flex:1 1 0;min-width:0;max-width:24px;aspect-ratio:1/1;border-radius:50%;position:relative;}
-  .dot.active{background:linear-gradient(160deg,#b7f0c4,#4CAF6D);box-shadow:inset 0 1px 2px rgba(255,255,255,.7), 0 2px 5px rgba(30,110,60,.35);}
-  .dot.rest{background:linear-gradient(160deg,#cdeaff,#6fbeea);box-shadow:inset 0 1px 2px rgba(255,255,255,.7);}
-  .dot.frozen{background:repeating-linear-gradient(135deg, #e7f8ff, #e7f8ff 3px, #cdeef9 3px, #cdeef9 6px);border:1px solid #a9e0f4;}
-  .dot.empty{background:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.6);}
-  .dot.today{outline:2px solid var(--sun-deep);outline-offset:2px;}
-  .streak-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;font-size:11px;color:var(--ink-soft);font-weight:600;}
-  .streak-legend span{display:inline-flex;align-items:center;gap:4px;}
-  .legend-dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+  /* ---------- week ---------- */
+  .week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+  .day{display:flex;flex-direction:column;align-items:center;gap:6px;}
+  .day .dl{font-size:11.5px;font-weight:700;color:var(--ink-3);}
+  .day.today .dl{color:var(--aqua-deep);}
+  .dot{width:100%;max-width:36px;aspect-ratio:1/1;border-radius:50%;position:relative;display:flex;align-items:center;justify-content:center;font-size:14px;}
+  .dot.active{background:radial-gradient(circle at 35% 30%, #C9F7D3, #3DBB72 60%, #24955A);box-shadow:inset 0 1px 1px rgba(255,255,255,.8), 0 3px 8px -2px rgba(30,138,79,.55);}
+  .dot.active::before{content:'';position:absolute;top:12%;left:22%;width:40%;height:28%;border-radius:50%;background:rgba(255,255,255,.65);}
+  .dot.rest{background:radial-gradient(circle at 35% 30%, #EAF6FF, #A9D8F5);box-shadow:inset 0 1px 1px rgba(255,255,255,.9);}
+  .dot.frozen{background:radial-gradient(circle at 35% 30%, #FFFFFF, #CFF1FD 55%, #8FD8F2);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.9), 0 2px 6px -2px rgba(21,132,190,.4);}
+  .dot.empty{background:rgba(255,255,255,.45);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.9);}
+  .dot.future{background:transparent;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.7);opacity:.7;}
+  .day.today .dot{box-shadow:0 0 0 2px #fff, 0 0 0 4px var(--aqua);}
+  .day.today .dot.active{box-shadow:0 0 0 2px #fff, 0 0 0 4px var(--leaf);}
+  .legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:14px;font-size:12px;color:var(--ink-2);font-weight:600;}
+  .legend span{display:inline-flex;align-items:center;gap:5px;}
+  .legend i{width:10px;height:10px;border-radius:50%;display:inline-block;}
 
-  .btn{border:none;border-radius:999px;font-weight:800;font-family:'Baloo 2',sans-serif;letter-spacing:.01em;padding:15px 20px;font-size:16px;position:relative;overflow:hidden;transition:transform .15s ease;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;}
-  .btn:active{transform:translateY(1px) scale(.985);}
-  .btn-primary{color:#fff;background:linear-gradient(180deg,#7fe0ff 0%,#37acec 55%,#0288d1 100%);box-shadow:0 6px 16px rgba(2,136,209,.45), inset 0 1px 1px rgba(255,255,255,.7);}
-  .btn-primary::before{content:'';position:absolute;top:0;left:6%;right:6%;height:46%;background:linear-gradient(180deg, rgba(255,255,255,.65), rgba(255,255,255,0));border-radius:999px 999px 40% 40%;}
-  .btn-leaf{color:var(--leaf-deep);background:linear-gradient(160deg,rgba(255,255,255,.85),rgba(255,255,255,.55));border:1.5px solid rgba(63,169,106,.4);box-shadow:0 4px 12px rgba(63,169,106,.15), inset 0 1px 1px rgba(255,255,255,.8);}
-  .btn-sun{color:#a9720f;background:linear-gradient(160deg,rgba(255,255,255,.85),rgba(255,255,255,.55));border:1.5px solid rgba(244,169,59,.45);box-shadow:0 4px 12px rgba(244,169,59,.15), inset 0 1px 1px rgba(255,255,255,.8);}
-  .btn-ghost{background:rgba(255,255,255,.55);color:var(--aqua-deeper);box-shadow:inset 0 1px 1px rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.8);}
-  .btn-row{display:flex;flex-direction:column;gap:10px;margin-top:14px;}
-  .btn-sm{padding:9px 14px;font-size:13px;width:auto;border-radius:999px;}
+  /* ---------- banners ---------- */
+  .banner{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:20px;margin-bottom:14px;border:1px solid rgba(255,255,255,.9);box-shadow:var(--shadow-sm), inset 0 1px 0 #fff;}
+  .banner .b-ic{font-size:26px;line-height:1;flex-shrink:0;margin-top:1px;}
+  .banner .b-title{font-weight:800;font-size:15.5px;color:var(--ink);}
+  .banner .b-text{font-size:13.5px;color:var(--ink-2);margin-top:2px;font-weight:500;}
+  .banner.leaf{background:linear-gradient(160deg, rgba(225,250,232,.92), rgba(190,240,210,.75));}
+  .banner.aqua{background:linear-gradient(160deg, rgba(230,248,255,.92), rgba(196,236,255,.75));}
 
+  /* ---------- buttons ---------- */
+  .btn{border:none;border-radius:999px;font-weight:700;letter-spacing:.005em;padding:0 20px;min-height:50px;font-size:16px;position:relative;overflow:hidden;transition:transform .12s ease, filter .12s ease;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;text-align:center;}
+  .btn:active{transform:translateY(1px) scale(.985);filter:brightness(.97);}
+  .btn:disabled{opacity:.4;pointer-events:none;}
+  .btn-primary,.btn-leaf,.btn-sun{color:#fff;text-shadow:0 1px 1px rgba(0,40,80,.25);}
+  .btn-primary{background:var(--gloss-aqua);box-shadow:0 6px 16px -4px rgba(10,120,198,.55), inset 0 0 0 1px rgba(255,255,255,.25), inset 0 1px 0 rgba(255,255,255,.7);}
+  .btn-leaf{background:var(--gloss-leaf);box-shadow:0 6px 16px -4px rgba(30,138,79,.5), inset 0 0 0 1px rgba(255,255,255,.25), inset 0 1px 0 rgba(255,255,255,.7);}
+  .btn-sun{background:var(--gloss-sun);color:#5A3700;text-shadow:0 1px 0 rgba(255,255,255,.35);box-shadow:0 6px 16px -4px rgba(199,122,10,.45), inset 0 0 0 1px rgba(255,255,255,.3), inset 0 1px 0 rgba(255,255,255,.7);}
+  .btn-ghost{background:rgba(255,255,255,.7);color:var(--aqua-deep);border:1px solid rgba(255,255,255,.95);box-shadow:var(--shadow-sm), inset 0 1px 0 #fff;}
+  .btn-sm{min-height:38px;padding:0 14px;font-size:14px;width:auto;}
+  .btn-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+  .btn-row > .btn{flex:1 1 auto;}
+  .btn-row > .btn:not(.btn-sm){flex-basis:100%;}
+  .btn-danger{background:linear-gradient(180deg,#FF9A8F,#E0584C) !important;color:#fff !important;}
+
+  /* ---------- chips / segmented ---------- */
   .chip-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
-  .chip{padding:10px 16px;border-radius:999px;background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.75);font-weight:700;font-size:14px;color:var(--ink-soft);box-shadow:inset 0 1px 1px rgba(255,255,255,.7);}
-  .chip.selected{background:linear-gradient(180deg,#7fe0ff,#0288d1);color:#fff;box-shadow:0 4px 10px rgba(2,136,209,.4), inset 0 1px 1px rgba(255,255,255,.6);}
-  .field-label{font-weight:800;font-family:'Baloo 2',sans-serif;color:var(--aqua-deeper);font-size:14px;margin:0 2px 8px;}
+  .chip{min-height:38px;padding:0 15px;border-radius:999px;background:rgba(255,255,255,.62);border:1px solid rgba(255,255,255,.95);font-weight:600;font-size:14px;color:var(--ink-2);box-shadow:inset 0 1px 0 #fff;transition:background .15s ease;}
+  .chip.selected{background:var(--gloss-aqua);color:#fff;border-color:rgba(255,255,255,.5);text-shadow:0 1px 1px rgba(0,40,80,.2);box-shadow:0 4px 10px -3px rgba(10,120,198,.5), inset 0 1px 0 rgba(255,255,255,.6);}
+  .seg{display:flex;gap:4px;padding:4px;border-radius:999px;background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.9);box-shadow:inset 0 1px 3px rgba(6,60,100,.08);margin-bottom:16px;}
+  .seg .chip{flex:1;border:none;background:transparent;box-shadow:none;min-height:38px;}
+  .seg .chip.selected{background:#fff;color:var(--aqua-deep);text-shadow:none;box-shadow:0 2px 8px -2px rgba(6,60,100,.25);}
+  .field-label{font-weight:700;color:var(--ink);font-size:14px;margin:0 2px 8px;}
 
-  .results-area{margin-top:14px;}
-  .sugg-card{display:flex;align-items:center;gap:14px;padding:14px;border-radius:var(--radius-md);background:linear-gradient(160deg,rgba(255,255,255,.8),rgba(255,255,255,.5));border:1px solid rgba(255,255,255,.8);box-shadow:0 6px 16px rgba(3,86,133,.12);margin-bottom:12px;}
-  .mini-map{height:180px;border-radius:var(--radius-md);overflow:hidden;margin-bottom:12px;border:1px solid rgba(255,255,255,.8);}
-  .sugg-icon{width:48px;height:48px;border-radius:50%;background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.9),rgba(255,255,255,.2)),linear-gradient(160deg,#fff2c9,#ffd166);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;box-shadow:inset 0 1px 2px rgba(255,255,255,.8), 0 3px 8px rgba(244,169,59,.35);}
+  /* ---------- suggestions ---------- */
+  .results-area{margin-top:12px;}
+  .sugg-card{display:flex;align-items:center;gap:12px;padding:12px;border-radius:18px;background:rgba(255,255,255,.75);border:1px solid rgba(255,255,255,.95);box-shadow:var(--shadow-sm), inset 0 1px 0 #fff;margin-bottom:10px;}
+  .sugg-icon{width:48px;height:48px;border-radius:14px;background:linear-gradient(160deg,#FFFFFF,#E3F6FF);display:flex;align-items:center;justify-content:center;font-size:25px;flex-shrink:0;box-shadow:inset 0 0 0 1px rgba(10,120,198,.1), 0 2px 6px -2px rgba(6,60,100,.2);}
   .sugg-info{flex:1;min-width:0;}
-  .sugg-info .name{font-family:'Baloo 2',sans-serif;font-weight:700;font-size:15px;color:var(--ink);}
-  .sugg-info .meta{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin-top:2px;}
-  .sugg-go{flex-shrink:0;background:linear-gradient(180deg,#8fe3a5,#3fa96a);color:#0f3d22;border:none;border-radius:999px;padding:10px 14px;font-weight:800;font-family:'Baloo 2',sans-serif;font-size:12.5px;box-shadow:0 4px 10px rgba(63,169,106,.4), inset 0 1px 1px rgba(255,255,255,.6);white-space:nowrap;}
-  .sugg-go.plan-btn{background:linear-gradient(180deg,#ffe9b0,#f4a93b);color:#5a3c0a;box-shadow:0 4px 10px rgba(244,169,59,.4), inset 0 1px 1px rgba(255,255,255,.6);}
-  .fav-star-btn{background:rgba(255,255,255,.6);border:1px solid rgba(244,169,59,.5);color:#f4a93b;width:32px;height:32px;border-radius:50%;font-size:16px;display:flex;align-items:center;justify-content:center;padding:0;}
-  .gb-ex-card.dragging{opacity:.5;}
-  .gb-drag-handle{color:var(--ink-soft);font-size:18px;user-select:none;-webkit-user-select:none;}
+  .sugg-info .name{font-weight:700;font-size:15px;color:var(--ink);line-height:1.25;}
+  .sugg-info .meta{font-size:12.5px;color:var(--ink-2);font-weight:500;margin-top:2px;}
+  .sugg-go{flex-shrink:0;background:var(--gloss-leaf);color:#fff;border:none;border-radius:999px;min-height:38px;padding:0 16px;font-weight:700;font-size:14px;box-shadow:0 4px 10px -3px rgba(30,138,79,.55), inset 0 1px 0 rgba(255,255,255,.6);white-space:nowrap;text-shadow:0 1px 1px rgba(0,60,30,.25);}
+  .sugg-go.plan-btn{background:var(--gloss-sun);color:#5A3700;text-shadow:none;box-shadow:0 4px 10px -3px rgba(199,122,10,.45), inset 0 1px 0 rgba(255,255,255,.6);}
+  .sugg-go:active{transform:scale(.96);}
+  .mini-map{height:180px;border-radius:18px;overflow:hidden;margin-bottom:12px;border:1px solid rgba(255,255,255,.9);box-shadow:var(--shadow-sm);}
+  .fav-star-btn{background:rgba(255,255,255,.8);border:1px solid rgba(245,165,36,.45);color:var(--sun);width:34px;height:34px;border-radius:50%;font-size:16px;display:flex;align-items:center;justify-content:center;padding:0;}
 
-  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .idea{display:flex;align-items:center;gap:14px;}
+  .idea .sugg-icon{width:56px;height:56px;font-size:30px;border-radius:18px;}
+  .idea-actions{display:flex;gap:8px;margin-top:14px;}
+  .idea-actions .btn{flex:1;}
+  .idea-actions .icon-btn{width:50px;height:50px;}
+
+  /* ---------- quick log ---------- */
+  .quick-row{display:flex;gap:10px;overflow-x:auto;padding:2px 2px 6px;margin:0 -16px 6px;padding-left:16px;padding-right:16px;scroll-snap-type:x proximity;scrollbar-width:none;}
+  .quick-row::-webkit-scrollbar{display:none;}
+  .quick{flex:0 0 auto;scroll-snap-align:start;width:86px;padding:12px 6px 10px;border-radius:18px;background:linear-gradient(170deg,rgba(255,255,255,.88),rgba(255,255,255,.62));border:1px solid rgba(255,255,255,.95);box-shadow:var(--shadow-sm), inset 0 1px 0 #fff;display:flex;flex-direction:column;align-items:center;gap:6px;}
+  .quick .q-ic{font-size:27px;line-height:1;}
+  .quick .q-name{font-size:12px;font-weight:600;color:var(--ink);line-height:1.2;text-align:center;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:29px;}
+  .quick:active{transform:scale(.95);}
+  .quick.more{background:rgba(255,255,255,.35);border:1.5px dashed rgba(255,255,255,.95);box-shadow:none;color:var(--aqua-deep);justify-content:center;}
+  .rest-link{display:flex;margin:8px auto 0;background:none;border:none;color:var(--ink-2);font-weight:600;font-size:14px;padding:10px 14px;border-radius:999px;align-items:center;gap:6px;}
+  .rest-link:active{background:rgba(255,255,255,.4);}
+
+  /* ---------- activity tiles ---------- */
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .act-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
   .act-card-wrap{position:relative;}
-  .act-card{width:100%;background:linear-gradient(160deg,rgba(255,255,255,.78),rgba(255,255,255,.48));border:1px solid rgba(255,255,255,.8);border-radius:var(--radius-md);padding:14px 10px;text-align:center;box-shadow:0 6px 14px rgba(3,86,133,.12);position:relative;transition:transform .15s ease;}
+  .act-card{width:100%;background:linear-gradient(170deg,rgba(255,255,255,.88),rgba(255,255,255,.6));border:1px solid rgba(255,255,255,.95);border-radius:18px;padding:14px 8px 12px;text-align:center;box-shadow:var(--shadow-sm), inset 0 1px 0 #fff;position:relative;transition:transform .12s ease;display:flex;flex-direction:column;align-items:center;gap:5px;}
   .act-card:active{transform:scale(.96);}
-  .act-card .icon{font-size:28px;display:block;margin-bottom:6px;}
-  .act-card .name{font-family:'Baloo 2',sans-serif;font-weight:700;font-size:12.5px;color:var(--ink);display:block;}
-  .act-card .last{font-size:10px;color:var(--ink-soft);font-weight:700;margin-top:4px;display:block;}
-  .act-card.add-card{background:rgba(255,255,255,.35);border:2px dashed rgba(255,255,255,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--aqua-deeper);}
-  .edit-fab{position:absolute;top:6px;right:6px;width:25px;height:25px;border-radius:50%;background:rgba(255,255,255,.92);border:1px solid rgba(255,255,255,.95);font-size:11px;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 2px 6px rgba(3,86,133,.25);z-index:2;}
+  .act-card .icon{font-size:28px;line-height:1;display:block;}
+  .act-card .name{font-weight:700;font-size:13px;color:var(--ink);display:block;line-height:1.2;}
+  .act-card .last{font-size:11.5px;color:var(--ink-3);font-weight:600;display:block;}
+  .act-card.add-card{background:rgba(255,255,255,.35);border:1.5px dashed rgba(255,255,255,.95);box-shadow:none;justify-content:center;color:var(--aqua-deep);}
+  .edit-fab{display:none;}
 
-  .gb-tabs{display:flex;gap:4px;padding:4px;border-radius:999px;background:rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.8);margin-bottom:12px;}
-  .gb-tab{flex:1;border:none;background:transparent;border-radius:999px;padding:8px 6px;font-family:'Baloo 2',sans-serif;font-weight:800;font-size:14px;color:var(--ink-soft);display:flex;flex-direction:column;align-items:center;line-height:1.15;transition:background .2s ease;}
-  .gb-tab small{font-family:'Nunito',sans-serif;font-weight:700;font-size:11px;opacity:.8;}
-  .gb-tab.on{background:linear-gradient(180deg,#7fe0ff,#0288d1);color:#fff;box-shadow:0 4px 10px rgba(2,136,209,.35), inset 0 1px 1px rgba(255,255,255,.6);}
-  .gb-tab.counter.on{background:linear-gradient(180deg,#ffe9b0,#f4a93b);color:#5a3c0a;box-shadow:0 4px 10px rgba(244,169,59,.35), inset 0 1px 1px rgba(255,255,255,.6);}
-  .gb-counter-intro{background:rgba(255,209,102,.25);border:1px solid rgba(244,169,59,.4);border-radius:var(--radius-sm);padding:11px 14px;margin-bottom:10px;}
-  .gb-counter-card{border-left:4px solid var(--sun-deep);}
-  .toast{position:fixed;top:18px;left:50%;transform:translateX(-50%) translateY(-160%);z-index:200;background:linear-gradient(160deg,#fff,rgba(255,255,255,.9));border:1px solid rgba(255,255,255,.9);border-radius:999px;padding:11px 16px;font-family:'Baloo 2',sans-serif;font-weight:700;color:var(--aqua-deeper);box-shadow:0 10px 26px rgba(3,86,133,.3);transition:transform .4s cubic-bezier(.34,1.56,.64,1);display:flex;align-items:center;gap:8px;white-space:nowrap;font-size:13.5px;max-width:92vw;min-width:180px;justify-content:center;}
+  /* ---------- lists / journal ---------- */
+  .journal-entry{background:rgba(255,255,255,.7);border-radius:var(--r-md);padding:12px 14px;margin-bottom:8px;border:1px solid rgba(255,255,255,.95);box-shadow:inset 0 1px 0 #fff;transition:outline-color .15s ease, background .15s ease;}
+  .journal-entry.drop-hover{outline:2.5px dashed var(--sun);outline-offset:2px;background:var(--sun-soft);}
+  .journal-entry .jdate{font-size:14px;color:var(--ink);font-weight:700;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  .journal-entry .entry-sticker{font-size:18px;}
+  .journal-entry .jtext{font-size:13.5px;color:var(--ink-2);margin-top:3px;line-height:1.45;}
+  .jtext{font-size:14px;color:var(--ink-2);line-height:1.45;}
+  .list-row{display:flex;align-items:center;gap:12px;padding:11px 4px;border-bottom:1px solid rgba(10,120,198,.08);}
+  .list-row:last-child{border-bottom:none;}
+  .list-row .lr-ic{width:38px;height:38px;border-radius:12px;background:linear-gradient(160deg,#fff,#E3F6FF);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:inset 0 0 0 1px rgba(10,120,198,.08);}
+  .list-row .lr-main{flex:1;min-width:0;}
+  .list-row .lr-title{font-weight:700;font-size:14.5px;color:var(--ink);}
+  .list-row .lr-sub{font-size:12.5px;color:var(--ink-2);}
+  .list-row .lr-end{font-weight:700;font-size:13px;color:var(--leaf-deep);white-space:nowrap;}
+  .pill{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--leaf-soft);color:var(--leaf-deep);}
+  .pill.aqua{background:var(--aqua-soft);color:var(--aqua-deep);}
+  textarea.journal-input{width:100%;min-height:84px;padding:12px 14px;border-radius:var(--r-sm);border:1px solid rgba(255,255,255,.95);background:rgba(255,255,255,.8);font-family:inherit;font-size:15px;color:var(--ink);margin-bottom:10px;resize:vertical;box-shadow:inset 0 1px 3px rgba(6,60,100,.08);}
+
+  .sticker-tray{display:flex;flex-wrap:wrap;gap:10px;min-height:40px;}
+  .sticker-chip{display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 6px;border-radius:16px;width:66px;background:linear-gradient(170deg,rgba(255,255,255,.92),rgba(255,255,255,.65));border:1px solid rgba(255,255,255,.95);box-shadow:var(--shadow-sm);touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;}
+  .sticker-chip .semoji{font-size:28px;line-height:1;}
+  .sticker-chip .slabel{font-size:10px;font-weight:700;color:var(--ink-2);text-align:center;}
+  .sticker-chip.dragging{position:fixed;z-index:300;opacity:.95;box-shadow:0 14px 28px rgba(6,60,100,.35);pointer-events:none;}
+
+  /* ---------- settings ---------- */
+  .set-row{display:flex;align-items:center;gap:12px;}
+  .set-row .sr-ic{font-size:22px;width:40px;height:40px;border-radius:12px;background:linear-gradient(160deg,#fff,#E3F6FF);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:inset 0 0 0 1px rgba(10,120,198,.08);}
+  .set-row .sr-main{flex:1;min-width:0;}
+  .set-row .sr-title{font-weight:700;font-size:15px;}
+  .set-row .sr-sub{font-size:12.5px;color:var(--ink-2);}
+  .glass.danger{border-color:rgba(194,69,61,.25);}
+  details.fold > summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:15px;}
+  details.fold > summary::-webkit-details-marker{display:none;}
+  details.fold > summary::after{content:'';width:9px;height:9px;border-right:2px solid var(--ink-3);border-bottom:2px solid var(--ink-3);transform:rotate(45deg);margin-right:4px;transition:transform .2s ease;}
+  details.fold[open] > summary::after{transform:rotate(-135deg);}
+  details.fold[open] > summary{margin-bottom:12px;}
+
+  /* ---------- gymbro ---------- */
+  .gb-cats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+  .gb-ex-card.dragging{opacity:.5;}
+  .gb-ex-card.drop-hover{outline:2.5px dashed var(--aqua);outline-offset:2px;}
+  .gb-drag-handle{color:var(--ink-3);font-size:18px;user-select:none;-webkit-user-select:none;}
+  .gb-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;padding-left:30px;}
+  .gb-act{min-height:32px;padding:0 11px;border-radius:999px;border:1px solid rgba(10,120,198,.14);background:rgba(255,255,255,.85);font-size:12.5px;font-weight:700;color:var(--aqua-deep);display:inline-flex;align-items:center;gap:4px;}
+  .gb-act:disabled{opacity:.35;}
+  .gb-check{width:22px;height:22px;margin-top:1px;accent-color:var(--leaf);flex-shrink:0;}
+  .gb-meta{font-size:12.5px;font-weight:700;color:var(--aqua-deep);background:var(--aqua-soft);padding:1px 8px;border-radius:999px;}
+  .gb-tabs{display:flex;gap:4px;padding:4px;border-radius:999px;background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.9);margin-bottom:12px;}
+  .gb-tab{flex:1;border:none;background:transparent;border-radius:999px;padding:7px 6px;font-weight:700;font-size:14px;color:var(--ink-2);display:flex;flex-direction:column;align-items:center;line-height:1.2;}
+  .gb-tab small{font-weight:600;font-size:11.5px;opacity:.8;}
+  .gb-tab.on{background:#fff;color:var(--aqua-deep);box-shadow:0 2px 8px -2px rgba(6,60,100,.25);}
+  .gb-tab.counter.on{color:var(--sun-deep);}
+  .gb-counter-intro{background:var(--sun-soft);border:1px solid rgba(245,165,36,.3);border-radius:var(--r-md);padding:12px 14px;margin-bottom:10px;}
+  .gb-counter-card{border-left:4px solid var(--sun);}
+
+  /* ---------- toast ---------- */
+  .toast{position:fixed;top:calc(12px + env(safe-area-inset-top));left:50%;transform:translateX(-50%) translateY(-180%);z-index:400;background:rgba(255,255,255,.94);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid #fff;border-radius:999px;padding:10px 12px 10px 18px;font-weight:700;color:var(--ink);box-shadow:0 12px 30px -6px rgba(6,60,100,.35);transition:transform .4s cubic-bezier(.34,1.56,.64,1);display:flex;align-items:center;gap:10px;font-size:14px;max-width:calc(100vw - 32px);min-width:180px;justify-content:center;}
   .toast.show{transform:translateX(-50%) translateY(0);}
-  .toast-undo{background:var(--aqua-deep);color:#fff;border:none;border-radius:999px;padding:5px 12px;font-size:12px;font-weight:800;font-family:'Baloo 2',sans-serif;flex-shrink:0;}
+  .toast-undo{background:var(--aqua-soft);color:var(--aqua-deep);border:none;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:700;flex-shrink:0;}
 
-  .bottom-nav{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:3px;background:linear-gradient(160deg,rgba(255,255,255,.96),rgba(255,255,255,.85));backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:999px;padding:7px;border:1px solid rgba(255,255,255,.9);box-shadow:0 10px 28px rgba(3,86,133,.35);z-index:100;padding-bottom:calc(7px + env(safe-area-inset-bottom));}
+  /* ---------- bottom nav ---------- */
+  .bottom-nav{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom));width:calc(100% - 24px);max-width:456px;display:grid;grid-template-columns:repeat(5,1fr);align-items:center;background:rgba(255,255,255,.82);backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);border-radius:26px;padding:6px;border:1px solid #fff;box-shadow:0 14px 34px -10px rgba(6,60,100,.4), inset 0 1px 0 #fff;z-index:100;}
+  .nav-btn{height:54px;border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:transparent;border:none;color:var(--ink-3);padding:0;}
+  .nav-btn .lbl{font-size:11px;font-weight:700;}
+  .nav-btn.active{color:var(--aqua-deep);background:rgba(26,163,232,.1);}
+  .nav-add{justify-self:center;width:58px;height:58px;margin-top:-26px;border-radius:50%;border:3px solid #fff;background:var(--gloss-leaf);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 22px -6px rgba(30,138,79,.65), inset 0 1px 0 rgba(255,255,255,.7);padding:0;}
+  .nav-add .ic{width:28px;height:28px;stroke-width:2.6;}
+  .nav-add:active{transform:scale(.94);}
 
-  .sticker-tray{display:flex;flex-wrap:wrap;gap:10px;min-height:74px;}
-  .sticker-chip{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 6px;border-radius:14px;width:62px;background:linear-gradient(160deg,rgba(255,255,255,.8),rgba(255,255,255,.5));border:1px solid rgba(255,255,255,.85);box-shadow:0 4px 10px rgba(3,86,133,.15);touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;}
-  .sticker-chip .semoji{font-size:26px;line-height:1;}
-  .sticker-chip .slabel{font-size:8.5px;font-weight:800;color:var(--ink-soft);text-align:center;}
-  .sticker-chip.dragging{position:fixed;z-index:300;opacity:.92;box-shadow:0 14px 28px rgba(3,86,133,.4);pointer-events:none;}
-  .journal-entry{background:linear-gradient(160deg,rgba(255,255,255,.75),rgba(255,255,255,.5));border-radius:var(--radius-sm);padding:11px 14px;margin-bottom:8px;border:1px solid rgba(255,255,255,.8);transition:outline-color .15s ease, background .15s ease;}
-  .journal-entry.drop-hover{outline:3px dashed var(--sun-deep);outline-offset:2px;background:rgba(255,209,102,.28);}
-  .journal-entry .jdate{font-size:10.5px;color:var(--ink-soft);font-weight:800;text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;gap:5px;}
-  .journal-entry .entry-sticker{font-size:16px;}
-  .journal-entry .jtext{font-size:13.5px;color:var(--ink);margin-top:3px;line-height:1.4;}
-  textarea.journal-input{width:100%;min-height:76px;padding:11px 14px;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,.9);background:rgba(255,255,255,.65);font-family:'Nunito',sans-serif;font-weight:600;color:var(--ink);margin-bottom:10px;resize:vertical;}
+  /* ---------- sheets & modals ---------- */
+  .modal-backdrop,.sheet-backdrop{display:none;position:fixed;inset:0;z-index:300;background:rgba(8,50,80,.32);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);align-items:flex-end;justify-content:center;}
+  .modal-backdrop.show,.sheet-backdrop.show{display:flex;animation:fadeIn .2s ease;}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  .modal-card,.sheet{width:100%;max-width:480px;max-height:90vh;max-height:90dvh;overflow-y:auto;margin:0 !important;border-radius:28px 28px 0 0 !important;padding:10px 18px calc(22px + env(safe-area-inset-bottom)) !important;background:linear-gradient(180deg,rgba(255,255,255,.97),rgba(240,251,255,.95)) !important;animation:sheetUp .32s cubic-bezier(.2,.9,.3,1);}
+  .modal-card::before,.sheet::before{content:'';display:block;width:40px;height:5px;border-radius:99px;background:rgba(14,53,80,.15);margin:0 auto 14px;}
+  @keyframes sheetUp{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+  @media (min-width:560px){
+    .modal-backdrop,.sheet-backdrop{align-items:center;padding:20px;}
+    .modal-card,.sheet{border-radius:28px !important;}
+  }
+  .search-result{padding:11px 14px;border-radius:12px;background:rgba(255,255,255,.8);margin-bottom:6px;font-weight:600;font-size:14px;color:var(--ink);border:1px solid rgba(10,120,198,.1);cursor:pointer;}
+  .search-result:active{background:var(--aqua-soft);}
+  #leaflet-map{height:240px;border-radius:18px;overflow:hidden;margin:12px 0;border:1px solid rgba(255,255,255,.9);}
+  .map-hint{font-size:12.5px;color:var(--ink-2);text-align:center;margin:-4px 0 10px;}
 
+  .empty-note{text-align:center;color:var(--ink-2);font-weight:500;font-size:14px;padding:10px 4px;}
+  input[type=text],input[type=number],input[type=date],input[type=time],select{width:100%;min-height:46px;padding:10px 14px;border-radius:var(--r-sm);border:1px solid rgba(10,120,198,.14);background:rgba(255,255,255,.85);font-family:inherit;font-size:15px;font-weight:500;color:var(--ink);margin-bottom:10px;box-shadow:inset 0 1px 3px rgba(6,60,100,.06);}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--aqua);box-shadow:0 0 0 3px rgba(26,163,232,.2);}
+  #undo-banner:empty{display:none;}
+  #undo-banner{margin-top:6px;text-align:center;}
+  .weather-caption{font-size:13.5px;font-weight:600;color:var(--aqua-deep);margin:8px 2px 4px;min-height:18px;}
+  .location-note{font-size:12.5px;color:var(--ink-2);margin-top:8px;text-align:center;line-height:1.45;}
+  .loc-picker-row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .loc-picker-row .loc-text{font-size:14px;font-weight:600;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:8px;}
   .burst-particle{position:absolute;left:0;top:0;animation:burstFly .9s ease-out forwards;}
   @keyframes burstFly{
     0%{transform:translate(0,0) scale(.4) rotate(0deg); opacity:0;}
     15%{opacity:1; transform:translate(calc(var(--dx)*0.3), calc(var(--dy)*0.3)) scale(1.15) rotate(20deg);}
     100%{transform:translate(var(--dx), var(--dy)) scale(.65) rotate(60deg); opacity:0;}
   }
-  .nav-btn{width:48px;height:50px;border-radius:999px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:transparent;border:none;color:var(--ink-soft);font-size:18px;}
-  .nav-btn span.lbl{font-size:9.5px;font-weight:800;font-family:'Baloo 2',sans-serif;}
-  .nav-btn.active{background:linear-gradient(180deg,#7fe0ff,#0288d1);color:#fff;box-shadow:inset 0 1px 1px rgba(255,255,255,.6), 0 4px 12px rgba(2,136,209,.45);}
-
-  .empty-note{text-align:center;color:var(--ink-soft);font-weight:700;font-size:13.5px;padding:10px 4px;}
-  input[type=text],input[type=number],input[type=date],input[type=time]{width:100%;padding:11px 14px;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,.9);background:rgba(255,255,255,.65);font-family:'Nunito',sans-serif;font-weight:700;color:var(--ink);margin-bottom:10px;}
-  #undo-banner{margin-bottom:14px;}
-  .weather-caption{font-size:13px;font-weight:700;color:var(--aqua-deeper);margin:2px 2px 12px;min-height:18px;}
-  .location-note{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin-top:8px;text-align:center;}
-  .loc-picker-row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
-  .loc-picker-row .loc-text{font-size:13px;font-weight:700;color:var(--ink-soft);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-
-  .modal-backdrop{display:none;position:fixed;inset:0;z-index:300;background:rgba(3,50,80,.45);backdrop-filter:blur(3px);padding:16px;overflow-y:auto;}
-  .modal-backdrop.show{display:block;}
-  .modal-card{max-width:440px;margin:30px auto;padding:20px;}
-  .search-result{padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.6);margin-bottom:6px;font-weight:700;font-size:13.5px;color:var(--ink);border:1px solid rgba(255,255,255,.7);}
-  .search-result:active{background:rgba(255,255,255,.9);}
-  #leaflet-map{height:230px;border-radius:18px;overflow:hidden;margin:12px 0;border:1px solid rgba(255,255,255,.8);}
-  .map-hint{font-size:11.5px;color:var(--ink-soft);font-weight:600;text-align:center;margin:-6px 0 10px;}
 </style>
 </head>
 <body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3.5 10.5 12 3.5l8.5 7V19a1.5 1.5 0 0 1-1.5 1.5h-4v-6h-6v6H5A1.5 1.5 0 0 1 3.5 19z"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M11 3.5l1.9 5.1 5.1 1.9-5.1 1.9L11 17.5l-1.9-5.1L4 10.5l5.1-1.9z"/><path d="M18.5 15l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v14H7.5A2.5 2.5 0 0 0 5 19.5z"/><path d="M5 19.5A2.5 2.5 0 0 0 7.5 22H19v-5"/></symbol>
+  <symbol id="i-dumbbell" viewBox="0 0 24 24"><path d="M7 7v10M17 7v10M3.5 9.5v5M20.5 9.5v5M7 12h10"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
+</svg>
 
 <div class="bg-bubbles" id="bubbles"></div>
 
 <div class="app">
 
-  <!-- ============ DASHBOARD ============ -->
+  <!-- ============ DOMŮ ============ -->
   <section class="view active" id="view-dashboard">
-    <div class="top-greeting display">
-      <h1 style="margin:0;font-size:22px;">Ahoj! 👋</h1>
-      <span class="sub" id="dash-subline">Podívej se, kde jsi.</span>
-    </div>
+    <header class="topbar">
+      <div class="tb-left"><div>
+        <p class="eyebrow" id="dash-date"></p>
+        <h1 class="h1" id="dash-greeting">Ahoj</h1>
+      </div></div>
+      <button class="icon-btn" onclick="goTo('settings')" aria-label="Nastavení"><svg class="ic"><use href="#i-gear"/></svg></button>
+    </header>
 
-    <div id="undo-banner"></div>
+    <div id="comeback-banner"></div>
 
-    <div class="glass" style="text-align:center;">
-      <div class="orb-wrap">
+    <div class="glass">
+      <div class="hero-row">
         <div class="orb"><div class="orb-fill" id="orb-fill"></div>
-          <div class="orb-content"><div class="orb-level-num" id="orb-level">1</div><div class="orb-level-label">level</div></div>
+          <div class="orb-content"><span class="orb-level-num" id="orb-level">1</span><span class="orb-level-label">level</span></div>
         </div>
-        <div class="xp-caption" id="xp-caption">0 / 100 XP</div>
+        <div class="hero-info">
+          <p class="hero-msg" id="dash-subline">Každý pohyb se počítá.</p>
+          <div class="xp-bar"><i id="xp-bar-fill"></i></div>
+          <p class="xp-caption" id="xp-caption">0 / 100 XP</p>
+        </div>
+      </div>
+      <div class="stat-row">
+        <div class="stat"><span class="stat-val" id="stat-streak">0</span><span class="stat-lbl" id="stat-streak-lbl">dní v řadě</span></div>
+        <div class="stat freeze"><span class="stat-val">🧊 <span id="freeze-count">0</span></span><span class="stat-lbl">zmrazení</span></div>
+        <div class="stat comeback"><span class="stat-val">🌱 <span id="stat-comebacks">0</span></span><span class="stat-lbl">návratů</span></div>
       </div>
     </div>
 
     <div class="glass">
-      <div class="streak-head"><h3 class="display">Posledních 14 dní</h3><div class="freeze-chip">🧊 <span id="freeze-count">0</span></div></div>
-      <div class="streak-dots" id="streak-dots"></div>
-      <div class="streak-legend">
-        <span><i class="legend-dot" style="background:#4CAF6D"></i>aktivní</span>
-        <span><i class="legend-dot" style="background:#6fbeea"></i>odpočinek</span>
-        <span><i class="legend-dot" style="background:#cdeef9;border:1px solid #a9e0f4"></i>zamrazeno</span>
-        <span><i class="legend-dot" style="background:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.8)"></i>nic</span>
+      <div class="card-head"><h2 class="h2">Tento týden</h2><span class="muted" id="week-summary"></span></div>
+      <div class="week" id="week-days"></div>
+      <div class="legend">
+        <span><i style="background:#3DBB72"></i>pohyb</span>
+        <span><i style="background:#A9D8F5"></i>odpočinek</span>
+        <span><i style="background:#CFF1FD;box-shadow:inset 0 0 0 1px #8FD8F2"></i>zmrazeno</span>
       </div>
     </div>
 
-    <div class="btn-row">
-      <button class="btn btn-primary display" onclick="goTo('suggest')">✨ Co mám dělat?</button>
-      <button class="btn btn-leaf display" onclick="goTo('activities')">📋 Zapsat aktivitu</button>
-      <button class="btn btn-ghost btn-sm display" style="align-self:center;" onclick="markRestDay()">😌 Dnes si dávám pauzu</button>
+    <div class="glass">
+      <div class="card-head"><h2 class="h2">Nápad na teď</h2><button class="link-btn" onclick="goTo('suggest')">Víc možností</button></div>
+      <div id="today-idea"></div>
     </div>
+
+    <div class="card-head" style="margin:20px 4px 10px;"><h2 class="h2">Rychlý zápis</h2><button class="link-btn" onclick="openLogSheet()">Všechny aktivity</button></div>
+    <div class="quick-row" id="quick-log"></div>
+    <button class="rest-link" onclick="markRestDay()">😌 Dnes odpočívám</button>
+    <div id="undo-banner"></div>
   </section>
 
-  <!-- ============ SUGGEST ============ -->
+  <!-- ============ NÁPADY ============ -->
   <section class="view" id="view-suggest">
-    <h1 class="display view-title">Co mám dělat? ✨</h1>
+    <header class="topbar"><h1 class="view-title">Nápady</h1></header>
 
     <div class="glass small">
       <div class="loc-picker-row">
-        <span class="loc-text">📍 <span id="location-label">Používá se aktuální GPS poloha</span></span>
+        <span class="loc-text"><svg class="ic sm" style="color:var(--aqua-deep)"><use href="#i-pin"/></svg><span id="location-label">Aktuální GPS poloha</span></span>
         <button class="btn btn-ghost btn-sm" onclick="openLocationPicker()">Změnit</button>
       </div>
     </div>
 
-    <div class="chip-row" id="mode-toggle">
+    <div class="seg" id="mode-toggle">
       <button class="chip selected" data-val="now">Teď</button>
-      <button class="chip" data-val="plan">Naplánovat dopředu</button>
+      <button class="chip" data-val="plan">Naplánovat</button>
     </div>
 
-    <!-- ---- NOW panel ---- -->
     <div id="panel-now">
       <div class="glass">
         <p class="field-label">Kolik máš času?</p>
@@ -235,31 +395,30 @@
         </div>
         <p class="field-label">Sám, nebo s partou?</p>
         <div class="chip-row" id="chips-social">
-          <button class="chip" data-val="any">Nezáleží</button><button class="chip" data-val="solo">Radši sám</button><button class="chip" data-val="social">Otevřený partě</button>
+          <button class="chip" data-val="any">Nezáleží</button><button class="chip" data-val="solo">Radši sám</button><button class="chip" data-val="social">S partou</button>
         </div>
         <p class="field-label">Počasí</p>
         <div class="chip-row" id="chips-weather">
           <button class="chip" data-val="any">Nezáleží</button><button class="chip" data-val="outdoor">Venku pohoda</button><button class="chip" data-val="indoor">Radši uvnitř</button>
         </div>
-        <button class="btn btn-primary display" onclick="runSuggest()">🔎 Najdi mi něco</button>
+        <button class="btn btn-primary" onclick="runSuggest()">Najdi mi něco</button>
       </div>
       <div id="suggest-results" class="results-area"></div>
 
-      <div class="glass" style="margin-top:16px;">
-        <p class="field-label">Nebo podle toho, co je poblíž</p>
-        <button class="btn btn-sun display" onclick="runLocationSuggest()">📍 Podle okolí</button>
-        <div class="location-note">Potřebuje povolit polohu a internet. Hledá parky, lesy, hřiště, posilovny a bazény poblíž.</div>
+      <div class="glass">
+        <p class="field-label">Podle toho, co je poblíž</p>
+        <p class="muted" style="margin-bottom:12px;">Parky, lesy, hřiště, posilovny a bazény v okolí. Potřebuje polohu a internet.</p>
+        <button class="btn btn-sun" onclick="runLocationSuggest()"><svg class="ic sm"><use href="#i-pin"/></svg> Hledat v okolí</button>
       </div>
       <div id="location-results" class="results-area"></div>
     </div>
 
-    <!-- ---- PLAN panel ---- -->
     <div id="panel-plan" style="display:none;">
       <div class="glass">
         <p class="field-label">Který den?</p>
         <input type="date" id="plan-date">
         <p class="field-label">Kdy zhruba?</p>
-        <div class="chip-row" id="chips-plan-tod">
+        <div class="chip-row" id="chips-plan-tod" style="margin-bottom:10px;">
           <button class="chip" data-val="09:00">Ráno</button><button class="chip selected" data-val="14:00">Odpoledne</button><button class="chip" data-val="19:00">Večer</button>
         </div>
         <input type="time" id="plan-time" value="14:00">
@@ -268,214 +427,251 @@
           <button class="chip" data-val="30">30 min</button><button class="chip selected" data-val="60">1 hodina</button><button class="chip" data-val="240">Půl dne+</button>
         </div>
         <p class="field-label">Počasí</p>
-        <div class="chip-row" id="chips-plan-weather">
+        <div class="chip-row" id="chips-plan-weather" style="margin-bottom:8px;">
           <button class="chip selected" data-val="any">Nezáleží</button><button class="chip" data-val="outdoor">Venku pohoda</button><button class="chip" data-val="indoor">Radši uvnitř</button>
         </div>
-        <button class="btn btn-ghost display" onclick="checkPlanWeather()">🌤️ Zjistit skutečné počasí</button>
+        <button class="btn btn-ghost btn-sm" onclick="checkPlanWeather()">🌤️ Zjistit předpověď</button>
         <div class="weather-caption" id="plan-weather-caption"></div>
-        <button class="btn btn-primary display" style="margin-top:10px;" onclick="runPlanSuggest()">Navrhnout</button>
+        <button class="btn btn-primary" style="margin-top:8px;" onclick="runPlanSuggest()">Navrhnout</button>
       </div>
       <div id="plan-results" class="results-area"></div>
 
-      <div class="glass" style="margin-top:16px;">
-        <p class="field-label">Nebo podle toho, co bude poblíž zvolené polohy</p>
-        <button class="btn btn-sun display" onclick="runLocationSuggestPlan()">📍 Podle okolí (pro zvolený den)</button>
-        <div class="location-note">Použije polohu z karty nahoře — klidně tu, co sis vybral výše (třeba Nelahozeves), ne jen aktuální GPS.</div>
+      <div class="glass">
+        <p class="field-label">Podle okolí zvoleného místa</p>
+        <p class="muted" style="margin-bottom:12px;">Použije polohu z karty nahoře — třeba chatu, kam jedeš na víkend.</p>
+        <button class="btn btn-sun" onclick="runLocationSuggestPlan()"><svg class="ic sm"><use href="#i-pin"/></svg> Hledat v okolí</button>
       </div>
       <div id="plan-location-results" class="results-area"></div>
 
-      <p class="location-note">Tip navrhne aktivity, tlačítko stáhne .ics soubor, který si otevřeš / naimportuješ do Google nebo Samsung kalendáře.</p>
+      <p class="location-note">Tlačítko „Přidat“ stáhne .ics soubor, který otevřeš v Google nebo Samsung kalendáři.</p>
     </div>
   </section>
 
-  <!-- ============ ACTIVITIES ============ -->
+  <!-- ============ AKTIVITY (správa) ============ -->
   <section class="view" id="view-activities">
-    <h1 class="display view-title">Aktivity 📋</h1>
-    <p class="empty-note" style="margin-bottom:14px;">Klepni na aktivitu a rovnou se zapíše. Tužkou (✎) ji upravíš.</p>
-    <div class="grid-2" id="activity-grid"></div>
-    <div id="add-form-wrap" style="margin-top:18px;"></div>
+    <header class="topbar">
+      <div class="tb-left">
+        <button class="icon-btn" onclick="goTo('dashboard')" aria-label="Zpět"><svg class="ic"><use href="#i-back"/></svg></button>
+        <h1 class="view-title">Moje aktivity</h1>
+      </div>
+    </header>
+    <p class="muted" style="margin:-6px 4px 14px;">Klepnutím aktivitu upravíš. Zapisuje se zeleným tlačítkem + dole.</p>
+    <div id="add-form-wrap"></div>
+    <div class="act-grid" id="activity-grid"></div>
   </section>
 
-  <!-- ============ JOURNAL ============ -->
+  <!-- ============ DENÍK ============ -->
   <section class="view" id="view-journal">
-    <h1 class="display view-title">Deníček 📔</h1>
+    <header class="topbar"><h1 class="view-title">Deník</h1></header>
 
     <div class="glass">
-      <p class="field-label" style="margin-bottom:8px;">Nálepky za postup (každý 5. level)</p>
-      <div class="sticker-tray" id="sticker-tray"></div>
-      <p class="location-note">Přetáhni nálepku dolů na vzpomínku, ke které patří.</p>
+      <div class="card-head"><h2 class="h2">Poslední pohyb</h2><span class="muted" id="history-summary"></span></div>
+      <div id="history-list"></div>
     </div>
 
     <div class="glass">
-      <div class="loc-picker-row" style="margin-bottom:4px;">
-        <strong class="display" style="font-size:15px;color:var(--ink);">Vzpomínky</strong>
-        <button class="btn btn-ghost btn-sm" onclick="toggleJournalForm()">+ Nová</button>
-      </div>
+      <div class="card-head"><h2 class="h2">Vzpomínky</h2><button class="btn btn-ghost btn-sm" onclick="toggleJournalForm()">+ Nová</button></div>
       <div id="journal-form-wrap"></div>
-      <div id="journal-list" class="results-area"></div>
+      <div id="journal-list"></div>
     </div>
 
     <div class="glass">
-      <div class="loc-picker-row" style="margin-bottom:4px;">
-        <strong class="display" style="font-size:15px;color:var(--ink);">⭐ Oblíbená místa</strong>
-        <button class="btn btn-ghost btn-sm" onclick="openLocationPicker('favorite')">+ Přidat</button>
-      </div>
-      <p class="location-note" style="margin-bottom:6px;">Vždycky se ukážou nahoře v Podle okolí, bez ohledu na to, jak zrovna appka řadí ostatní výsledky.</p>
+      <div class="card-head"><h2 class="h2">Nálepky</h2><span class="muted">každý 5. level</span></div>
+      <div class="sticker-tray" id="sticker-tray"></div>
+      <p class="location-note">Přetáhni nálepku na vzpomínku, ke které patří.</p>
+    </div>
+
+    <div class="glass">
+      <div class="card-head"><h2 class="h2">⭐ Oblíbená místa</h2><button class="btn btn-ghost btn-sm" onclick="openLocationPicker('favorite')">+ Přidat</button></div>
+      <p class="muted" style="margin-bottom:6px;">Ukážou se vždycky nahoře v hledání podle okolí.</p>
       <div id="favorites-list" class="results-area"></div>
-    </div>
-
-    <div class="glass small" style="opacity:.9;">
-      <div class="loc-picker-row">
-        <span class="loc-text">🎬 GIFy cviků v GymBro (volitelné)</span>
-        <button class="btn btn-ghost btn-sm" onclick="toggleWorkoutxSettings()">Nastavit</button>
-      </div>
-      <div id="workoutx-settings-wrap"></div>
-    </div>
-
-    <div class="glass small" style="opacity:.9;">
-      <div class="loc-picker-row"><span class="loc-text">💾 Záloha dat</span></div>
-      <p class="location-note" id="backup-status" style="text-align:left;margin-top:6px;">Ještě jsi nikdy nezálohoval.</p>
-      <div class="btn-row">
-        <button class="btn btn-leaf btn-sm" onclick="exportBackup()">⬇️ Exportovat JSON</button>
-        <button class="btn btn-ghost btn-sm" onclick="triggerImportPicker()">⬆️ Importovat zálohu</button>
-      </div>
-      <input type="file" id="import-file-input" accept="application/json,.json" style="display:none;" onchange="handleImportFile(event)">
-      <div id="import-confirm-wrap"></div>
-    </div>
-
-    <div class="glass small" style="opacity:.9;border:1px solid rgba(220,80,80,.35);">
-      <div class="loc-picker-row"><span class="loc-text">🗑️ Restart appky</span></div>
-      <p class="location-note" style="margin-top:6px;">Smaže veškerý postup (log, streak, XP, nálepky, deníček, GymBro deník i úrovně) — API klíče, oblíbená místa, uložené GIFy a vlastní aktivity zůstanou. Zvaž si napřed zálohu výše.</p>
-      <div id="restart-confirm-wrap"></div>
-      <button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="startAppRestart()">Restartovat appku</button>
-    </div>
-
-    <div class="glass small" style="opacity:.9;">
-      <div class="loc-picker-row">
-        <span class="loc-text">🗺️ Mapy.com pro okolí (volitelné)</span>
-        <button class="btn btn-ghost btn-sm" onclick="toggleMapySettings()">Nastavit</button>
-      </div>
-      <div id="mapy-settings-wrap"></div>
-    </div>
-
-    <div class="glass small" style="opacity:.9;">
-      <div class="loc-picker-row">
-        <span class="loc-text">🎬 GIF oslava (volitelné)</span>
-        <button class="btn btn-ghost btn-sm" onclick="toggleGiphySettings()">Nastavit</button>
-      </div>
-      <div id="giphy-settings-wrap"></div>
-    </div>
-
-    <div class="glass small" style="opacity:.9;">
-      <div class="loc-picker-row">
-        <span class="loc-text">📨 Discord oznámení (volitelné)</span>
-        <button class="btn btn-ghost btn-sm" onclick="toggleDiscordSettings()">Nastavit</button>
-      </div>
-      <div id="discord-settings-wrap"></div>
     </div>
   </section>
 
   <!-- ============ GYMBRO ============ -->
   <section class="view" id="view-gymbro">
-    <h1 class="display view-title">GymBro 💪</h1>
-    <p class="empty-note" style="margin-bottom:8px;">Samostatný parťák na trénink — nic odsud se nepočítá do streaku, XP dostaneš jako vždy za "Beru" u Posilovny.</p>
+    <header class="topbar">
+      <h1 class="view-title">GymBro</h1>
+      <div class="tb-actions">
+        <button class="icon-btn" onclick="gbUndo()" aria-label="Vrátit zpět" title="Vrátit zpět"><svg class="ic"><use href="#i-undo"/></svg></button>
+        <button class="icon-btn" onclick="gbOpenManageModal()" aria-label="Cviky a žebříčky" title="Cviky a žebříčky"><svg class="ic"><use href="#i-sliders"/></svg></button>
+      </div>
+    </header>
+    <p class="muted" style="margin:-6px 4px 12px;">Parťák na trénink. Do XP se počítá přes zápis „Posilovna“.</p>
     <div id="gb-last-workout-info"></div>
 
     <div class="glass">
-      <div class="loc-picker-row" style="margin-bottom:10px;">
-        <p class="field-label" style="margin:0;">Kde cvičíš?</p>
-        <button class="btn btn-ghost btn-sm" onclick="gbUndo()">↩️ Vrátit zpět</button>
-      </div>
-      <div class="chip-row" id="gb-env-chips">
+      <div class="seg" id="gb-env-chips">
         <button class="chip selected" data-val="gym">🏋️ Posilovna</button>
-        <button class="chip" data-val="outdoor">🌳 Venkovní posilovna</button>
+        <button class="chip" data-val="outdoor">🌳 Venkovní</button>
       </div>
       <p class="field-label">Co dneska?</p>
-      <div class="grid-2" style="margin-bottom:6px;">
+      <div class="gb-cats">
         <button class="act-card" onclick="buildGymbroWorkout('push')"><span class="icon">🫸</span><span class="name">Přední vršek</span></button>
         <button class="act-card" onclick="buildGymbroWorkout('pull')"><span class="icon">🫷</span><span class="name">Zadní vršek</span></button>
-        <button class="act-card" style="grid-column:span 2;" onclick="buildGymbroWorkout('legs_core')"><span class="icon">🦵</span><span class="name">Nohy + Core</span></button>
+        <button class="act-card" onclick="buildGymbroWorkout('legs_core')"><span class="icon">🦵</span><span class="name">Nohy + core</span></button>
       </div>
     </div>
 
     <div id="gb-workout-wrap"></div>
 
-    <div class="glass">
-      <p class="field-label" style="margin-bottom:8px;">🧮 Kalkulačka váhy (1RM)</p>
+    <details class="glass fold">
+      <summary>🧮 Kalkulačka váhy (1RM)</summary>
       <input type="number" id="gb-calc-weight" placeholder="Váha (kg), co jsi zvedl">
       <input type="number" id="gb-calc-reps" placeholder="Kolik opakování">
       <button class="btn btn-leaf btn-sm" onclick="calcGymbro1RM()">Spočítat</button>
       <div id="gb-calc-result" style="margin-top:10px;"></div>
-    </div>
+    </details>
+  </section>
 
-    <div class="glass">
-      <div class="loc-picker-row" style="margin-bottom:4px;">
-        <p class="field-label" style="margin:0;">🛠️ Cviky a žebříčky</p>
-        <button class="btn btn-ghost btn-sm" onclick="gbOpenManageModal()">Spravovat</button>
+  <!-- ============ NASTAVENÍ ============ -->
+  <section class="view" id="view-settings">
+    <header class="topbar">
+      <div class="tb-left">
+        <button class="icon-btn" onclick="goTo('dashboard')" aria-label="Zpět"><svg class="ic"><use href="#i-back"/></svg></button>
+        <h1 class="view-title">Nastavení</h1>
       </div>
-      <p class="location-note">Uprav popisy, přidej vlastní cviky nebo si postav vlastní žebříček obtížnosti.</p>
+    </header>
+
+    <div class="glass small">
+      <div class="set-row">
+        <span class="sr-ic">📋</span>
+        <div class="sr-main"><div class="sr-title">Moje aktivity</div><div class="sr-sub">Přidat, upravit nebo smazat</div></div>
+        <button class="btn btn-ghost btn-sm" onclick="goTo('activities')">Otevřít</button>
+      </div>
     </div>
 
-    <div class="glass small" style="opacity:.9;border:1px solid rgba(220,80,80,.35);">
-      <div class="loc-picker-row"><span class="loc-text">🗑️ Restart jen GymBro</span></div>
-      <p class="location-note" style="margin-top:6px;">Smaže jen deník tréninků, úrovně žebříčků a upravenou zátěž. Zbytek appky (Pohyb, streak, XP) i uložené GIFy zůstanou beze změny.</p>
-      <div id="gymbro-restart-confirm-wrap"></div>
-      <button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="startGymbroRestart()">Restartovat GymBro</button>
+    <p class="section-label">Data</p>
+    <div class="glass small">
+      <div class="set-row">
+        <span class="sr-ic">💾</span>
+        <div class="sr-main"><div class="sr-title">Záloha</div><div class="sr-sub" id="backup-status">Ještě jsi nikdy nezálohoval.</div></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-leaf btn-sm" onclick="exportBackup()">Exportovat</button>
+        <button class="btn btn-ghost btn-sm" onclick="triggerImportPicker()">Importovat</button>
+      </div>
+      <input type="file" id="import-file-input" accept="application/json,.json" style="display:none;" onchange="handleImportFile(event)">
+      <div id="import-confirm-wrap"></div>
     </div>
+
+    <p class="section-label">Propojení (volitelné)</p>
+    <div class="glass small">
+      <div class="set-row">
+        <span class="sr-ic">🗺️</span>
+        <div class="sr-main"><div class="sr-title">Mapy.com</div><div class="sr-sub">Přesnější hledání v okolí</div></div>
+        <button class="btn btn-ghost btn-sm" onclick="toggleMapySettings()">Nastavit</button>
+      </div>
+      <div id="mapy-settings-wrap"></div>
+    </div>
+    <div class="glass small">
+      <div class="set-row">
+        <span class="sr-ic">🎬</span>
+        <div class="sr-main"><div class="sr-title">GIF oslava</div><div class="sr-sub">Giphy GIF po zápisu</div></div>
+        <button class="btn btn-ghost btn-sm" onclick="toggleGiphySettings()">Nastavit</button>
+      </div>
+      <div id="giphy-settings-wrap"></div>
+    </div>
+    <div class="glass small">
+      <div class="set-row">
+        <span class="sr-ic">🏋️</span>
+        <div class="sr-main"><div class="sr-title">GIFy cviků</div><div class="sr-sub">WorkoutX ukázky v GymBro</div></div>
+        <button class="btn btn-ghost btn-sm" onclick="toggleWorkoutxSettings()">Nastavit</button>
+      </div>
+      <div id="workoutx-settings-wrap"></div>
+    </div>
+    <div class="glass small">
+      <div class="set-row">
+        <span class="sr-ic">📨</span>
+        <div class="sr-main"><div class="sr-title">Discord</div><div class="sr-sub">Zpráva při každém zápisu</div></div>
+        <button class="btn btn-ghost btn-sm" onclick="toggleDiscordSettings()">Nastavit</button>
+      </div>
+      <div id="discord-settings-wrap"></div>
+    </div>
+
+    <p class="section-label">Začít znovu</p>
+    <div class="glass small danger">
+      <div class="set-row">
+        <span class="sr-ic">🗑️</span>
+        <div class="sr-main"><div class="sr-title">Restart appky</div><div class="sr-sub">Smaže postup, XP, nálepky, deník i GymBro. Klíče, oblíbená místa a aktivity zůstanou.</div></div>
+      </div>
+      <div id="restart-confirm-wrap"></div>
+      <div class="btn-row"><button class="btn btn-ghost btn-sm" onclick="startAppRestart()">Restartovat appku</button></div>
+    </div>
+    <div class="glass small danger">
+      <div class="set-row">
+        <span class="sr-ic">💪</span>
+        <div class="sr-main"><div class="sr-title">Restart jen GymBro</div><div class="sr-sub">Smaže deník tréninků, úrovně žebříčků a upravenou zátěž.</div></div>
+      </div>
+      <div id="gymbro-restart-confirm-wrap"></div>
+      <div class="btn-row"><button class="btn btn-ghost btn-sm" onclick="startGymbroRestart()">Restartovat GymBro</button></div>
+    </div>
+
+    <p class="location-note" style="margin:20px 12px 0;">Pohyb tě nikdy nebude nutit. Za každý pohyb dostaneš XP, za návrat po pauze bonus — a zmrazení podrží tvou řadu, když život přijde do cesty. 🌿</p>
   </section>
 
 </div>
 
-<div class="modal-backdrop" id="location-modal">
+<!-- ============ SHEET: zápis pohybu ============ -->
+<div class="sheet-backdrop" id="log-sheet" onclick="if(event.target===this)closeLogSheet()">
+  <div class="sheet">
+    <div class="card-head"><h2 class="h2" style="font-size:19px;">Jaký pohyb zapsat?</h2><button class="link-btn" onclick="closeLogSheet();goTo('activities')">Upravit</button></div>
+    <div id="sheet-comeback"></div>
+    <div class="act-grid" id="sheet-grid"></div>
+    <div class="btn-row" style="margin-top:14px;">
+      <button class="btn btn-ghost" onclick="closeLogSheet();markRestDay()">😌 Dnes odpočívám</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="location-modal" onclick="if(event.target===this)closeLocationPicker()">
   <div class="glass modal-card">
-    <p class="field-label">Hledat místo</p>
-    <input type="text" id="location-search-input" placeholder="Např. Průhonice, chata Sedlčany…">
+    <p class="field-label" style="font-size:18px;">Vybrat místo</p>
+    <input type="text" id="location-search-input" placeholder="Např. Průhonice, chata Sedlčany…" onkeydown="if(event.key==='Enter')doLocationSearch()">
     <button class="btn btn-ghost btn-sm" style="margin-bottom:12px;" onclick="doLocationSearch()">🔎 Hledat</button>
     <div id="location-search-results"></div>
-
     <div id="leaflet-map"></div>
-    <div class="map-hint">Klepnutím na mapu nebo přetažením špendlíku vybereš přesný bod.</div>
+    <div class="map-hint">Klepni do mapy nebo přetáhni špendlík.</div>
     <div id="favorite-name-wrap"></div>
-
     <div class="btn-row" id="location-modal-actions"></div>
   </div>
 </div>
 
-<div class="modal-backdrop" id="gb-exercise-modal">
+<div class="modal-backdrop" id="gb-exercise-modal" onclick="if(event.target===this)closeGbExerciseModal()">
   <div class="glass modal-card">
-    <p class="field-label" id="gb-modal-title" style="font-size:17px;"></p>
+    <p class="field-label" id="gb-modal-title" style="font-size:19px;margin-bottom:12px;"></p>
     <div id="gb-modal-gif-wrap"></div>
     <div id="gb-modal-gif-alt-wrap"></div>
     <div id="gb-modal-content"></div>
-    <button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="closeGbExerciseModal()">Zavřít</button>
+    <div class="btn-row"><button class="btn btn-ghost" onclick="closeGbExerciseModal()">Zavřít</button></div>
   </div>
 </div>
 
 <div class="modal-backdrop" id="gb-postworkout-modal">
   <div class="glass modal-card">
-    <p class="field-label" style="font-size:17px;">💪 Trénink hotový!</p>
+    <p class="field-label" style="font-size:19px;margin-bottom:12px;">💪 Trénink hotový!</p>
     <div id="gb-postworkout-gif"></div>
     <div id="gb-postworkout-content"></div>
-    <button class="btn btn-leaf display" style="margin-top:10px;" onclick="closeGbPostWorkoutModal()">Paráda</button>
+    <div class="btn-row"><button class="btn btn-leaf" onclick="closeGbPostWorkoutModal()">Paráda</button></div>
   </div>
 </div>
 
-<div class="modal-backdrop" id="gb-manage-modal">
+<div class="modal-backdrop" id="gb-manage-modal" onclick="if(event.target===this)closeGbManageModal()">
   <div class="glass modal-card">
-    <p class="field-label" style="font-size:17px;">🛠️ Cviky a žebříčky</p>
+    <p class="field-label" style="font-size:19px;margin-bottom:12px;">Cviky a žebříčky</p>
     <div id="gb-manage-content"></div>
-    <button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="closeGbManageModal()">Zavřít</button>
+    <div class="btn-row"><button class="btn btn-ghost" onclick="closeGbManageModal()">Zavřít</button></div>
   </div>
 </div>
 
 <div class="toast" id="toast">✓ Zapsáno</div>
 
 <nav class="bottom-nav">
-  <button class="nav-btn active" id="nav-dashboard" onclick="goTo('dashboard')">🏠<span class="lbl">Domů</span></button>
-  <button class="nav-btn" id="nav-suggest" onclick="goTo('suggest')">✨<span class="lbl">Návrh</span></button>
-  <button class="nav-btn" id="nav-activities" onclick="goTo('activities')">📋<span class="lbl">Aktivity</span></button>
-  <button class="nav-btn" id="nav-journal" onclick="goTo('journal')">📔<span class="lbl">Deníček</span></button>
-  <button class="nav-btn" id="nav-gymbro" onclick="goTo('gymbro')">💪<span class="lbl">GymBro</span></button>
+  <button class="nav-btn active" id="nav-dashboard" onclick="goTo('dashboard')"><svg class="ic"><use href="#i-home"/></svg><span class="lbl">Domů</span></button>
+  <button class="nav-btn" id="nav-suggest" onclick="goTo('suggest')"><svg class="ic"><use href="#i-spark"/></svg><span class="lbl">Nápady</span></button>
+  <button class="nav-add" onclick="openLogSheet()" aria-label="Zapsat pohyb"><svg class="ic"><use href="#i-plus"/></svg></button>
+  <button class="nav-btn" id="nav-journal" onclick="goTo('journal')"><svg class="ic"><use href="#i-book"/></svg><span class="lbl">Deník</span></button>
+  <button class="nav-btn" id="nav-gymbro" onclick="goTo('gymbro')"><svg class="ic"><use href="#i-dumbbell"/></svg><span class="lbl">GymBro</span></button>
 </nav>
 
 <script>
@@ -546,7 +742,41 @@ function saveState(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(stat
 
 /* ================= FREEZE / STREAK LOGIC ================= */
 function countActiveDaysTotal(){ return new Set(state.logs.map(l=>l.date)).size; }
-function freezesAvailable(){ const earned=Math.floor(countActiveDaysTotal()/5); return Math.max(0, Math.min(3, earned-state.freezesUsed)); }
+// Zmrazení: 1 za každých 5 aktivních dní + 1 za každý návrat po pauze. Max 3 v zásobě.
+function freezesAvailable(){
+  const earned = Math.floor(countActiveDaysTotal()/5) + state.logs.reduce((s,l)=>s+(l.freezeBonus||0),0);
+  return Math.max(0, Math.min(3, earned-state.freezesUsed));
+}
+function dayStatus(ds){
+  if(state.logs.some(l=>l.date===ds)) return 'active';
+  if(state.restDays.includes(ds)) return 'rest';
+  if(state.frozenDays.includes(ds)) return 'frozen';
+  return 'empty';
+}
+// Řada = počet dní s pohybem za sebou. Odpočinek a zmrazení ji nepřeruší (jen nepřičtou).
+// Dnešek se nepočítá jako výpadek, dokud neskončí.
+function currentStreak(){
+  const d = new Date(); let n=0, guard=0;
+  if(dayStatus(formatDate(d))==='empty') d.setDate(d.getDate()-1);
+  while(guard<800){
+    const s = dayStatus(formatDate(d));
+    if(s==='empty') break;
+    if(s==='active') n++;
+    d.setDate(d.getDate()-1); guard++;
+  }
+  return n;
+}
+function lastActiveDate(){ return state.logs.reduce((m,l)=> l.date>m ? l.date : m, ''); }
+function daysSinceLastActive(){ const last=lastActiveDate(); return last ? daysBetween(last, todayStr()) : null; }
+// Návrat = první pohyb po aspoň 2 dnech bez pohybu. Odměňujeme vracení se, ne nekonečnou řadu.
+function comebackBonusFor(gap){ if(gap==null || gap<3) return 0; if(gap>=14) return 30; if(gap>=7) return 20; return 10; }
+function pendingComeback(){
+  if(state.logs.some(l=>l.date===todayStr())) return null;
+  const gap = daysSinceLastActive();
+  const bonus = comebackBonusFor(gap);
+  return bonus ? {gap, bonus} : null;
+}
+function comebackCount(){ return state.logs.filter(l=>l.comeback).length; }
 
 function reconcileFreezes(){
   let cursor = new Date((state.lastReconciled||todayStr())+'T00:00:00');
@@ -560,7 +790,7 @@ function reconcileFreezes(){
     cursor.setDate(cursor.getDate()+1); guard++;
   }
   state.lastReconciled = today;
-  const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-45);
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-400);
   const cutoffStr = formatDate(cutoff);
   state.restDays = state.restDays.filter(d=>d>=cutoffStr);
   state.frozenDays = state.frozenDays.filter(d=>d>=cutoffStr);
@@ -588,13 +818,16 @@ function logActivity(activityId){
   if(!act) return;
   const oldXP = totalXP();
   const date=todayStr(), time=nowTimeStr(), logId='l'+Date.now();
-  state.logs.push({id:logId, activityId, date, time, xp:act.xp});
+  const cb = pendingComeback();
+  const entry = {id:logId, activityId, date, time, xp:act.xp};
+  if(cb){ entry.xp += cb.bonus; entry.bonus = cb.bonus; entry.comeback = cb.gap; entry.freezeBonus = 1; }
+  state.logs.push(entry);
   state.lastAction = {type:'log', logId, date, label:act.icon+' '+act.name};
   checkLevelStickers(oldXP, totalXP());
   saveState();
   celebrate();
-  sendDiscordWebhook(act.icon+' **'+act.name+'** — +'+act.xp+' XP (level '+levelInfo(totalXP()).level+')');
-  showUndoToast('✓ '+act.name+'  +'+act.xp+' XP');
+  sendDiscordWebhook(act.icon+' **'+act.name+'** — +'+entry.xp+' XP'+(cb?' (🌱 návrat po '+cb.gap+' dnech)':'')+' · level '+levelInfo(totalXP()).level);
+  showUndoToast(cb ? '🌱 Vítej zpátky! +'+entry.xp+' XP · +1 🧊' : '✓ '+act.name+' · +'+act.xp+' XP');
   renderAll();
 }
 function markRestDay(){
@@ -1056,7 +1289,7 @@ function confirmManualLocation(){
 }
 function useMyCurrentLocation(){
   manualLocation = null;
-  document.getElementById('location-label').textContent = 'Používá se aktuální GPS poloha';
+  document.getElementById('location-label').textContent = 'Aktuální GPS poloha';
   closeLocationPicker();
   showToast('🛰️ Zpátky na živé GPS');
 }
@@ -1167,9 +1400,88 @@ function goTo(view){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-'+view).classList.add('active');
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('nav-'+view).classList.add('active');
+  const navEl = document.getElementById('nav-'+view);
+  if(navEl) navEl.classList.add('active');
   window.scrollTo(0,0);
   if(view==='gymbro') renderGbLastWorkoutInfo();
+}
+
+/* ---- Zápis jedním klepnutím: spodní panel ---- */
+function openLogSheet(){
+  renderSheetGrid();
+  document.getElementById('log-sheet').classList.add('show');
+}
+function closeLogSheet(){ document.getElementById('log-sheet').classList.remove('show'); }
+function logFromSheet(activityId){ closeLogSheet(); logActivity(activityId); }
+function lastDoneText(d){ return d===999 ? 'ještě nikdy' : (d===0 ? 'dnes' : (d===1 ? 'včera' : 'před '+d+' dny')); }
+function renderSheetGrid(){
+  const grid = document.getElementById('sheet-grid');
+  if(!grid) return;
+  const cb = pendingComeback();
+  document.getElementById('sheet-comeback').innerHTML = cb
+    ? `<div class="banner leaf" style="margin-bottom:12px;"><span class="b-ic">🌱</span><div><div class="b-title">Návratový bonus +${cb.bonus} XP</div><div class="b-text">Platí pro cokoliv, i krátkou procházku. Navíc dostaneš 1 zmrazení.</div></div></div>`
+    : '';
+  grid.innerHTML = activitiesByUsage().map(a=>`<button class="act-card" onclick="logFromSheet('${a.id}')">
+      <span class="icon">${a.icon}</span><span class="name">${escapeHTML(a.name)}</span><span class="last">${lastDoneText(lastDoneDays(a.id))}</span>
+    </button>`).join('');
+}
+// Nejčastěji používané (posledních 60 dní) jdou dopředu, zbytek v původním pořadí.
+function activitiesByUsage(){
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-60); const cs = formatDate(cutoff);
+  const counts = {};
+  state.logs.forEach(l=>{ if(l.date>=cs) counts[l.activityId]=(counts[l.activityId]||0)+1; });
+  return state.activities.map((a,i)=>({a,i,c:counts[a.id]||0})).sort((x,y)=>y.c-x.c || x.i-y.i).map(x=>x.a);
+}
+
+/* ---- Nápad na teď (přímo na Domů) ---- */
+let todayIdeas = [], todayIdeaIdx = 0;
+function refreshTodayIdeas(){
+  const h = new Date().getHours();
+  todayIdeas = suggestActivities({minutes: h>=21 ? 30 : 60, social:'any', weather:'any'});
+  todayIdeaIdx = 0;
+}
+function nextTodayIdea(){
+  todayIdeaIdx++;
+  if(todayIdeaIdx >= todayIdeas.length) refreshTodayIdeas();
+  renderTodayIdea();
+}
+function renderTodayIdea(){
+  const el = document.getElementById('today-idea');
+  if(!el) return;
+  if(!todayIdeas.length) refreshTodayIdeas();
+  const a = todayIdeas[todayIdeaIdx];
+  if(!a){ el.innerHTML = '<p class="empty-note">Přidej si aktivity v Nastavení → Moje aktivity.</p>'; return; }
+  const d = lastDoneDays(a.id);
+  const why = d===999 ? 'Ještě jsi to nezkoušel' : (d>=7 ? 'Dlouho jsi to nedělal' : 'Naposledy '+lastDoneText(d));
+  el.innerHTML = `<div class="idea"><div class="sugg-icon">${a.icon}</div>
+      <div class="sugg-info"><div class="name" style="font-size:17px;">${escapeHTML(a.name)}</div><div class="meta">${why} · od ${a.minMinutes} min · +${a.xp} XP</div></div></div>
+    <div class="idea-actions">
+      <button class="btn btn-leaf" onclick="logActivity('${a.id}')">Hotovo, zapsat</button>
+      <button class="icon-btn" onclick="nextTodayIdea()" aria-label="Jiný nápad" title="Jiný nápad"><svg class="ic"><use href="#i-refresh"/></svg></button>
+    </div>`;
+}
+
+/* ---- Historie zápisů (Deník) ---- */
+function niceDate(ds){
+  const diff = daysBetween(ds, todayStr());
+  if(diff===0) return 'Dnes'; if(diff===1) return 'Včera';
+  const d = new Date(ds+'T00:00:00');
+  return d.toLocaleDateString('cs-CZ', {weekday:'short', day:'numeric', month:'numeric'});
+}
+function renderHistory(){
+  const wrap = document.getElementById('history-list');
+  if(!wrap) return;
+  const logs = state.logs.slice().sort((a,b)=> (b.date+(b.time||'')).localeCompare(a.date+(a.time||''))).slice(0,8);
+  const sumEl = document.getElementById('history-summary');
+  if(sumEl) sumEl.textContent = state.logs.length ? countActiveDaysTotal()+' dní v pohybu celkem' : '';
+  if(!logs.length){ wrap.innerHTML = '<p class="empty-note">Tady se objeví všechno, co zapíšeš.</p>'; return; }
+  wrap.innerHTML = logs.map(l=>{
+    const a = state.activities.find(x=>x.id===l.activityId);
+    const badge = l.comeback ? ` <span class="pill">🌱 návrat</span>` : '';
+    return `<div class="list-row"><div class="lr-ic">${a?a.icon:'⭐'}</div>
+      <div class="lr-main"><div class="lr-title">${escapeHTML(a?a.name:'Aktivita')}${badge}</div><div class="lr-sub">${niceDate(l.date)}${l.time?' · '+l.time:''}</div></div>
+      <div class="lr-end">+${l.xp} XP</div></div>`;
+  }).join('');
 }
 function showToast(msg){
   const t=document.getElementById('toast'); t.innerHTML=msg;
@@ -1183,39 +1495,86 @@ function showUndoToast(msg){
   window._toastTimer=setTimeout(()=>t.classList.remove('show'), 4200);
 }
 
+const GENTLE_LINES = [
+  'Kdykoliv budeš mít chuť, jsem tady.',
+  'I krátká procházka se počítá.',
+  'Žádný tlak. Jen pohyb, když se hodí.',
+  'Deset minut je pořád deset minut.',
+  'Tělo ti poděkuje za cokoliv.'
+];
 function renderDashboard(){
   const xp=totalXP(), li=levelInfo(xp);
+  const now = new Date(), h = now.getHours(), today = todayStr();
+  document.getElementById('dash-date').textContent = now.toLocaleDateString('cs-CZ', {weekday:'long', day:'numeric', month:'long'});
+  document.getElementById('dash-greeting').textContent = h<5 ? 'Dobrou noc' : h<10 ? 'Dobré ráno' : h<18 ? 'Ahoj' : 'Dobrý večer';
+
   document.getElementById('orb-level').textContent=li.level;
   document.getElementById('orb-fill').style.height=Math.round(li.progress*100)+'%';
-  document.getElementById('xp-caption').textContent=li.into+' / '+li.need+' XP';
+  document.getElementById('xp-bar-fill').style.width=Math.round(li.progress*100)+'%';
+  document.getElementById('xp-caption').textContent=li.into+' / '+li.need+' XP · ještě '+(li.need-li.into)+' do levelu '+(li.level+1);
   document.getElementById('freeze-count').textContent=freezesAvailable();
+  const streak = currentStreak();
+  document.getElementById('stat-streak').textContent = streak;
+  document.getElementById('stat-streak-lbl').textContent = streak===1 ? 'den v řadě' : (streak>=2&&streak<=4 ? 'dny v řadě' : 'dní v řadě');
+  document.getElementById('stat-comebacks').textContent = comebackCount();
 
-  const statuses=getDayStatuses(14);
-  const dotsEl=document.getElementById('streak-dots'); dotsEl.innerHTML='';
-  statuses.forEach(s=>{ const d=document.createElement('div'); d.className='dot '+s.status+(s.isToday?' today':''); d.title=s.date; dotsEl.appendChild(d); });
+  // Hlavní věta: podle toho, co se zrovna děje — nikdy výčitky.
+  const todayStatus = dayStatus(today);
+  const cb = pendingComeback();
+  let msg;
+  if(!state.logs.length) msg = 'Tady se nic nemusí. Každý pohyb se počítá.';
+  else if(todayStatus==='active') msg = 'Dnes máš hotovo. Paráda ✓';
+  else if(todayStatus==='rest') msg = 'Dnešek je odpočinkový. I to k tomu patří.';
+  else if(cb) msg = 'Rád tě zase vidím. Návrat se cení nejvíc.';
+  else msg = GENTLE_LINES[Math.abs(daysBetween('2024-01-01', today)) % GENTLE_LINES.length];
+  document.getElementById('dash-subline').textContent = msg;
 
-  const activeDays=statuses.filter(s=>s.status!=='empty').length;
-  document.getElementById('dash-subline').textContent = state.logs.length===0
-    ? 'Zatím žádná historie — mrkni na Návrh a rozjeď to.' : activeDays+' ze 14 dní v pohybu.';
+  // Banner: uvítání / návrat
+  const bannerEl = document.getElementById('comeback-banner');
+  if(!state.logs.length){
+    bannerEl.innerHTML = `<div class="banner aqua"><span class="b-ic">🌿</span><div><div class="b-title">Vítej v Pohybu</div><div class="b-text">Zapiš cokoliv, co dnes uděláš — zelené + dole. Za každých 5 dní pohybu dostaneš zmrazení, které podrží řadu, když se něco nepovede.</div></div></div>`;
+  } else if(cb){
+    const lostTxt = cb.gap-1;
+    bannerEl.innerHTML = `<div class="banner leaf"><span class="b-ic">🌱</span><div><div class="b-title">Vítej zpátky!</div><div class="b-text">${lostTxt} ${lostTxt>=5?'dní':'dny'} pauza je v pohodě. Za dnešní pohyb (klidně jen 10 minut) dostaneš <strong>+${cb.bonus} XP</strong> a <strong>1 🧊 zmrazení</strong> navíc.</div></div></div>`;
+  } else bannerEl.innerHTML = '';
+
+  // Týden Po–Ne
+  const weekEl = document.getElementById('week-days');
+  const monday = new Date(now); monday.setDate(now.getDate() - ((now.getDay()+6)%7));
+  const letters = ['Po','Út','St','Čt','Pá','So','Ne'];
+  let activeThisWeek = 0;
+  weekEl.innerHTML = letters.map((lt,i)=>{
+    const d = new Date(monday); d.setDate(monday.getDate()+i);
+    const ds = formatDate(d);
+    const st = ds>today ? 'future' : dayStatus(ds);
+    if(st==='active') activeThisWeek++;
+    const inner = st==='frozen' ? '🧊' : (st==='rest' ? '<span style="font-size:12px">😌</span>' : '');
+    return `<div class="day ${ds===today?'today':''}"><span class="dl">${lt}</span><div class="dot ${st}" title="${ds}">${inner}</div></div>`;
+  }).join('');
+  document.getElementById('week-summary').textContent = activeThisWeek ? (activeThisWeek+' '+(activeThisWeek===1?'den':activeThisWeek<=4?'dny':'dní')+' v pohybu') : 'nový týden, nový start';
+
+  // Rychlý zápis
+  const quickEl = document.getElementById('quick-log');
+  quickEl.innerHTML = activitiesByUsage().slice(0,6).map(a=>`<button class="quick" onclick="logActivity('${a.id}')"><span class="q-ic">${a.icon}</span><span class="q-name">${escapeHTML(a.name)}</span></button>`).join('')
+    + `<button class="quick more" onclick="openLogSheet()"><span class="q-ic" style="font-size:22px;">＋</span><span class="q-name">Další</span></button>`;
+
+  renderTodayIdea();
 
   const undoBanner=document.getElementById('undo-banner');
-  undoBanner.innerHTML = state.lastAction ? `<button class="btn btn-ghost btn-sm" style="width:100%;" onclick="undoLast()">↩ Vrátit: ${escapeHTML(state.lastAction.label||'')}</button>` : '';
+  undoBanner.innerHTML = (state.lastAction && state.lastAction.date===today) ? `<button class="link-btn" onclick="undoLast()">↩ Vrátit poslední: ${escapeHTML(state.lastAction.label||'')}</button>` : '';
 }
 
 function renderActivityGrid(){
   const grid=document.getElementById('activity-grid'); grid.innerHTML='';
   state.activities.forEach(a=>{
-    const d=lastDoneDays(a.id);
-    const lastTxt = d===999?'ještě nikdy':(d===0?'dnes':(d+'d zpět'));
     const wrap=document.createElement('div'); wrap.className='act-card-wrap';
-    wrap.innerHTML = `<button class="act-card" onclick="logActivity('${a.id}')">
-        <span class="icon">${a.icon}</span><span class="name">${escapeHTML(a.name)}</span><span class="last">${lastTxt}</span>
-      </button>
-      <button class="edit-fab" title="Upravit" onclick="event.stopPropagation();openActivityForm('${a.id}')">✎</button>`;
+    wrap.innerHTML = `<button class="act-card" onclick="openActivityForm('${a.id}')">
+        <span class="icon">${a.icon}</span><span class="name">${escapeHTML(a.name)}</span><span class="last">+${a.xp} XP · ${a.minMinutes} min</span>
+      </button>`;
     grid.appendChild(wrap);
   });
   const addCard=document.createElement('button'); addCard.className='act-card add-card';
-  addCard.innerHTML='<span class="icon">➕</span><span class="name">Přidat</span>';
+  addCard.innerHTML='<span class="icon">＋</span><span class="name">Nová</span>';
   addCard.onclick=()=>openActivityForm(null);
   grid.appendChild(addCard);
 }
@@ -1227,6 +1586,7 @@ function openActivityForm(activityId){
   const key = activityId || 'new';
   if(wrap.dataset.openFor === key){ wrap.innerHTML=''; wrap.dataset.openFor=''; return; }
   wrap.dataset.openFor = key;
+  setTimeout(()=>wrap.scrollIntoView({behavior:'smooth', block:'start'}), 30);
   wrap.innerHTML = `<div class="glass">
       <p class="field-label">${editing?'Upravit aktivitu':'Nová aktivita'}</p>
       <input type="text" id="af-name" placeholder="Název" value="${act?escapeAttr(act.name):''}">
@@ -1341,9 +1701,9 @@ function runSuggest(){
 /* ================= BUBBLES ================= */
 function initBubbles(){
   const host=document.getElementById('bubbles');
-  for(let i=0;i<9;i++){
+  for(let i=0;i<7;i++){
     const b=document.createElement('div'); b.className='bubble';
-    const size=10+Math.random()*46;
+    const size=8+Math.random()*34;
     b.style.width=size+'px'; b.style.height=size+'px'; b.style.left=(Math.random()*100)+'%'; b.style.bottom='-60px';
     b.style.setProperty('--drift', (Math.random()*60-30)+'px');
     b.style.animationDuration=(14+Math.random()*14)+'s'; b.style.animationDelay=(Math.random()*16)+'s';
@@ -2523,28 +2883,28 @@ function renderGymbroWorkout(){
       const canLevelUp = family && (state.gymbroLadderLevel[family]||0) < gbAllLadders()[family].length-1;
       const canLevelDown = family && (state.gymbroLadderLevel[family]||0) > 0;
       const levelBtns = family ? `
-          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();gbLevelUp('${e.id}')" ${canLevelUp?'':'disabled style="opacity:.35;"'}>⬆️ Chci těžší</button>
-          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();gbLevelDown('${e.id}')" ${canLevelDown?'':'disabled style="opacity:.35;"'}>⬇️ Chci lehčí</button>` : '';
+          <button class="gb-act" onclick="event.stopPropagation();gbLevelUp('${e.id}')" ${canLevelUp?'':'disabled'}>⬆ Těžší cvik</button>
+          <button class="gb-act" onclick="event.stopPropagation();gbLevelDown('${e.id}')" ${canLevelDown?'':'disabled'}>⬇ Lehčí cvik</button>` : '';
       return `<div class="journal-entry gb-ex-card" data-ex-id="${e.id}" style="${e.done?'opacity:.55;':''}">
         <div style="display:flex;gap:8px;align-items:flex-start;">
-          <span class="gb-drag-handle" style="cursor:grab;padding:4px;touch-action:none;">⠿</span>
-          <input type="checkbox" ${e.done?'checked':''} onclick="event.stopPropagation();gbToggleDone('${e.id}')" style="margin-top:4px;width:20px;height:20px;">
-          <div style="flex:1;cursor:pointer;" onclick="openGbExerciseModal('${e.id}')">
-            <div class="jdate" style="${e.done?'text-decoration:line-through;':''}">${e.key?'⭐ ':''}${escapeHTML(e.name)} — ${effSets} <span style="font-size:11px;opacity:.6;">ℹ️ detail</span></div>
-            <div class="jtext">${escapeHTML(e.desc)}</div>
+          <input type="checkbox" class="gb-check" ${e.done?'checked':''} onclick="event.stopPropagation();gbToggleDone('${e.id}')" aria-label="Hotovo">
+          <div style="flex:1;min-width:0;cursor:pointer;" onclick="openGbExerciseModal('${e.id}')">
+            <div class="jdate" style="${e.done?'text-decoration:line-through;':''}">${e.key?'⭐ ':''}${escapeHTML(e.name)} <span class="gb-meta">${effSets}</span></div>
+            <div class="jtext">${escapeHTML(e.desc)} <span style="color:var(--aqua-deep);font-weight:600;">Detail ›</span></div>
           </div>
+          <span class="gb-drag-handle" style="cursor:grab;padding:2px 4px;touch-action:none;" title="Přetáhni pro změnu pořadí">⠿</span>
         </div>
-        <div class="btn-row" style="margin-top:8px;">
-          <button class="btn btn-ghost btn-sm" onclick="gbAdjustSets('${e.id}',1)">🔼</button>
-          <button class="btn btn-ghost btn-sm" onclick="gbAdjustSets('${e.id}',-1)">🔽</button>
-          <button class="btn btn-ghost btn-sm" onclick="gbSwapExercise('${e.id}')">🔄 Vyměnit</button>
+        <div class="gb-actions">
+          <button class="gb-act" onclick="gbAdjustSets('${e.id}',1)" aria-label="Víc">＋ Víc</button>
+          <button class="gb-act" onclick="gbAdjustSets('${e.id}',-1)" aria-label="Míň">− Míň</button>
+          <button class="gb-act" onclick="gbSwapExercise('${e.id}')">↻ Vyměnit</button>
           ${levelBtns}
         </div>
       </div>`;
     }).join('')}
     <div class="btn-row">
-      <button class="btn btn-leaf display" onclick="finishGymbroWorkout()">✅ Odcvičeno</button>
-      <button class="btn btn-ghost btn-sm" style="align-self:center;" onclick="buildGymbroWorkout('${w.cat}')">🔄 Jiná sestava</button>
+      <button class="btn btn-leaf" onclick="finishGymbroWorkout()">✓ Odcvičeno</button>
+      <button class="btn btn-ghost btn-sm" onclick="buildGymbroWorkout('${w.cat}')">↻ Jiná sestava</button>
     </div>`}
   </div>`;
   wrap.querySelectorAll('.gb-drag-handle').forEach(handle=>{
@@ -2591,14 +2951,14 @@ function gbCounterTabsHTML(w){
 function gbCounterBodyHTML(c, standalone){
   const cards = c.exercises.map(e=>`<div class="journal-entry gb-counter-card" style="${e.done?'opacity:.55;':''}">
       <div style="display:flex;gap:8px;align-items:flex-start;">
-        <input type="checkbox" ${e.done?'checked':''} onclick="event.stopPropagation();gbToggleCounterDone('${e.id}')" style="margin-top:4px;width:20px;height:20px;">
-        <div style="flex:1;cursor:pointer;" onclick="openGbExerciseModal('${e.id}')">
-          <div class="jdate" style="${e.done?'text-decoration:line-through;':''}">${escapeHTML(e.name)} — ${escapeHTML(e.sets)} <span style="font-size:11px;opacity:.6;">ℹ️ detail</span></div>
-          <div class="jtext">${escapeHTML(e.desc)}</div>
+        <input type="checkbox" class="gb-check" ${e.done?'checked':''} onclick="event.stopPropagation();gbToggleCounterDone('${e.id}')" aria-label="Hotovo">
+        <div style="flex:1;min-width:0;cursor:pointer;" onclick="openGbExerciseModal('${e.id}')">
+          <div class="jdate" style="${e.done?'text-decoration:line-through;':''}">${escapeHTML(e.name)} <span class="gb-meta">${escapeHTML(e.sets)}</span></div>
+          <div class="jtext">${escapeHTML(e.desc)} <span style="color:var(--aqua-deep);font-weight:600;">Detail ›</span></div>
         </div>
       </div>
-      <div class="btn-row" style="margin-top:8px;">
-        <button class="btn btn-ghost btn-sm" onclick="gbSwapCounter('${e.id}')">🔄 Vyměnit</button>
+      <div class="gb-actions">
+        <button class="gb-act" onclick="gbSwapCounter('${e.id}')">↻ Vyměnit</button>
       </div>
     </div>`).join('');
   const intro = `<div class="gb-counter-intro">
@@ -2700,7 +3060,7 @@ function renderGbLastWorkoutInfo(){
   const el = document.getElementById('gb-last-workout-info');
   if(!el) return;
   const summary = gbLastWorkoutSummary();
-  el.innerHTML = summary ? `<p class="location-note" style="margin-bottom:10px;">📋 ${summary}</p>` : '';
+  el.innerHTML = summary ? `<p class="muted" style="margin:0 4px 12px;">📋 ${summary}</p>` : '';
 }
 async function openGbPostWorkoutModal(workout){
   const muscles = [...new Set(workout.exercises.map(e=>e.muscle))];
@@ -3289,7 +3649,7 @@ function initGymbroChips(){
   });
 }
 
-function renderAll(){ renderDashboard(); renderActivityGrid(); renderStickerTray(); renderJournalList(); updateBackupStatus(); renderFavoritesList(); }
+function renderAll(){ renderDashboard(); renderActivityGrid(); renderSheetGrid(); renderHistory(); renderStickerTray(); renderJournalList(); updateBackupStatus(); renderFavoritesList(); }
 function init(){ reconcileFreezes(); initBubbles(); initSuggestChips(); initGymbroChips(); renderAll(); }
 document.addEventListener('DOMContentLoaded', init);
 
