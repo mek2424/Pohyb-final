@@ -344,6 +344,8 @@
       </div>
     </div>
 
+    <div id="plans-card"></div><!-- Kolo 5 -->
+
     <div class="glass">
       <div class="card-head"><h2 class="h2">Nápad na teď</h2><button class="link-btn" onclick="goTo('suggest')">Víc možností</button></div>
       <div id="today-idea"></div>
@@ -780,6 +782,7 @@ function logActivity(activityId){
   const oldXP = totalXP();
   const date=todayStr(), time=nowTimeStr(), logId='l'+Date.now();
   state.logs.push({id:logId, activityId, date, time, xp:act.xp});
+  if(state.plans) state.plans = state.plans.filter(p=>!(p.activityId===activityId && p.date===date)); // Kolo 5: splněný plán zmizí
   state.lastAction = {type:'log', logId, date, label:act.icon+' '+act.name};
   checkLevelStickers(oldXP, totalXP());
   saveState();
@@ -1579,7 +1582,47 @@ function planActivity(activityId, dateStr, timeVal){
   const act = state.activities.find(a=>a.id===activityId);
   if(!act) return;
   downloadICS(act, dateStr, timeVal);
-  showToast('📅 Staženo — otevři a přidej do kalendáře');
+  // Kolo 5: aplikace si plán pamatuje (karta na Domů)
+  state.plans = (state.plans||[]).filter(p=>!(p.activityId===activityId && p.date===dateStr));
+  state.plans.push({id:'p'+Date.now()+Math.random().toString(36).slice(2,6), activityId, date:dateStr, time:timeVal});
+  state.plans.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+  saveState(); renderPlans();
+  showToast('📅 Naplánováno · otevři stažený soubor v kalendáři');
+}
+/* ---- Kolo 5: naplánované aktivity na Domů ---- */
+function prunePlans(){
+  const before = (state.plans||[]).length;
+  state.plans = (state.plans||[]).filter(p=>p.date>=todayStr() && state.activities.some(a=>a.id===p.activityId));
+  if(state.plans.length!==before) saveState();
+}
+function planDayText(ds){ const d = daysBetween(todayStr(), ds); return d===0 ? 'Dnes' : d===1 ? 'Zítra' : new Date(ds+'T00:00:00').toLocaleDateString('cs-CZ', {weekday:'short', day:'numeric', month:'numeric'}); }
+function renderPlans(){
+  const el = document.getElementById('plans-card');
+  if(!el) return;
+  prunePlans();
+  const plans = state.plans.slice(0, 3);
+  if(!plans.length){ el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="glass small">${plans.map(p=>{
+    const a = state.activities.find(x=>x.id===p.activityId);
+    const today = p.date===todayStr();
+    return `<div class="list-row"><div class="lr-ic">${a.icon}</div>
+      <div class="lr-main"><div class="lr-title">${escapeHTML(a.name)}</div><div class="lr-sub">📅 ${planDayText(p.date)} ${p.time}</div></div>
+      ${today ? `<button class="sugg-go" onclick="askLog('${a.id}')">Beru</button>` : ''}
+      <button class="icon-btn" style="width:34px;height:34px;font-size:14px;" onclick="removePlan('${p.id}')" aria-label="Zrušit plán">✕</button></div>`;
+  }).join('')}</div>`;
+}
+function removePlan(id){
+  const p = (state.plans||[]).find(x=>x.id===id); if(!p) return;
+  state.plans = state.plans.filter(x=>x.id!==id); saveState(); renderPlans();
+  const t = document.getElementById('toast');
+  t.innerHTML = '📅 Plán zrušen <button class="toast-undo" onclick="restorePlan()">Vrátit</button>';
+  window._removedPlan = p;
+  t.classList.add('show'); clearTimeout(window._toastTimer); window._toastTimer = setTimeout(()=>t.classList.remove('show'), 4200);
+}
+function restorePlan(){
+  const p = window._removedPlan; if(!p) return;
+  state.plans = (state.plans||[]).concat(p).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+  window._removedPlan = null; saveState(); renderPlans(); showToast('↩ Plán vrácen');
 }
 function downloadICS(activity, dateStr, timeHHMM){
   const startDate = new Date(dateStr+'T'+timeHHMM+':00');
@@ -1587,7 +1630,9 @@ function downloadICS(activity, dateStr, timeHHMM){
   const uid = 'pohyb-'+Date.now()+'@app.local';
   const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Pohyb App//CS','CALSCALE:GREGORIAN','BEGIN:VEVENT',
     'UID:'+uid,'DTSTAMP:'+formatICSDate(new Date()),'DTSTART:'+formatICSDate(startDate),'DTEND:'+formatICSDate(endDate),
-    'SUMMARY:'+escapeICS(activity.icon+' '+activity.name),'DESCRIPTION:'+escapeICS('Naplánováno v appce Pohyb'),'END:VEVENT','END:VCALENDAR'];
+    'SUMMARY:'+escapeICS(activity.icon+' '+activity.name),'DESCRIPTION:'+escapeICS('Naplánováno v aplikaci Pohyb'),
+    'BEGIN:VALARM','TRIGGER:-PT30M','ACTION:DISPLAY','DESCRIPTION:'+escapeICS(activity.icon+' '+activity.name+' za 30 minut'),'END:VALARM', // Kolo 5: připomínka 30 min předem
+    'END:VEVENT','END:VCALENDAR'];
   const blob = new Blob([lines.join('\r\n')], {type:'text/calendar;charset=utf-8'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href=url; a.download='aktivita-'+dateStr+'.ics';
@@ -4062,7 +4107,7 @@ function initGymbroChips(){
   });
 }
 
-function renderAll(){ renderDashboard(); renderActivityGrid(); renderSheetGrid(); renderHistory(); renderStickerTray(); renderJournalList(); updateBackupStatus(); renderFavoritesList(); }
+function renderAll(){ renderDashboard(); renderPlans(); renderActivityGrid(); renderSheetGrid(); renderHistory(); renderStickerTray(); renderJournalList(); updateBackupStatus(); renderFavoritesList(); }
 function init(){ reconcileFreezes(); initBubbles(); initSuggestChips(); initGymbroChips(); selectChip('gb-goal-chips', gbGoal()); renderAll(); autoWeatherChip(); refreshWeather(); } // Kolo 3: cíl · Kolo 4: počasí
 document.addEventListener('DOMContentLoaded', init);
 
