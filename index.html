@@ -230,6 +230,78 @@
   /* Kolo 4: počasí a štítky proti pravidlům */
   .ctx-row{display:flex;gap:12px;font-size:13px;font-weight:700;color:var(--ink-2);margin:-4px 0 12px;}
   .issue{display:inline-flex;align-items:center;justify-content:center;font-size:12px;min-width:22px;height:20px;padding:0 4px;border-radius:999px;background:var(--sun-soft);vertical-align:2px;}
+  /* Kolo 6: GymBro průvodce, zjednodušený trénink, pochvala */
+  .gbz{position:relative;}
+  .gbd-box{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:16px;background:var(--leaf-soft);margin-bottom:12px;}
+  .gbd-box b{font-size:24px;font-weight:800;letter-spacing:-.02em;color:var(--leaf-deep);}
+  .gbd-box span{font-size:12.5px;font-weight:600;color:var(--ink-2);}
+  .gbd-box.measure{background:var(--aqua-soft);} .gbd-box.measure b{color:var(--aqua-deep);}
+  .gbz-top{display:flex;align-items:center;gap:10px;margin:-4px 0 4px;}
+  .gbz-dots{display:flex;gap:6px;flex:1;justify-content:center;margin-right:42px;}
+  .gbz-dots i{width:8px;height:8px;border-radius:50%;background:rgba(10,120,198,.18);transition:all .25s ease;}
+  .gbz-dots i.on{width:22px;border-radius:99px;background:var(--aqua);}
+  .gbz-dots i.done{background:var(--leaf);}
+  .gbz-stage{display:flex;align-items:flex-end;gap:4px;min-height:190px;}
+  .gbz-bro{width:150px;height:190px;flex-shrink:0;animation:gbzBob 3.2s ease-in-out infinite;transform-origin:50% 100%;}
+  .gbz-bro.small{width:96px;height:122px;}
+  .gbz-bro.hop{animation:gbzHop .5s cubic-bezier(.3,1.6,.5,1);}
+  @keyframes gbzBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  @keyframes gbzHop{0%{transform:translateY(0) scale(1,1)}30%{transform:translateY(-14px) scale(.97,1.04)}100%{transform:translateY(0) scale(1,1)}}
+  .gbz .pose,.gbz-start .pose{opacity:0;transition:opacity .15s ease;}
+  .gbz .pose.on,.gbz-start .pose.on{opacity:1;}
+  .gbz-bubble{position:relative;flex:1;min-width:0;margin-bottom:96px;background:linear-gradient(180deg,#fff,#F2FBFF);border:1px solid #fff;border-radius:20px 20px 20px 6px;padding:12px 14px;font-weight:800;font-size:15.5px;line-height:1.35;box-shadow:0 8px 20px -8px rgba(6,60,100,.35), inset 0 1px 0 #fff;}
+  .gbz-bubble::after{content:'';position:absolute;left:-8px;bottom:12px;width:16px;height:16px;background:#fff;transform:rotate(45deg);border-radius:3px;}
+  .gbz-bubble small{display:block;font-weight:600;color:var(--ink-2);font-size:13px;margin-top:3px;}
+  .gbz-q{font-size:24px;font-weight:800;letter-spacing:-.02em;margin:4px 2px 14px;}
+  .gbz-choices{display:grid;gap:10px;}
+  .gbz-choices.grid3{grid-template-columns:repeat(3,1fr);}
+  .gbz-choice{display:flex;align-items:center;gap:14px;width:100%;min-height:64px;padding:10px 14px;border-radius:20px;border:1px solid #fff;background:linear-gradient(170deg,rgba(255,255,255,.95),rgba(255,255,255,.7));box-shadow:var(--shadow), inset 0 1px 0 #fff;color:var(--ink);text-align:left;transition:transform .1s ease;}
+  .gbz-choice:active{transform:scale(.98);}
+  .gbz-choice .ic{font-size:30px;width:44px;height:auto;line-height:1.15;text-align:center;flex-shrink:0;stroke:none;} /* .ic je i třída SVG ikon (22×22) — tady emoji */
+  .gbz-choice .t{display:block;font-weight:800;font-size:17px;}
+  .gbz-choice .s{display:block;font-weight:600;font-size:13px;color:var(--ink-2);margin-top:1px;}
+  .gbz-choice .tag{margin-left:auto;font-size:12px;font-weight:800;color:var(--sun-deep);background:var(--sun-soft);padding:3px 9px;border-radius:99px;white-space:nowrap;}
+  .gbz-choice.sel{background:var(--gloss-aqua);color:#fff;border-color:rgba(255,255,255,.5);}
+  .gbz-choice.sel .s{color:rgba(255,255,255,.9);}
+  .grid3 .gbz-choice{flex-direction:column;justify-content:center;gap:4px;min-height:96px;text-align:center;padding:10px 6px;min-width:0;}
+  .grid3 .gbz-choice .t{font-size:16px;overflow-wrap:anywhere;}
+  .grid3 .gbz-choice .ic{width:auto;}
+  .grid3 .gbz-choice .tag{margin:0;}
+  .gbz-start{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:end;gap:4px 8px;}
+  .gbz-start .gbz-bubble{margin-bottom:56px;}
+  .gbz-start .btn{grid-column:1 / -1;}
+  .gbw-head{display:flex;align-items:center;gap:10px;margin:0 2px 10px;}
+  .gbw-head > div{flex:1;min-width:0;}
+  .gbw-ttl{font-weight:800;font-size:19px;letter-spacing:-.01em;}
+  .gbw-meta{font-size:13px;font-weight:700;color:var(--ink-2);}
+  .gbw-card{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 12px;align-items:center;}
+  .gbw-card.done{opacity:.6;}
+  .gbw-card .gb-check{grid-row:span 2;margin:0;}
+  .gbw-name{all:unset;cursor:pointer;display:flex;align-items:center;gap:6px;min-width:0;font-weight:800;font-size:15.5px;color:var(--ink);}
+  .gbw-name > span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .gbw-name b{margin-left:auto;color:var(--aqua-deep);}
+  .gbw-name .gb-meta{white-space:nowrap;flex-shrink:0;}
+  .gbw-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+  .gbw-row .gb-weight{margin-top:0;}
+  .gbw-dock{position:sticky;bottom:calc(84px + env(safe-area-inset-bottom));z-index:5;display:flex;align-items:flex-end;gap:10px;padding:10px 0 4px;margin-top:6px;}
+  .gbw-dock .btn{flex:1;}
+  .gbw-bro{width:58px;height:74px;flex-shrink:0;}
+  .gbw-say{position:absolute;left:62px;bottom:62px;background:#fff;border-radius:14px 14px 14px 4px;padding:6px 10px;font-size:13px;font-weight:800;box-shadow:0 6px 14px -6px rgba(6,60,100,.35);white-space:nowrap;}
+  .gbz-praise{overflow:hidden;}
+  .gbz-confetti{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
+  .gbz-confetti i{position:absolute;top:-20px;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff,rgba(255,255,255,.2) 60%,transparent 72%);border:1px solid rgba(255,255,255,.7);animation:gbzFall linear forwards;}
+  @keyframes gbzFall{to{transform:translateY(900px) translateX(var(--dx));opacity:.2}}
+  .gbz-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;}
+  .gbz-stats > div{background:rgba(255,255,255,.8);border:1px solid #fff;border-radius:16px;padding:10px 6px;text-align:center;box-shadow:var(--shadow-sm);}
+  .gbz-stats b{display:block;font-size:22px;font-weight:800;letter-spacing:-.02em;}
+  .gbz-stats span{font-size:12px;font-weight:700;color:var(--ink-2);}
+  .gbz-rec{background:var(--sun-soft);border-radius:14px;padding:9px 12px;font-size:14px;font-weight:700;margin-bottom:6px;}
+  .gbz-xp{font-size:13px;font-weight:700;color:var(--ink-2);margin:10px 2px 4px;}
+  .gbz-xp .xp-bar{margin-top:5px;}
+  .gbz-xp .xp-bar i{transition:width 1.2s cubic-bezier(.34,1.3,.4,1);}
+  .gbz-tips{background:rgba(255,255,255,.65);border-radius:14px;padding:10px 12px;font-size:13.5px;color:var(--ink-2);margin-top:10px;line-height:1.45;}
+  .gbz-tips b{color:var(--ink);display:block;}
+  @media (prefers-reduced-motion:reduce){.gbz-bro,.gbz-bro.hop,.gbz-confetti i{animation:none}}
   .gb-big{font-size:30px;font-weight:800;letter-spacing:-.02em;color:var(--ink);}
   .gb-flag{font-weight:800;padding:0 6px;border-radius:999px;font-size:12.5px;}
   .gb-flag.up{background:var(--leaf-soft);color:var(--leaf-deep);}
@@ -306,6 +378,116 @@
   <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
 </svg>
 
+<!-- Kolo 6: postavička GymBro -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="g-skin" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#A9ECFF"/><stop offset=".5" stop-color="#39B4EC"/><stop offset="1" stop-color="#0D74B8"/></linearGradient>
+    <radialGradient id="g-head" cx=".38" cy=".3" r=".8"><stop offset="0" stop-color="#E6FAFF"/><stop offset=".5" stop-color="#5CC6F2"/><stop offset="1" stop-color="#0D74B8"/></radialGradient>
+    <linearGradient id="g-top" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9BEAAE"/><stop offset=".45" stop-color="#3CBF6E"/><stop offset=".55" stop-color="#26A157"/><stop offset="1" stop-color="#1C8A4A"/></linearGradient>
+    <linearGradient id="g-shorts" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3A5F86"/><stop offset="1" stop-color="#16324F"/></linearGradient>
+    <linearGradient id="g-band" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE29A"/><stop offset="1" stop-color="#F09A12"/></linearGradient>
+    <linearGradient id="g-iron" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B7C7D3"/><stop offset=".5" stop-color="#4E6577"/><stop offset="1" stop-color="#22323F"/></linearGradient>
+  </defs>
+  <symbol id="bro" viewBox="0 0 150 190">
+    <ellipse cx="75" cy="184" rx="34" ry="5" fill="#0A5A8C" opacity=".18"/>
+    <!-- nohy -->
+    <path d="M66 138 L63 176" stroke="url(#g-skin)" stroke-width="15" stroke-linecap="round"/>
+    <path d="M84 138 L87 176" stroke="url(#g-skin)" stroke-width="15" stroke-linecap="round"/>
+    <ellipse cx="60" cy="180" rx="11" ry="5.5" fill="#fff"/><ellipse cx="90" cy="180" rx="11" ry="5.5" fill="#fff"/>
+    <path d="M52 181 h16 M82 181 h16" stroke="#1AA3E8" stroke-width="2" stroke-linecap="round"/>
+    <!-- kraťasy -->
+    <path d="M55 112 L95 112 L99 146 L79 148 L75 132 L71 148 L51 146 Z" fill="url(#g-shorts)"/>
+    <path d="M57 116 L93 116" stroke="#fff" stroke-opacity=".35" stroke-width="2"/>
+    <!-- trup (V-tvar) -->
+    <rect x="69" y="42" width="12" height="14" rx="4" fill="url(#g-skin)"/>
+    <path d="M42 62 Q75 48 108 62 Q113 68 107 76 L95 114 Q75 120 55 114 L43 76 Q37 68 42 62 Z" fill="url(#g-skin)"/>
+    <!-- tílko -->
+    <path d="M55 60 Q60 57 65 58 Q75 74 85 58 Q90 57 95 60 L93 114 Q75 119 57 114 Z" fill="url(#g-top)"/>
+    <path d="M61 82 Q75 88 89 82" stroke="#0E5A33" stroke-opacity=".35" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <path d="M75 92 L75 108" stroke="#0E5A33" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/>
+    <path d="M58 64 Q60 90 59 110" stroke="#fff" stroke-opacity=".45" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <ellipse cx="48" cy="64" rx="7" ry="4" fill="#fff" opacity=".45"/><ellipse cx="102" cy="64" rx="7" ry="4" fill="#fff" opacity=".35"/>
+    <!-- ruce: podél těla -->
+    <g class="pose arms-down on">
+      <path d="M46 66 Q38 90 39 114" stroke="url(#g-skin)" stroke-width="12" stroke-linecap="round" fill="none"/>
+      <path d="M104 66 Q112 90 111 114" stroke="url(#g-skin)" stroke-width="12" stroke-linecap="round" fill="none"/>
+      <circle cx="39" cy="117" r="6" fill="url(#g-skin)"/><circle cx="111" cy="117" r="6" fill="url(#g-skin)"/>
+    </g>
+    <!-- ruce: biceps -->
+    <g class="pose arms-flex">
+      <path d="M46 66 L22 68 L24 40" stroke="url(#g-skin)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <path d="M104 66 L128 68 L126 40" stroke="url(#g-skin)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <ellipse cx="33" cy="61" rx="8" ry="6.5" fill="url(#g-skin)"/><ellipse cx="117" cy="61" rx="8" ry="6.5" fill="url(#g-skin)"/>
+      <ellipse cx="31" cy="59" rx="3.5" ry="2" fill="#fff" opacity=".6"/><ellipse cx="115" cy="59" rx="3.5" ry="2" fill="#fff" opacity=".5"/>
+      <circle cx="24" cy="37" r="6.5" fill="url(#g-skin)"/><circle cx="126" cy="37" r="6.5" fill="url(#g-skin)"/>
+    </g>
+    <!-- ruce: velká činka nad hlavou -->
+    <g class="pose arms-lift">
+      <path d="M46 66 L30 42 L30 14" stroke="url(#g-skin)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <path d="M104 66 L120 42 L120 14" stroke="url(#g-skin)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <rect x="4" y="9" width="142" height="5" rx="2.5" fill="url(#g-iron)"/>
+      <rect x="4" y="0" width="10" height="23" rx="3" fill="url(#g-iron)"/><rect x="15" y="3" width="6" height="17" rx="2" fill="url(#g-iron)"/>
+      <rect x="136" y="0" width="10" height="23" rx="3" fill="url(#g-iron)"/><rect x="129" y="3" width="6" height="17" rx="2" fill="url(#g-iron)"/>
+      <circle cx="30" cy="12" r="6" fill="url(#g-skin)"/><circle cx="120" cy="12" r="6" fill="url(#g-skin)"/>
+    </g>
+    <!-- ruce: v bok -->
+    <g class="pose arms-hips">
+      <path d="M46 66 L31 88 L55 102" stroke="url(#g-skin)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <path d="M104 66 L119 88 L95 102" stroke="url(#g-skin)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </g>
+    <!-- ruce: zaťatá pěst nahoru (vítězné gesto) -->
+    <g class="pose arms-thumb">
+      <path d="M46 66 Q38 90 39 114" stroke="url(#g-skin)" stroke-width="12" stroke-linecap="round" fill="none"/>
+      <circle cx="39" cy="117" r="6" fill="url(#g-skin)"/>
+      <path d="M104 66 L127 74 L129 48" stroke="url(#g-skin)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <ellipse cx="116" cy="68" rx="7" ry="5.5" fill="url(#g-skin)"/>
+      <circle cx="129" cy="40" r="8.5" fill="url(#g-skin)"/>
+      <ellipse cx="121.5" cy="41" rx="3.2" ry="4" fill="url(#g-skin)"/>
+      <ellipse cx="126.5" cy="36.5" rx="3.2" ry="1.8" fill="#fff" opacity=".55"/>
+    </g>
+    <!-- ruce: počítá na prstech, kolik otázek zbývá (prsty doplní JS) -->
+    <g class="pose arms-count">
+      <path d="M46 66 Q38 90 39 114" stroke="url(#g-skin)" stroke-width="12" stroke-linecap="round" fill="none"/>
+      <circle cx="39" cy="117" r="6" fill="url(#g-skin)"/>
+      <path d="M104 66 L126 72 L128 48" stroke="url(#g-skin)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <g class="fingers"></g>
+    </g>
+    <!-- hlava -->
+    <circle cx="75" cy="30" r="16" fill="url(#g-head)"/>
+    <path d="M59.5 24 Q60 10 75 10 Q90 10 90.5 24 Q84 17 75 17 Q66 17 59.5 24 Z" fill="#12324D"/>
+    <path d="M59 25 Q75 18 91 25 L91 21 Q75 14 59 21 Z" fill="url(#g-band)"/>
+    <ellipse cx="69" cy="19" rx="6" ry="2.2" fill="#fff" opacity=".5"/>
+    <!-- obličeje -->
+    <g class="pose face-happy on">
+      <path d="M66 27.5 L72 27" stroke="#12324D" stroke-width="1.8" stroke-linecap="round"/><path d="M78 27 L84 27.5" stroke="#12324D" stroke-width="1.8" stroke-linecap="round"/>
+      <ellipse cx="69" cy="31.5" rx="1.9" ry="2.4" fill="#0A2236"/><ellipse cx="81" cy="31.5" rx="1.9" ry="2.4" fill="#0A2236"/>
+      <path d="M69.5 37 Q75 41.5 80.5 37" stroke="#0A2236" stroke-width="2" fill="none" stroke-linecap="round"/>
+    </g>
+    <!-- soustředěný: jen u „těžkých“ voleb (Síla, 60+ min), pusa rovná -->
+    <g class="pose face-focus">
+      <path d="M66 26.5 L72 28.5" stroke="#12324D" stroke-width="2" stroke-linecap="round"/><path d="M78 28.5 L84 26.5" stroke="#12324D" stroke-width="2" stroke-linecap="round"/>
+      <ellipse cx="69" cy="32" rx="1.9" ry="2.1" fill="#0A2236"/><ellipse cx="81" cy="32" rx="1.9" ry="2.1" fill="#0A2236"/>
+      <path d="M71 38.3 L79 38.3" stroke="#0A2236" stroke-width="2" fill="none" stroke-linecap="round"/>
+    </g>
+    <g class="pose face-wow">
+      <path d="M66 26 Q69 24 72 25.5" stroke="#12324D" stroke-width="1.8" fill="none" stroke-linecap="round"/><path d="M78 25.5 Q81 24 84 26" stroke="#12324D" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      <ellipse cx="69" cy="31" rx="2.2" ry="2.8" fill="#0A2236"/><ellipse cx="81" cy="31" rx="2.2" ry="2.8" fill="#0A2236"/>
+      <path d="M69 36.5 Q75 43 81 36.5 Z" fill="#0A2236"/>
+    </g>
+    <g class="pose face-tired">
+      <path d="M66 28 L72 26.5" stroke="#12324D" stroke-width="1.8" stroke-linecap="round"/><path d="M78 26.5 L84 28" stroke="#12324D" stroke-width="1.8" stroke-linecap="round"/>
+      <path d="M67 32 L71.5 32" stroke="#0A2236" stroke-width="2" stroke-linecap="round"/><path d="M78.5 32 L83 32" stroke="#0A2236" stroke-width="2" stroke-linecap="round"/>
+      <path d="M71 39 Q75 37.5 79 39" stroke="#0A2236" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <path d="M93 25 Q96 30 93 32 Q90 30 93 25 Z" fill="#BFF0FF" stroke="#1AA3E8" stroke-width="1"/>
+    </g>
+    <g class="pose face-cool">
+      <path d="M63 28 h11 v4 q-5.5 3.5 -11 0 Z" fill="#0E3550"/><path d="M76 28 h11 v4 q-5.5 3.5 -11 0 Z" fill="#0E3550"/>
+      <path d="M74 29 h2" stroke="#0E3550" stroke-width="2"/>
+      <path d="M65 29.5 h4" stroke="#7FD8FA" stroke-width="1.4" stroke-linecap="round"/><path d="M78 29.5 h4" stroke="#7FD8FA" stroke-width="1.4" stroke-linecap="round"/>
+      <path d="M70 37.5 Q76 41 81 36.5" stroke="#0A2236" stroke-width="2" fill="none" stroke-linecap="round"/>
+    </g>
+  </symbol>
+</svg>
 <div class="bg-bubbles" id="bubbles"></div>
 
 <div class="app">
@@ -485,27 +667,7 @@
       </div>
     </header>
 
-    <div id="gb-last-workout-info"></div>
-
-    <div class="glass">
-      <div class="seg" id="gb-env-chips">
-        <button class="chip selected" data-val="gym">🏋️ Posilovna</button>
-        <button class="chip" data-val="outdoor">🌳 Venkovní</button>
-      </div>
-      <!-- Kolo 3: cíl tréninku -->
-      <div class="seg" id="gb-goal-chips">
-        <button class="chip" data-val="sila" onclick="gbSetGoal('sila')">Síla</button>
-        <button class="chip" data-val="objem" onclick="gbSetGoal('objem')">Objem</button>
-        <button class="chip" data-val="vytrvalost" onclick="gbSetGoal('vytrvalost')">Vytrvalost</button>
-      </div>
-      <p class="field-label">Co dneska?</p>
-      <div class="gb-cats">
-        <button class="act-card" onclick="buildGymbroWorkout('push')"><span class="icon">🫸</span><span class="name">Přední vršek</span></button>
-        <button class="act-card" onclick="buildGymbroWorkout('pull')"><span class="icon">🫷</span><span class="name">Zadní vršek</span></button>
-        <button class="act-card" onclick="buildGymbroWorkout('legs_core')"><span class="icon">🦵</span><span class="name">Nohy + core</span></button>
-      </div>
-    </div>
-
+    <!-- Kolo 6: výběr prostředí, cíle a partie je v průvodci; tady jen jedna plocha s obrazovkami -->
     <div id="gb-workout-wrap"></div>
   </section>
 
@@ -820,9 +982,9 @@ function confirmLog(){ const id = pendingLogId; closeLogConfirm(); closeLogSheet
 function startGymbroFrom(env){
   closeLogConfirm();
   closeLogSheet();
-  if(gbCurrentEnv !== env){ gbCurrentEnv = env; gbCurrentWorkout = null; renderGymbroWorkout(); }
-  selectChip('gb-env-chips', env);
+  if(gbCurrentEnv !== env){ gbCurrentEnv = env; gbCurrentWorkout = null; }
   goTo('gymbro');
+  if(!gbCurrentWorkout) gbStartWizard(true); // Kolo 6: prostředí je známé, průvodce začne otázkou „Co dnes dáme?“
 }
 // Kolo 2: GymBro „Odcvičeno“ se rovnou zapíše jako aktivita (bez oslavy navíc — po tréninku je vlastní okno)
 function gbActivityForEnv(env){
@@ -2839,7 +3001,7 @@ function gbUndo(){
     state.gymbroLog = state.gymbroLog.filter(l=>l.id!==action.logId);
     if(action.pohybLogId){ state.logs = state.logs.filter(l=>l.id!==action.pohybLogId); if(state.lastAction && state.lastAction.logId===action.pohybLogId) state.lastAction=null; renderAll(); } // Kolo 2
     gbCurrentWorkout = action.workoutSnapshot;
-    gbAfterCounter = null;
+    gbAfterCounter = null; gbPraise = null; gbScreen = 'workout'; // Kolo 6
   } else if(action.type==='counter'){
     const log = state.gymbroLog.find(l=>l.id===action.logId);
     if(log) delete log.counter;
@@ -2986,24 +3148,26 @@ function gbBackfillOutdoor(existingExercises, env, needed){
   }
   return picked;
 }
-function buildGymbroWorkout(cat){
-  const env = gbCurrentEnv;
-  let exercises = cat==='legs_core'
-    ? gbPickForCategory('legs', env, 3).concat(gbPickForCategory('core', env, 2))
-    : gbPickForCategory(cat, env, 5);
-  if(env==='outdoor' && cat!=='legs_core' && exercises.length<5){
-    exercises = exercises.concat(gbBackfillOutdoor(exercises, env, 5-exercises.length));
+function buildGymbroWorkout(cat, opts){
+  // Kolo 6: počet cviků podle času, vyrovnání jen od 45 min, pocit (fit/tired) upraví návrh vah
+  opts = opts || {};
+  const env = gbCurrentEnv, count = opts.count || 5;
+  let exercises;
+  if(cat==='legs_core'){ const legs = Math.ceil(count*0.6); exercises = gbPickForCategory('legs', env, legs).concat(gbPickForCategory('core', env, count-legs)); }
+  else exercises = gbPickForCategory(cat, env, count);
+  if(env==='outdoor' && cat!=='legs_core' && exercises.length<count){
+    exercises = exercises.concat(gbBackfillOutdoor(exercises, env, count-exercises.length));
   }
-  // Small (20%) chance of a jump rope wildcard as a genuine bonus 6th item — never
-  // replaces anything, never counts toward the muscle cap, can repeat on regeneration.
-  if(Math.random()<0.20){
+  // Small (20%) chance of a jump rope wildcard as a genuine bonus item — jen u plného tréninku.
+  if(count>=5 && Math.random()<0.20){
     const rope = gbFindExercise('jump_rope');
     if(rope) exercises = exercises.concat(rope);
   }
-  gbAfterCounter = null;
-  const counterExercises = gbPickCounter(cat, env).map(e=>({...e, done:false}));
-  gbCurrentWorkout = {cat, env, exercises: exercises.map(e=>({...e, done:false})), view:'main',
+  gbAfterCounter = null; gbPraise = null;
+  const counterExercises = opts.counter===false ? [] : gbPickCounter(cat, env).map(e=>({...e, done:false}));
+  gbCurrentWorkout = {cat, env, exercises: exercises.map(e=>({...e, done:false})), view:'main', opts, feel: opts.feel || 'ok',
     counter: {cat, env, exercises: counterExercises, done:false}};
+  gbScreen = 'workout';
   renderGymbroWorkout();
 }
 function gbSwapExercise(exId){
@@ -3163,7 +3327,14 @@ function gbTarget(e){
   if(e.meas) return {kg:e.meas.kg, reps:e.meas.reps, flag:null};
   const s = gbSuggest(e);
   if(s.state!=='ok' || s.flag==='pause') return null;
-  return {kg:s.kg||0, reps:s.reps, flag:s.flag};
+  let kg = s.kg||0;
+  // Kolo 6: pocit z průvodce — unavený −10 %, plný síly o krok víc tam, kde minule padla horní hranice
+  const feel = gbCurrentWorkout && gbCurrentWorkout.feel, r = gbRange(e);
+  if(gbUsesWeight(e) && kg){
+    if(feel==='tired') kg = gbRound(kg*0.9, gbStep(e));
+    else if(feel==='fit' && s.last && r && s.last.reps >= r.hi && s.flag!=='stall') kg += gbStep(e);
+  }
+  return {kg, reps:s.reps, flag:s.flag};
 }
 function gbWeightChipHTML(e){
   if(!gbTracksReps(e)) return '';
@@ -3307,67 +3478,257 @@ function gbTickWithWeight(exId){
   window._toastTimer = setTimeout(()=>t.classList.remove('show'), 4000);
   return true;
 }
-function gbSetGoal(g){
-  state.gymbroGoal = g; saveState();
-  selectChip('gb-goal-chips', g);
-  if(gbCurrentWorkout) gbCurrentWorkout.exercises.forEach(e=>{ delete e.meas; });
+// Kolo 6: cíl se volí v průvodci (gbWizFinish)
+
+/* ================= Kolo 6: GymBro průvodce (5 otázek), zjednodušený trénink, vyrovnání a pochvala ================= */
+let gbScreen = 'start';   // start | wizard | workout | counterOffer | counter | praise
+let gbWiz = null;         // {step, ans:{}, skipEnv}
+let gbPraise = null;      // údaje pro pochvalnou obrazovku
+const GB_MUSCLES_TXT = {push:'Hrudník, ramena, triceps.', pull:'Záda, biceps, zadní ramena.', legs_core:'Nohy, hýždě a střed těla.'};
+const GB_CAT_SHORT = {push:'přední vršek', pull:'zadní vršek', legs_core:'nohy + core'};
+function gbBro(cls){ const s = document.getElementById('bro'); return `<svg class="${cls}" viewBox="0 0 150 190" role="img" aria-label="GymBro">${s ? s.innerHTML : ''}</svg>`; }
+function gbBroPose(svg, pose, hop=true){
+  if(!svg) return;
+  svg.querySelectorAll('.pose').forEach(g=>g.classList.remove('on'));
+  pose.forEach(p=>{ const g = svg.querySelector('.'+p); if(g) g.classList.add('on'); });
+  if(hop){ svg.classList.remove('hop'); void svg.getBoundingClientRect(); svg.classList.add('hop'); }
+}
+// GymBro ukazuje na prstech, kolik otázek ještě zbývá (hravá „rukavicová“ ruka)
+function gbBroFingers(svg, n){
+  const g = svg && svg.querySelector('.arms-count .fingers'); if(!g) return;
+  const F = [[122,22.5], [127.5,20.5], [133,22], [137.5,26.5]], skin = 'url(#g-skin)';
+  let h = '';
+  F.forEach((f,i)=>{ if(i < Math.min(n,4)) h += `<path d="M${f[0]-.5} 37 L${f[0]} ${f[1]}" stroke="${skin}" stroke-width="6.2" stroke-linecap="round"/>`; });
+  if(n>=5) h += `<path d="M121 41 L113.5 33.5" stroke="${skin}" stroke-width="6.2" stroke-linecap="round"/>`;
+  h += `<circle cx="129" cy="39" r="9" fill="${skin}"/>`;
+  if(n<5) h += `<ellipse cx="121.5" cy="41.5" rx="3.3" ry="4" fill="${skin}"/>`;
+  h += `<ellipse cx="126" cy="35" rx="3.4" ry="1.8" fill="#fff" opacity=".55"/>`;
+  g.innerHTML = h;
+}
+function gbCatDays(cat){
+  const l = state.gymbroLog.filter(x=>x.cat===cat);
+  if(!l.length) return 999;
+  return daysBetween(l.reduce((a,b)=>a.date>b.date?a:b).date, todayStr());
+}
+function gbDaysText(d){ return d===999 ? 'ještě nikdy' : d===0 ? 'dnes' : d===1 ? 'včera' : d===2 ? 'předevčírem' : 'před '+d+' dny'; }
+function gbNextCat(exclude){
+  return ['push','pull','legs_core'].filter(c=>c!==exclude).map(c=>({c, d:gbCatDays(c)})).sort((a,b)=>b.d-a.d)[0].c;
+}
+function gbWizSteps(){
+  const steps = [];
+  if(!gbWiz.skipEnv){
+    const ctx = nowCtx(), t = Math.round(ctx.temp), tt = (t<0?'−'+Math.abs(t):t)+' °C';
+    steps.push({key:'kde', q:'Kde dnes cvičíš?', cols:1, opts:[
+      {v:'gym', ic:'🏋️', t:'Posilovna', s:'stroje, činky, kladky', pose:['arms-lift','face-happy'], say:'Jdeme na železo.', sub:'Váhy na dnešek mám připravené.'},
+      {v:'outdoor', ic:'🌳', t:'Venku', s:'hrazda, bradla, vlastní váha', pose:['arms-hips','face-cool'],
+        say:'Venku '+(ctx.live?'':'asi ')+tt+(t>=15?'. Ideál.':t>=5?'. Obleč se.':'. Brr, to chce bundu.'), sub:'Vyberu cviky s vlastní vahou.'}]});
+  }
+  const next = gbNextCat();
+  steps.push({key:'co', q:'Co dnes dáme?', cols:1, opts:['push','pull','legs_core'].map(c=>{
+    const d = gbCatDays(c), dt = gbDaysText(d), label = GB_CAT_LABEL[c];
+    const o = {v:c, ic:{push:'🫸',pull:'🫷',legs_core:'🦵'}[c], t:label.replace(' těla',''), s:dt, tag: c===next ? '⭐ na řadě' : ''};
+    if(d<=2) Object.assign(o, {pose:['arms-down','face-wow'], say:label.replace(' těla','')+' už '+dt+'…', sub:'Jde to, jen počítej s únavou.'});
+    else if(c===next) Object.assign(o, {pose:['arms-thumb','face-happy'], say:'Přesně tohle je na řadě.', sub:GB_MUSCLES_TXT[c]});
+    else Object.assign(o, {pose:['arms-hips','face-happy'], say:label.replace(' těla','')+'? Jasně.', sub:'Naposledy '+dt+'.'});
+    return o; })});
+  const g = gbGoal();
+  steps.push({key:'cil', q:'Na co se zaměříš?', cols:3, opts:[
+    {v:'sila', ic:'🪨', t:'Síla', s:'4–6 opak.', tag:g==='sila'?'minule':'', pose:['arms-lift','face-focus'], say:'Těžké váhy, delší pauzy.', sub:'Hlavní cviky 4×4–6.'},
+    {v:'objem', ic:'💪', t:'Objem', s:'8–12 opak.', tag:g==='objem'?'minule':'', pose:['arms-flex','face-happy'], say:'Klasika. Jedeme.', sub:'Předpisy jako vždy.'},
+    {v:'vytrvalost', ic:'🔁', t:'Vytrvalost', s:'15–20 opak.', tag:g==='vytrvalost'?'minule':'', pose:['arms-hips','face-happy'], say:'Hodně opakování, krátké pauzy.', sub:'3×15–20.'}]});
+  const lt = state.gymbroLastTime;
+  steps.push({key:'cas', q:'Kolik máš času?', cols:3, opts:[
+    {v:30, ic:'⏱️', t:'30 min', s:'3 cviky', tag:lt===30?'minule':'', pose:['arms-thumb','face-happy'], say:'Rychlovka, 3 cviky.', sub:'Bez vyrovnání.'},
+    {v:45, ic:'⏱️', t:'45 min', s:'4 cviky', tag:lt===45?'minule':'', pose:['arms-flex','face-happy'], say:'Akorát.', sub:'4 cviky, vyrovnání po tréninku.'},
+    {v:60, ic:'⏱️', t:'60+ min', s:'5 cviků', tag:lt===60?'minule':'', pose:['arms-lift','face-focus'], say:'Dáme to pořádně.', sub:'5 cviků + vyrovnání.'}]});
+  // Plný síly: s historií vybrané partie přidá váhu, bez ní přidá jeden cvik (napoprvé není z čeho přidávat)
+  const hist = gbCatHasWeights(gbWiz.ans.co);
+  steps.push({key:'pocit', q:'Jak se cítíš?', cols:1, opts:[
+    {v:'fit', ic:'⚡', t:'Plný síly', s: hist ? 'přidám váhu u cviků, které ti minule šly' : 'jeden cvik navíc', pose:['arms-flex','face-wow'], say:'Tak to dneska přidáme.', sub: hist ? 'Přidám váhu u cviků, které ti minule šly.' : 'Přidám jeden cvik navíc.'},
+    {v:'ok', ic:'🙂', t:'Normálně', s:'beze změny', pose:['arms-thumb','face-happy'], say:'Jedeme podle plánu.', sub:''},
+    {v:'tired', ic:'😮‍💨', t:'Unavený', s:'o cvik méně, váhy −10 %', pose:['arms-down','face-tired'], say:'Dneska v klidu.', sub:'I lehký trénink se počítá.'}]});
+  return steps;
+}
+function gbCatHasWeights(cat){ return !!cat && state.gymbroLog.some(l=>l.cat===cat && (l.exercises||[]).some(x=>x.reps)); }
+function gbStartWizard(skipEnv){
+  gbWiz = {step:0, ans:{}, skipEnv:!!skipEnv};
+  gbScreen = 'wizard';
   renderGymbroWorkout();
+}
+function gbWizPick(i){
+  const steps = gbWizSteps(), s = steps[gbWiz.step], o = s.opts[i];
+  gbWiz.ans[s.key] = o.v;
+  const wrap = document.getElementById('gb-workout-wrap');
+  wrap.querySelectorAll('.gbz-choice').forEach((b,j)=>b.classList.toggle('sel', j===i));
+  gbBroPose(wrap.querySelector('.gbz-bro'), o.pose);
+  const say = document.getElementById('gbz-say'); if(say) say.innerHTML = o.say + (o.sub ? `<small>${o.sub}</small>` : '');
+  gbWiz.last = o;
+  const stepNow = gbWiz.step;
+  setTimeout(()=>{
+    if(!gbWiz || gbWiz.step!==stepNow) return;
+    if(gbWiz.step < steps.length-1){ gbWiz.step++; renderGymbroWorkout(); }
+    else gbWizFinish();
+  }, 800);
+}
+function gbWizBack(){
+  if(!gbWiz) return;
+  if(gbWiz.step===0){ gbWiz = null; gbScreen = 'start'; }
+  else { gbWiz.step--; gbWiz.last = null; }
+  renderGymbroWorkout();
+}
+function gbWizFinish(){
+  const a = gbWiz.ans;
+  if(a.kde) gbCurrentEnv = a.kde;
+  state.gymbroGoal = a.cil; state.gymbroLastTime = a.cas; saveState();
+  let count = a.cas===30 ? 3 : a.cas===45 ? 4 : 5;
+  if(a.pocit==='tired') count = Math.max(2, count-1);
+  if(a.pocit==='fit' && !gbCatHasWeights(a.co)) count += 1;
+  gbWiz = null;
+  buildGymbroWorkout(a.co, {count, counter: a.cas>=45, feel: a.pocit});
+}
+function gbWizardHTML(){
+  const steps = gbWizSteps(), s = steps[gbWiz.step], prev = gbWiz.last;
+  const intro = gbWiz.step===0 ? 'Čau! Než začneme, pár rychlých otázek.' : (prev ? prev.say : 'Pokračujeme.');
+  return `<div class="gbz">
+    <div class="gbz-top"><button class="icon-btn" onclick="gbWizBack()" aria-label="Zpět"><svg class="ic"><use href="#i-back"/></svg></button>
+      <div class="gbz-dots">${steps.map((x,i)=>`<i class="${i<gbWiz.step?'done':i===gbWiz.step?'on':''}"></i>`).join('')}</div></div>
+    <div class="gbz-stage">${gbBro('gbz-bro')}<div class="gbz-bubble" id="gbz-say">${intro}${prev && prev.sub ? `<small>${prev.sub}</small>` : ''}</div></div>
+    <h2 class="gbz-q">${s.q}</h2>
+    <div class="gbz-choices ${s.cols===3?'grid3':''}">${s.opts.map((o,i)=>`<button class="gbz-choice ${gbWiz.ans[s.key]===o.v?'sel':''}" onclick="gbWizPick(${i})"><span class="ic">${o.ic}</span><span><span class="t">${o.t}</span><span class="s">${o.s}</span></span>${o.tag?`<span class="tag">${o.tag}</span>`:''}</button>`).join('')}</div>
+  </div>`;
+}
+function gbCheer(w){
+  const n = w.exercises.filter(e=>e.done).length, total = w.exercises.length;
+  if(n===0) return 'Jdeme na to.';
+  if(n===total) return 'Všechno hotové. Mašina.';
+  if(total-n===1) return 'Poslední. Dej to!';
+  return 'Ještě '+(total-n)+'. Drž tempo.';
+}
+function gbWorkoutHTML(w){
+  const done = w.exercises.filter(e=>e.done).length;
+  return `<div class="gbz">
+    <div class="gbw-head"><div><div class="gbw-ttl">${GB_CAT_LABEL[w.cat]||w.cat}</div>
+      <div class="gbw-meta">${w.env==='gym'?'🏋️':'🌳'} · ${GB_GOALS[gbGoal()]} · ${done} / ${w.exercises.length}</div></div>
+      <button class="icon-btn" onclick="gbReroll()" aria-label="Jiná sestava" title="Jiná sestava"><svg class="ic"><use href="#i-refresh"/></svg></button></div>
+    ${w.exercises.map(e=>`<div class="journal-entry gb-ex-card gbw-card ${e.done?'done':''}" data-ex-id="${e.id}">
+      <input type="checkbox" class="gb-check" ${e.done?'checked':''} onclick="event.stopPropagation();gbToggleDone('${e.id}')" aria-label="Hotovo">
+      <button class="gbw-name" onclick="openGbExerciseModal('${e.id}')"><span>${e.key?'⭐ ':''}${escapeHTML(e.name)}</span><span class="gb-meta">${escapeHTML(gbEffectiveSets(e))}</span><b>›</b></button>
+      <div class="gbw-row">${gbWeightChipHTML(e)}<button class="gb-act" onclick="gbSwapExercise('${e.id}')">↻ Vyměnit</button></div>
+    </div>`).join('')}
+    <div class="gbw-dock"><div class="gbw-say">${gbCheer(w)}</div>${gbBro('gbw-bro')}<button class="btn btn-leaf" onclick="finishGymbroWorkout()">✓ Odcvičeno</button></div>
+  </div>`;
+}
+function gbReroll(){ if(gbCurrentWorkout) buildGymbroWorkout(gbCurrentWorkout.cat, gbCurrentWorkout.opts||{}); }
+function gbStartHTML(){
+  const sum = gbLastWorkoutSummary();
+  return `<div class="glass gbz-start">${gbBro('gbz-bro small')}
+    <div class="gbz-bubble">Jdeme cvičit?<small>${sum ? escapeHTML(sum) : 'Projdeme spolu pět rychlých otázek a sestavím ti trénink.'}</small></div>
+    <button class="btn btn-primary" onclick="gbStartWizard()">💪 Začít trénink</button></div>`;
+}
+function gbCounterOfferHTML(c){
+  return `<div class="gbz">
+    <div class="gbz-stage">${gbBro('gbz-bro')}<div class="gbz-bubble">Pět minut pro zdravé klouby?<small>Lehce a pomalu, žádné selhání.</small></div></div>
+    <h2 class="gbz-q">⚖️ Vyrovnání</h2><p class="muted" style="margin:0 2px 12px;">${GB_COUNTER_WHY[c.cat]||''}</p>
+    ${c.exercises.map(e=>`<div class="journal-entry gb-counter-card"><div class="jdate">${escapeHTML(e.name)} <span class="gb-meta">${escapeHTML(e.sets)}</span></div><div class="jtext">${escapeHTML(e.desc)}</div></div>`).join('')}
+    <div class="btn-row"><button class="btn btn-sun" onclick="gbAcceptCounter()">⚖️ Dát vyrovnání</button><button class="btn btn-ghost btn-sm" onclick="gbSkipCounter()">Teď ne</button></div>
+  </div>`;
+}
+function gbAcceptCounter(){ if(gbAfterCounter){ gbAfterCounter.open = true; gbScreen = 'counter'; } renderGymbroWorkout(); }
+function gbSkipCounter(){ gbAfterCounter = null; gbScreen = 'praise'; renderGymbroWorkout(); }
+function gbPraiseHTML(p){
+  const li = levelInfo(totalXP());
+  const tips = [...new Set(p.muscles)].map(m=>GB_STRETCH_TIP[m]).filter(Boolean).slice(0,3);
+  const nWord = p.done===1 ? 'cvik' : p.done<5 && p.done>0 ? 'cviky' : 'cviků';
+  return `<div class="gbz gbz-praise">
+    <div class="gbz-confetti">${Array.from({length:14},(_,i)=>`<i style="left:${(i*37)%100}%;width:${10+(i*7)%22}px;height:${10+(i*7)%22}px;animation-duration:${2.6+(i%5)*.5}s;animation-delay:${(i%6)*.15}s;--dx:${(i%2?1:-1)*(10+i*3)}px"></i>`).join('')}</div>
+    <div class="gbz-stage" style="justify-content:center;">${gbBro('gbz-bro')}</div>
+    <h2 class="gbz-q" style="font-size:30px;text-align:center;">Trénink hotový!</h2>
+    <p class="muted" style="text-align:center;margin:0 0 12px;">Tohle se počítá. Příště na řadě: ${GB_CAT_SHORT[gbNextCat(p.cat)]}.</p>
+    <div class="gbz-stats"><div><b>+${p.xp}</b><span>XP</span></div><div><b>${p.done}</b><span>${nWord}${p.counter?' + vyrovnání':''}</span></div><div><b>${p.records.length}</b><span>nové váhy</span></div></div>
+    ${p.records.map(r=>`<div class="gbz-rec">↑ ${escapeHTML(r.name)}: <b>${gbKg(r.kg)} kg × ${r.reps}</b></div>`).join('')}
+    <div class="gbz-xp">Level ${li.level} · ${li.into} / ${li.need} XP<div class="xp-bar"><i id="gbz-xpbar" style="width:${Math.round(p.fromProgress*100)}%"></i></div></div>
+    ${tips.length ? `<div class="gbz-tips"><b>Protažení na 2 minuty</b>${tips.map(t=>`<div>${escapeHTML(t)}</div>`).join('')}</div>` : ''}
+    <div class="btn-row"><button class="btn btn-leaf" onclick="gbPraiseDone()">Paráda</button></div>
+  </div>`;
+}
+function gbPraiseDone(){ gbPraise = null; gbScreen = 'start'; renderGymbroWorkout(); window.scrollTo(0,0); }
+// Kolo 6: po „Odcvičeno“ — vyrovnání (když je) a pak pochvala
+function gbAfterWorkout(w, linked, xpBefore){
+  const last = state.gymbroLog[state.gymbroLog.length-1];
+  const records = (last ? last.exercises : []).filter(x=>x.kg).map(x=>{
+    const h = gbHistory(x.id); return (h[1] && x.kg > h[1].kg) ? {name:x.name, kg:x.kg, reps:x.reps} : null; }).filter(Boolean);
+  const before = levelInfo(xpBefore);
+  gbPraise = {cat:w.cat, xp: linked ? linked.act.xp : 0, done: w.exercises.filter(e=>e.done).length,
+    records, muscles: w.exercises.map(e=>e.muscle), fromProgress: before.level===levelInfo(totalXP()).level ? before.progress : 0, counter:false};
+  gbScreen = gbAfterCounter ? 'counterOffer' : 'praise';
+  window.scrollTo(0,0);
+}
+
+// Kolo 6: detail cviku — dnešní váha, akce (Vyměnit, Změřit, ＋/−, Těžší/Lehčí cvik)
+function gbDetailExtras(exId){
+  const el = document.getElementById('gb-modal-content');
+  const e = gbEx(exId);
+  if(!el || !e) return; // mimo trénink jen texty
+  const weighted = gbUsesWeight(e), tg = gbTarget(e), s = gbSuggest(e), step = gbStep(e);
+  const val = (kg,reps)=> (weighted ? gbKg(kg)+' kg × ' : '× ')+reps;
+  let box = '';
+  if(gbTracksReps(e)){
+    if(e.done && e.reps) box = `<div class="gbd-box done"><b>✓ ${val(e.kg,e.reps)}</b><span>dnes zapsáno · klepnutím na štítek opravíš</span></div>`;
+    else if(tg){
+      const last = s.last ? 'minule '+val(s.last.kg,s.last.reps)+' · '+gbDaysText(s.days) : '';
+      const warm = weighted ? 'Rozcvička: '+[0.5,0.7,0.85].map(f=>gbKg(gbRound(tg.kg*f, step))).join(' → ')+' kg' : '';
+      box = `<div class="gbd-box"><b>${val(tg.kg,tg.reps)}</b><span>${[weighted && gbEquip(e).type==='j' ? 'váha jedné jednoručky' : '', last, warm].filter(Boolean).join('<br>')}</span></div>`;
+    } else if(weighted) box = `<div class="gbd-box measure"><b>${s.flag==='pause'?'↻ Přeměřit':'🏋️ Změřit'}</b><span>Průvodce najde pracovní váhu po krocích.</span></div>`;
+  }
+  const family = gbLadderFamilyFor(e.id);
+  const lvl = family ? (state.gymbroLadderLevel[family]||0) : 0, max = family ? gbAllLadders()[family].length-1 : 0;
+  const acts = [`<button class="gb-act" onclick="closeGbExerciseModal();gbSwapExercise('${e.id}')">↻ Vyměnit</button>`];
+  if(weighted) acts.push(`<button class="gb-act" onclick="closeGbExerciseModal();openGbGuide('${e.id}')">🏋️ ${tg?'Přeměřit':'Změřit'}</button>`);
+  else if(gbTracksReps(e) || (gbParseSets(e.sets)||{}).isTime) acts.push(`<button class="gb-act" onclick="gbAdjustSets('${e.id}',1);openGbExerciseModal('${e.id}')">＋ Víc</button>`, `<button class="gb-act" onclick="gbAdjustSets('${e.id}',-1);openGbExerciseModal('${e.id}')">− Míň</button>`);
+  if(family) acts.push(`<button class="gb-act" ${lvl<max?'':'disabled'} onclick="closeGbExerciseModal();gbLevelUp('${e.id}')">⬆ Těžší cvik</button>`, `<button class="gb-act" ${lvl>0?'':'disabled'} onclick="closeGbExerciseModal();gbLevelDown('${e.id}')">⬇ Lehčí cvik</button>`);
+  el.insertAdjacentHTML('afterbegin', `<p class="gb-meta" style="display:inline-block;margin-bottom:10px;">${escapeHTML(gbEffectiveSets(e))}</p>` + box);
+  el.insertAdjacentHTML('beforeend', `<div class="gb-actions" style="padding-left:0;margin-top:14px;">${acts.join('')}</div>`);
 }
 
 // Kolo 1: karta cviku — malá tlačítka vedle sebe místo pěti velkých pod sebou
 function renderGymbroWorkout(){
+  // Kolo 6: GymBro je jedna plocha s obrazovkami start → průvodce → trénink → vyrovnání → pochvala
   const wrap = document.getElementById('gb-workout-wrap');
-  if(!gbCurrentWorkout){
-    // Po dokončení tréninku lze vyrovnání otevřít samostatně (nabídka v okně "Trénink hotový").
-    if(gbAfterCounter && gbAfterCounter.open){
-      const c = gbAfterCounter;
-      wrap.innerHTML = `<div class="glass">
-        <p class="field-label">⚖️ Vyrovnání · ${GB_CAT_LABEL[c.cat]||c.cat} · ${c.env==='gym'?'🏋️ Posilovna':'🌳 Venkovní posilovna'}</p>
-        ${gbCounterBodyHTML(c, true)}
-      </div>`;
-    } else wrap.innerHTML='';
+  if(!wrap) return;
+  if(gbCurrentWorkout && gbScreen!=='workout') gbScreen = 'workout';
+  if(!gbCurrentWorkout && gbScreen==='workout') gbScreen = 'start';
+  if(gbScreen==='counter' && !gbAfterCounter) gbScreen = gbPraise ? 'praise' : 'start';
+  if(gbScreen==='counterOffer' && !gbAfterCounter) gbScreen = gbPraise ? 'praise' : 'start';
+  if(gbScreen==='praise' && !gbPraise) gbScreen = 'start';
+  if(gbScreen==='wizard' && !gbWiz) gbScreen = 'start';
+  if(gbScreen==='wizard'){
+    wrap.innerHTML = gbWizardHTML();
+    const svg = wrap.querySelector('.gbz-bro'), steps = gbWizSteps();
+    gbBroFingers(svg, steps.length - gbWiz.step);
+    gbBroPose(svg, ['arms-count', gbWiz.last ? gbWiz.last.pose[1] : 'face-happy']);
     return;
   }
-  const w = gbCurrentWorkout;
-  wrap.innerHTML = `<div class="glass">
-    <p class="field-label">${GB_CAT_LABEL[w.cat]||w.cat} · ${w.env==='gym'?'🏋️ Posilovna':'🌳 Venkovní posilovna'}</p>
-    ${gbCounterTabsHTML(w)}
-    ${w.view==='counter' && w.counter ? gbCounterBodyHTML(w.counter, false) : `
-    ${w.exercises.map(e=>{
-      const effSets = gbEffectiveSets(e);
-      const family = gbLadderFamilyFor(e.id);
-      const canLevelUp = family && (state.gymbroLadderLevel[family]||0) < gbAllLadders()[family].length-1;
-      const canLevelDown = family && (state.gymbroLadderLevel[family]||0) > 0;
-      const levelBtns = family ? `
-          <button class="gb-act" onclick="event.stopPropagation();gbLevelUp('${e.id}')" ${canLevelUp?'':'disabled'}>⬆ Těžší cvik</button>
-          <button class="gb-act" onclick="event.stopPropagation();gbLevelDown('${e.id}')" ${canLevelDown?'':'disabled'}>⬇ Lehčí cvik</button>` : '';
-      return `<div class="journal-entry gb-ex-card" data-ex-id="${e.id}" style="${e.done?'opacity:.55;':''}">
-        <div style="display:flex;gap:8px;align-items:flex-start;">
-          <input type="checkbox" class="gb-check" ${e.done?'checked':''} onclick="event.stopPropagation();gbToggleDone('${e.id}')" aria-label="Hotovo">
-          <div style="flex:1;min-width:0;cursor:pointer;" onclick="openGbExerciseModal('${e.id}')">
-            <div class="jdate" style="${e.done?'text-decoration:line-through;':''}">${e.key?'⭐ ':''}${escapeHTML(e.name)} <span class="gb-meta">${effSets}</span></div>
-            <div class="jtext">${escapeHTML(e.desc)} <span style="color:var(--aqua-deep);font-weight:600;">Detail ›</span></div>
-            ${gbWeightChipHTML(e)}
-          </div>
-          <span class="gb-drag-handle" style="cursor:grab;padding:2px 4px;touch-action:none;" title="Přetáhni pro změnu pořadí">⠿</span>
-        </div>
-        <div class="gb-actions">
-          ${gbUsesWeight(e) ? '' : `<button class="gb-act" onclick="gbAdjustSets('${e.id}',1)" aria-label="Víc">＋ Víc</button>
-          <button class="gb-act" onclick="gbAdjustSets('${e.id}',-1)" aria-label="Míň">− Míň</button>`}<!-- Kolo 3: u cviků s váhou postup řídí návrh váhy -->
-          <button class="gb-act" onclick="gbSwapExercise('${e.id}')">↻ Vyměnit</button>
-          ${levelBtns}
-        </div>
-      </div>`;
-    }).join('')}
-    <div class="btn-row">
-      <button class="btn btn-leaf" onclick="finishGymbroWorkout()">✓ Odcvičeno</button>
-      <button class="btn btn-ghost btn-sm" onclick="buildGymbroWorkout('${w.cat}')">↻ Jiná sestava</button>
-    </div>`}
-  </div>`;
-  wrap.querySelectorAll('.gb-drag-handle').forEach(handle=>{
-    const card = handle.closest('.gb-ex-card');
-    if(card) bindGbDrag(handle, card.dataset.exId);
-  });
+  if(gbScreen==='workout'){
+    const w = gbCurrentWorkout;
+    wrap.innerHTML = gbWorkoutHTML(w);
+    const n = w.exercises.filter(e=>e.done).length;
+    gbBroPose(wrap.querySelector('.gbw-bro'), n===w.exercises.length ? ['arms-lift','face-wow'] : n ? ['arms-thumb','face-happy'] : ['arms-hips','face-happy'], false);
+    return;
+  }
+  if(gbScreen==='counterOffer'){ wrap.innerHTML = gbCounterOfferHTML(gbAfterCounter); gbBroPose(wrap.querySelector('.gbz-bro'), ['arms-hips','face-happy']); return; }
+  if(gbScreen==='counter'){
+    const c = gbAfterCounter;
+    wrap.innerHTML = `<div class="glass"><p class="field-label">⚖️ Vyrovnání · ${GB_CAT_LABEL[c.cat]||c.cat}</p>${gbCounterBodyHTML(c, true)}</div>`;
+    return;
+  }
+  if(gbScreen==='praise'){
+    wrap.innerHTML = gbPraiseHTML(gbPraise);
+    gbBroPose(wrap.querySelector('.gbz-bro'), ['arms-lift','face-wow']);
+    setTimeout(()=>{ const b = document.getElementById('gbz-xpbar'); if(b) b.style.width = Math.round(levelInfo(totalXP()).progress*100)+'%'; }, 350);
+    return;
+  }
+  wrap.innerHTML = gbStartHTML();
+  gbBroPose(wrap.querySelector('.gbz-bro'), ['arms-thumb','face-happy'], false);
 }
 
 /* ---- Vyrovnání (counter): volitelná záložka se 3 lehkými cviky pro protilehlé svaly ---- */
@@ -3473,6 +3834,7 @@ function gbFinishCounter(){
     saveState();
   }
   gbAfterCounter = null;
+  if(gbPraise) gbPraise.counter = true; // Kolo 6
   renderGymbroWorkout();
   renderGbLastWorkoutInfo();
   showToast('⚖️ Vyrovnání zapsáno do GymBro deníku');
@@ -3542,7 +3904,10 @@ async function openGbPostWorkoutModal(workout){
     }catch(e){ console.warn('Giphy fetch failed', e); }
   }
 }
-function closeGbPostWorkoutModal(){ document.getElementById('gb-postworkout-modal').classList.remove('show'); }
+function closeGbPostWorkoutModal(){
+  document.getElementById('gb-postworkout-modal').classList.remove('show');
+  if(gbScreen==='praise' || gbScreen==='counterOffer'){ gbPraise = null; gbScreen = 'start'; renderGymbroWorkout(); } // Kolo 6
+}
 function finishGymbroWorkout(force){
   if(!gbCurrentWorkout) return;
   // Kolo 2: nic neodškrtnuto → zeptat se, jestli trénink přesto započítat
@@ -3557,6 +3922,7 @@ function finishGymbroWorkout(force){
   const logId = 'gb'+Date.now();
   const workoutSnapshot = JSON.parse(JSON.stringify(gbCurrentWorkout));
   const w = gbCurrentWorkout;
+  const xpBefore = totalXP(); // Kolo 6: pro pruh levelu na pochvale
   const linked = logGymbroToPohyb(w.env, logId); // Kolo 2: rovnou do bubliny na Domů
   gbPushUndo({type:'finish', logId, workoutSnapshot, pohybLogId: linked ? linked.logId : null});
   const counterDone = !!(w.counter && w.counter.done);
@@ -3569,7 +3935,7 @@ function finishGymbroWorkout(force){
   gbAfterCounter = (!counterDone && w.counter && w.counter.exercises.length)
     ? {cat:w.cat, env:w.env, exercises:w.counter.exercises.map(e=>({...e, done:false})), done:false, logId, open:false}
     : null;
-  openGbPostWorkoutModal(w);
+  gbAfterWorkout(w, linked, xpBefore); // Kolo 6: vyrovnání a pochvala místo okna
   gbCurrentWorkout = null;
   renderGymbroWorkout();
   renderGbLastWorkoutInfo();
@@ -3947,6 +4313,7 @@ async function openGbExerciseModal(exId){
     <p class="jtext" style="margin-bottom:10px;"><strong>Jak na to:</strong> ${escapeHTML(ex.detail)}</p>
     <p class="jtext" style="margin-bottom:10px;"><strong>⚠️ Na co si dát pozor:</strong> ${escapeHTML(ex.caution)}</p>
     <p class="jtext"><strong>💪 Zapojené svaly:</strong> ${escapeHTML(ex.muscles)}</p>`;
+  gbDetailExtras(exId); // Kolo 6
   const gifWrap = document.getElementById('gb-modal-gif-wrap');
   gifWrap.innerHTML = '';
   document.getElementById('gb-modal-gif-alt-wrap').innerHTML = '';
@@ -4108,7 +4475,7 @@ function initGymbroChips(){
 }
 
 function renderAll(){ renderDashboard(); renderPlans(); renderActivityGrid(); renderSheetGrid(); renderHistory(); renderStickerTray(); renderJournalList(); updateBackupStatus(); renderFavoritesList(); }
-function init(){ reconcileFreezes(); initBubbles(); initSuggestChips(); initGymbroChips(); selectChip('gb-goal-chips', gbGoal()); renderAll(); autoWeatherChip(); refreshWeather(); } // Kolo 3: cíl · Kolo 4: počasí
+function init(){ reconcileFreezes(); initBubbles(); initSuggestChips(); initGymbroChips(); renderAll(); renderGymbroWorkout(); autoWeatherChip(); refreshWeather(); } // Kolo 3: cíl · Kolo 4: počasí
 document.addEventListener('DOMContentLoaded', init);
 
 if('serviceWorker' in navigator){
