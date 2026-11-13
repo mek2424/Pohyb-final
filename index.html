@@ -1795,7 +1795,12 @@ function downloadICS(activity, dateStr, timeHHMM){
 }
 
 /* ================= RENDER ================= */
-function goTo(view){
+function goTo(view, fromBack){
+  // Kolo 8: pamatuje si, odkud jsi přišel (pro systémové Zpět); na Domů se historie vynuluje
+  if(!fromBack && view!==viewCurrent) viewStack.push(viewCurrent);
+  if(view==='dashboard') viewStack = [];
+  if(viewStack.length>12) viewStack.shift();
+  viewCurrent = view;
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-'+view).classList.add('active');
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
@@ -3391,6 +3396,38 @@ function gbTickWithWeight(exId){
 }
 // Kolo 6: cíl se volí v průvodci (gbWizFinish)
 
+/* ================= Kolo 8: systémové „Zpět“ ================= */
+// Jedna „hlídací“ položka v historii prohlížeče: každé Zpět ji spotřebuje, aplikace udělá krok zpět
+// uvnitř a hlídací položku vrátí. Když už není kam (Domů, nic otevřeného), aplikace se zavře.
+let viewCurrent = 'dashboard', viewStack = [];
+function navBackStep(){
+  const shown = id=>{ const el = document.getElementById(id); return el && el.classList.contains('show'); };
+  if(shown('log-confirm-modal')){ closeLogConfirm(); return true; }
+  if(shown('gb-weight-modal')){ closeGbWeight(); return true; }
+  if(shown('gb-exercise-modal')){ closeGbExerciseModal(); return true; }
+  if(shown('gb-manage-modal')){ if(gbManageView!=='list'){ gbManageView='list'; renderGbManage(); } else closeGbManageModal(); return true; }
+  if(shown('location-modal')){ closeLocationPicker(); return true; }
+  if(shown('log-sheet')){ closeLogSheet(); return true; }
+  if(viewCurrent==='gymbro'){
+    if(gbScreen==='wizard'){ gbWizBack(); return true; }
+    if(gbScreen==='counter'){ gbScreen='counterOffer'; if(gbAfterCounter) gbAfterCounter.open=false; renderGymbroWorkout(); return true; }
+    if(gbScreen==='counterOffer'){ gbSkipCounter(); return true; }
+    if(gbScreen==='praise'){ gbPraiseDone(); return true; }
+  }
+  if(viewCurrent!=='dashboard'){ goTo(viewStack.pop() || 'dashboard', true); return true; }
+  return false;
+}
+function initBackNav(){
+  try{
+    history.replaceState({pohyb:'root'}, '');
+    history.pushState({pohyb:'guard'}, '');
+  }catch(e){ return; }
+  window.addEventListener('popstate', ()=>{
+    if(navBackStep()){ try{ history.pushState({pohyb:'guard'}, ''); }catch(e){} }
+    else { try{ history.back(); }catch(e){} } // Domů a nic otevřeného → odchod z aplikace
+  });
+}
+
 /* ================= Kolo 7: oslavy dělá GymBro (Giphy a jiskřičky zrušené) ================= */
 const BRO_CHEERS = ['Paráda!', 'Tak se to dělá!', 'Jedeš!', 'Mašina!', 'Každý pohyb se počítá!'];
 const BRO_CHEER_POSES = [['arms-flex','face-happy'], ['arms-thumb','face-happy'], ['arms-lift','face-wow'], ['arms-flex','face-wow']];
@@ -4396,7 +4433,7 @@ function initGymbroChips(){
 }
 
 function renderAll(){ renderDashboard(); renderPlans(); renderActivityGrid(); renderSheetGrid(); renderHistory(); renderStickerTray(); renderJournalList(); updateBackupStatus(); renderFavoritesList(); }
-function init(){ reconcileFreezes(); initBubbles(); initSuggestChips(); initGymbroChips(); renderAll(); renderGymbroWorkout(); autoWeatherChip(); refreshWeather(); } // Kolo 3: cíl · Kolo 4: počasí
+function init(){ reconcileFreezes(); initBubbles(); initSuggestChips(); initGymbroChips(); renderAll(); renderGymbroWorkout(); initBackNav(); /* Kolo 8 */ autoWeatherChip(); refreshWeather(); } // Kolo 3: cíl · Kolo 4: počasí
 document.addEventListener('DOMContentLoaded', init);
 
 if('serviceWorker' in navigator){
