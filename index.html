@@ -223,6 +223,14 @@
   .gb-act{min-height:32px;padding:0 11px;border-radius:999px;border:1px solid rgba(10,120,198,.14);background:rgba(255,255,255,.85);font-size:12.5px;font-weight:700;color:var(--aqua-deep);display:inline-flex;align-items:center;gap:4px;}
   .gb-act:disabled{opacity:.35;}
   .gb-check{width:22px;height:22px;margin-top:1px;accent-color:var(--leaf);flex-shrink:0;}
+  /* Kolo 3: štítek váhy u cviku */
+  .gb-weight{margin-top:8px;min-height:32px;padding:0 12px;border-radius:999px;border:1px solid rgba(10,120,198,.18);background:#fff;font-size:13.5px;font-weight:700;color:var(--ink);display:inline-flex;align-items:center;gap:4px;box-shadow:inset 0 1px 0 #fff, 0 1px 3px rgba(6,60,100,.1);}
+  .gb-weight.measure{color:var(--aqua-deep);border-style:dashed;}
+  .gb-weight.done{background:var(--leaf-soft);color:var(--leaf-deep);border-color:rgba(30,138,79,.25);}
+  .gb-big{font-size:30px;font-weight:800;letter-spacing:-.02em;color:var(--ink);}
+  .gb-flag{font-weight:800;padding:0 6px;border-radius:999px;font-size:12.5px;}
+  .gb-flag.up{background:var(--leaf-soft);color:var(--leaf-deep);}
+  .gb-flag.pause,.gb-flag.stall{background:var(--sun-soft);color:var(--sun-deep);}
   .gb-meta{font-size:12.5px;font-weight:700;color:var(--aqua-deep);background:var(--aqua-soft);padding:1px 8px;border-radius:999px;}
   .gb-tabs{display:flex;gap:4px;padding:4px;border-radius:999px;background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.9);margin-bottom:12px;}
   .gb-tab{flex:1;border:none;background:transparent;border-radius:999px;padding:7px 6px;font-weight:700;font-size:14px;color:var(--ink-2);display:flex;flex-direction:column;align-items:center;line-height:1.2;}
@@ -479,6 +487,12 @@
         <button class="chip selected" data-val="gym">🏋️ Posilovna</button>
         <button class="chip" data-val="outdoor">🌳 Venkovní</button>
       </div>
+      <!-- Kolo 3: cíl tréninku -->
+      <div class="seg" id="gb-goal-chips">
+        <button class="chip" data-val="sila" onclick="gbSetGoal('sila')">Síla</button>
+        <button class="chip" data-val="objem" onclick="gbSetGoal('objem')">Objem</button>
+        <button class="chip" data-val="vytrvalost" onclick="gbSetGoal('vytrvalost')">Vytrvalost</button>
+      </div>
       <p class="field-label">Co dneska?</p>
       <div class="gb-cats">
         <button class="act-card" onclick="buildGymbroWorkout('push')"><span class="icon">🫸</span><span class="name">Přední vršek</span></button>
@@ -488,14 +502,6 @@
     </div>
 
     <div id="gb-workout-wrap"></div>
-
-    <details class="glass fold">
-      <summary>🧮 Kalkulačka váhy (1RM)</summary>
-      <input type="number" id="gb-calc-weight" placeholder="Váha (kg), co jsi zvedl">
-      <input type="number" id="gb-calc-reps" placeholder="Kolik opakování">
-      <button class="btn btn-leaf btn-sm" onclick="calcGymbro1RM()">Spočítat</button>
-      <div id="gb-calc-result" style="margin-top:10px;"></div>
-    </details>
   </section>
 
   <!-- ============ NASTAVENÍ ============ -->
@@ -594,6 +600,11 @@
       <button class="btn btn-ghost" onclick="closeLogSheet();markRestDay()">😌 Dnes odpočívám</button>
     </div>
   </div>
+</div>
+
+<!-- Kolo 3: zápis váhy u cviku -->
+<div class="modal-backdrop" id="gb-weight-modal" onclick="if(event.target===this)closeGbWeight()">
+  <div class="glass modal-card"><div id="gb-weight-content"></div></div>
 </div>
 
 <!-- Kolo 2: potvrzení zápisu -->
@@ -2641,7 +2652,7 @@ function gbBumpSets(str, dir){
   }
   return gbFormatSets(p);
 }
-function gbEffectiveSets(ex){ return (state.gymbroCustomSets && state.gymbroCustomSets[ex.id]) || ex.sets; }
+function gbEffectiveSets(ex){ return (state.gymbroCustomSets && state.gymbroCustomSets[ex.id]) || gbGoalSets(ex) || ex.sets; } // Kolo 3: + cíl
 function gbAdjustSets(exId, dir){
   const ex = gbFindExercise(exId);
   if(!ex) return;
@@ -2771,6 +2782,8 @@ function gbSwapExercise(exId){
 }
 function gbToggleDone(exId){
   if(!gbCurrentWorkout) return;
+  if(gbTickWithWeight(exId)) return; // Kolo 3: odškrtnutí uloží i váhu
+  { const x = gbCurrentWorkout.exercises.find(e=>e.id===exId); if(x && x.done){ delete x.kg; delete x.reps; } } // Kolo 3: zrušené odškrtnutí smaže zápis
   const ex = gbCurrentWorkout.exercises.find(e=>e.id===exId);
   if(ex) ex.done = !ex.done;
   renderGymbroWorkout();
@@ -2809,6 +2822,243 @@ function bindGbDrag(el, exId){
   });
   el.addEventListener('pointercancel', ()=>{ dragging=false; renderGymbroWorkout(); });
 }
+/* ================= Kolo 3: váhy u cviků (paměť, návrh na příště, cíl) ================= */
+// Zápis po cviku: váha + opakování v POSLEDNÍ sérii (nejunavenější — když dá horní hranici, dal ji všude).
+// Návrh (dvojitá progrese s pojistkou přes odhad 1RM, vzorec Epley):
+//   r ≥ horní+3 → skok podle 1RM na dolní hranici · r ≥ horní → +krok · v rozsahu → stejná · r < dolní → ubrat podle 1RM
+//   ↻ pauza 28+ dní → přeměřit průvodcem od −10 %  ·  ⤵ 3 tréninky stejná váha bez horní hranice → −10 %  ·  ↑ minule přidáno
+const GB_GOALS = {sila:'Síla', objem:'Objem', vytrvalost:'Vytrvalost'};
+function gbGoal(){ return state.gymbroGoal || 'objem'; }
+// Vybavení cviků s váhou: o = velká osa, j = jednoručky (váha jedné), s = kladka/stroj, v = vlastní váha; ,m = malý cvik
+const GB_EQUIP = {
+  bench_press:'o', incline_bench:'o', overhead_press:'o', smith_bench_press:'o', deadlift:'o', barbell_row:'o', t_bar_row:'o',
+  biceps_curl:'o,m', preacher_curl:'o,m', squat:'o', romanian_deadlift:'o', hip_thrust:'o',
+  lateral_raise:'j,m', arnold_press:'j', dumbbell_flat_press:'j', dumbbell_incline_press:'j', seated_dumbbell_press:'j',
+  overhead_dumbbell_extension:'j,m', hammer_curl:'j,m', one_arm_dumbbell_row:'j', bent_over_dumbbell_row:'j',
+  dumbbell_reverse_fly:'j,m', dumbbell_rdl:'j', goblet_squat:'j', dumbbell_calf_raise:'j',
+  triceps_pushdown:'s,m', cable_fly:'s,m', machine_chest_press:'s', pec_deck:'s,m', shoulder_press_machine:'s',
+  cable_lateral_raise:'s,m', lat_pulldown:'s', face_pulls:'s,m', seated_cable_row:'s', close_grip_pulldown:'s',
+  single_arm_lat_pulldown:'s,m', chest_supported_row:'s', reverse_cable_fly:'s,m', cable_curl:'s,m', bicep_curl_machine:'s,m',
+  leg_press:'s', lying_leg_curl:'s,m', seated_leg_curl:'s,m', leg_extension:'s,m', hack_squat:'s', hip_abductor_machine:'s',
+  hip_adductor_machine:'s', seated_calf_raise:'s', cable_woodchopper:'s,m', ab_crunch_machine:'s,m',
+  assisted_dip_machine:'v', decline_situp:'v'
+};
+function gbEquip(ex){
+  const raw = GB_EQUIP[ex.id];
+  if(raw){ const [t,m] = raw.split(','); return {type:t, small:m==='m'}; }
+  // vlastní cviky: odhad z názvu
+  if(/dopomoc/i.test(ex.name)) return {type:'v', small:false};
+  if(/jednoruč/i.test(ex.name)) return {type:'j', small:false};
+  if(/kladk|kladce|stroj|leg press|hack/i.test(ex.name)) return {type:'s', small:false};
+  return {type:'o', small:false};
+}
+function gbUsesWeight(ex){
+  const p = gbParseSets(ex.sets);
+  return ex.env==='gym' && ex.cat!=='counter' && !!p && !p.isTime && gbEquip(ex).type!=='v';
+}
+function gbTracksReps(ex){ const p = gbParseSets(ex.sets); return ex.cat!=='counter' && !!p && !p.isTime; }
+function gbGoalSets(ex){
+  const p = gbParseSets(ex.sets);
+  if(!p || !gbUsesWeight(ex)) return null;
+  const g = gbGoal();
+  if(g==='sila' && ex.key) return '4×4–6'+p.suffix;
+  if(g==='vytrvalost') return '3×15–20'+p.suffix;
+  return null;
+}
+function gbRange(ex){ const p = gbParseSets(gbEffectiveSets(ex)); return p ? {lo:p.repMin, hi:p.repMax} : null; }
+function gbDefaultStep(ex){
+  const q = gbEquip(ex);
+  if(q.type==='j') return q.small ? 1 : 2;
+  if(q.type==='s') return q.small ? 2.5 : 5;
+  return 2.5;
+}
+function gbStep(ex){ return (state.gymbroSteps && state.gymbroSteps[ex.id]) || gbDefaultStep(ex); }
+function gbRound(x, step){ return Math.max(step, Math.round(x/step)*step); }
+function gbE1RM(kg, reps){ return kg*(1+reps/30); }
+function gbWeightFor(oneRM, reps){ return oneRM/(1+reps/30); }
+function gbKg(n){ return (Math.round(n*100)/100).toString().replace('.', ','); }
+function gbHistory(exId){
+  return state.gymbroLog
+    .map(l=>{ const x=(l.exercises||[]).find(e=>e.id===exId && e.reps); return x ? {date:l.date, kg:x.kg||0, reps:x.reps} : null; })
+    .filter(Boolean).sort((a,b)=>b.date.localeCompare(a.date));
+}
+function gbSuggest(ex){
+  const hist = gbHistory(ex.id), r = gbRange(ex), weighted = gbUsesWeight(ex);
+  if(!hist.length || !r) return {state:'measure', reps: r ? r.hi : 10};
+  const last = hist[0], step = gbStep(ex), days = daysBetween(last.date, todayStr());
+  if(!weighted) return {state:'ok', reps: Math.min(r.hi, last.reps+1), last, days, top: last.reps>=r.hi};
+  const oneRM = gbE1RM(last.kg, last.reps);
+  let kg, flag = null;
+  if(days >= 28){ kg = gbRound(last.kg*0.9, step); flag = 'pause'; }
+  else {
+    const stall = hist.length>=3 && hist.slice(0,3).every(h=>h.kg===last.kg && h.reps<r.hi);
+    if(stall){ kg = gbRound(last.kg*0.9, step); flag = 'stall'; }
+    else if(last.reps >= r.hi+3) kg = Math.max(last.kg+step, gbRound(gbWeightFor(oneRM, r.lo), step));
+    else if(last.reps >= r.hi) kg = last.kg+step;
+    else if(last.reps >= r.lo) kg = last.kg;
+    else kg = Math.min(Math.max(step, last.kg-step), gbRound(gbWeightFor(oneRM, r.lo), step));
+  }
+  if(!flag && hist[1] && last.kg > hist[1].kg) flag = 'up';
+  const reps = kg===last.kg ? Math.min(r.hi, last.reps+1) : r.lo;
+  return {state:'ok', kg, reps, last, days, flag};
+}
+const GB_FLAG = {stall:'⤵', up:'↑'};
+// Kolo 3: dnešní cílová hodnota cviku — změřená průvodcem, jinak návrh z historie
+function gbTarget(e){
+  if(e.meas) return {kg:e.meas.kg, reps:e.meas.reps, flag:null};
+  const s = gbSuggest(e);
+  if(s.state!=='ok' || s.flag==='pause') return null;
+  return {kg:s.kg||0, reps:s.reps, flag:s.flag};
+}
+function gbWeightChipHTML(e){
+  if(!gbTracksReps(e)) return '';
+  const weighted = gbUsesWeight(e), val = (kg,reps)=> (weighted ? gbKg(kg)+' kg × ' : '× ')+reps;
+  if(e.done && e.reps) return `<button class="gb-weight done" onclick="event.stopPropagation();openGbLast('${e.id}')">✓ ${val(e.kg,e.reps)}</button>`;
+  if(e.done) return '';
+  const tg = gbTarget(e);
+  if(tg){
+    const flag = tg.flag ? ` <span class="gb-flag ${tg.flag}">${GB_FLAG[tg.flag]}</span>` : '';
+    return `<button class="gb-weight" onclick="event.stopPropagation();openGbInfo('${e.id}')">🏋️ ${val(tg.kg,tg.reps)}${flag}</button>`;
+  }
+  if(!weighted) return '';
+  const pause = gbSuggest(e).flag==='pause';
+  return `<button class="gb-weight measure" onclick="event.stopPropagation();openGbGuide('${e.id}')">${pause?'↻ přeměřit':'🏋️ změřit'}</button>`;
+}
+let gbWeightExId = null, gbGuide = null;
+function gbEx(exId){ return gbCurrentWorkout && gbCurrentWorkout.exercises.find(x=>x.id===exId); }
+function gbModal(html){ document.getElementById('gb-weight-content').innerHTML = html; document.getElementById('gb-weight-modal').classList.add('show'); }
+function closeGbWeight(){ document.getElementById('gb-weight-modal').classList.remove('show'); gbWeightExId = null; gbGuide = null; }
+function gbHead(e){
+  const s = gbSuggest(e), weighted = gbUsesWeight(e);
+  const lastTxt = s.last ? `${weighted?gbKg(s.last.kg)+' kg × ':'× '}${s.last.reps} · ${s.days===0?'dnes':s.days===1?'včera':'před '+s.days+' dny'}` : '—';
+  return `<p class="field-label" style="font-size:18px;margin-bottom:2px;">${escapeHTML(e.name)}</p>
+    <p class="muted" style="margin-bottom:14px;"><span class="gb-meta">${escapeHTML(gbEffectiveSets(e))}</span> · minule ${lastTxt}${weighted && gbEquip(e).type==='j' ? '<br>váha jedné jednoručky' : ''}</p>`;
+}
+const GB_BTN_CLOSE = `<button class="btn btn-ghost btn-sm" onclick="closeGbWeight()">Zavřít</button>`;
+// Před cvikem: jen informace (nic se neodškrtne)
+function openGbInfo(exId){
+  const e = gbEx(exId); if(!e) return;
+  gbWeightExId = exId;
+  const tg = gbTarget(e), weighted = gbUsesWeight(e), step = gbStep(e);
+  const flagTxt = tg && tg.flag==='stall' ? '<p class="muted">⤵ 3× bez horní hranice — o 10 % méně a znovu nahoru</p>' : (tg && tg.flag==='up' ? '<p class="muted">↑ minule přidáno</p>' : '');
+  gbModal(`${gbHead(e)}
+    <div class="gb-big">${weighted?gbKg(tg.kg)+' kg × ':'× '}${tg.reps}</div>${flagTxt}
+    ${weighted?`<p class="muted" style="margin-top:6px;">Rozcvička: ${[0.5,0.7,0.85].map(f=>gbKg(gbRound(tg.kg*f, step))).join(' → ')} kg</p>
+    <p class="field-label" style="margin:14px 2px 8px;">Krok přidání</p>
+    <div class="chip-row" id="gbw-step" style="margin-bottom:0;">${[1,2,2.5,5].map(v=>`<button class="chip ${v===step?'selected':''}" onclick="gbSetStep('${e.id}',${v})" data-val="${v}">${gbKg(v)} kg</button>`).join('')}</div>`:''}
+    <div class="btn-row" style="margin-top:16px;">${weighted?`<button class="btn btn-ghost btn-sm" onclick="openGbGuide('${e.id}')">↻ Přeměřit</button>`:''}${GB_BTN_CLOSE}</div>`);
+}
+function gbSetStep(exId, v){
+  const e = gbEx(exId) || gbFindExercise(exId); if(!e) return;
+  state.gymbroSteps = state.gymbroSteps || {};
+  if(v === gbDefaultStep(e)) delete state.gymbroSteps[exId]; else state.gymbroSteps[exId] = v;
+  saveState(); selectChip('gbw-step', v); renderGymbroWorkout();
+}
+// Průvodce měřením: stupňuje váhu, každá série je zároveň rozcvička
+function gbGuideStart(e){
+  const s = gbSuggest(e), step = gbStep(e);
+  if(s.flag==='pause') return gbRound(s.last.kg*0.9, step);
+  const q = gbEquip(e);
+  if(e.id==='leg_press') return 40;
+  if(q.type==='j') return q.small ? 2 : 8;
+  if(q.type==='s') return q.small ? 5 : 20;
+  return q.small ? 10 : 20;
+}
+function openGbGuide(exId){
+  const e = gbEx(exId); if(!e) return;
+  gbWeightExId = exId;
+  gbGuide = {exId, kg: gbGuideStart(e), round: 1};
+  renderGbGuide();
+}
+function renderGbGuide(){
+  const e = gbEx(gbGuide.exId), r = gbRange(e);
+  gbModal(`${gbHead(e)}
+    <p class="muted" style="margin-bottom:6px;">Série ${gbGuide.round}</p>
+    <div class="gb-big">${gbKg(gbGuide.kg)} kg × ${r.hi}</div>
+    <div class="btn-row" style="margin-top:16px;">
+      <button class="btn btn-primary" onclick="gbGuideAnswer('easy')">Lehké <span style="font-weight:500;opacity:.85;">· dal bych o 5+ víc</span></button>
+      <button class="btn btn-leaf" onclick="gbGuideAnswer('ok')">Akorát <span style="font-weight:500;opacity:.85;">· 2–3 v rezervě</span></button>
+      <button class="btn btn-sun" onclick="gbGuideAnswer('hard')">Těžké <span style="font-weight:500;opacity:.85;">· ${r.hi}× jsem nedal</span></button>
+    </div>
+    <details class="fold" style="margin-top:14px;"><summary style="font-size:14px;">Vím, kolik zvednu</summary>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <label class="field-label" style="margin:0;">kg<input type="number" inputmode="decimal" step="0.5" id="gbg-kg" style="margin-top:6px;"></label>
+        <label class="field-label" style="margin:0;">opakování<input type="number" inputmode="numeric" id="gbg-reps" style="margin-top:6px;"></label>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="gbGuideKnown()">Spočítat</button>
+    </details>
+    <div class="btn-row">${GB_BTN_CLOSE}</div>`);
+}
+function gbGuideFinish(kg, reps){
+  const e = gbEx(gbGuide.exId);
+  e.meas = {kg, reps};
+  closeGbWeight(); renderGymbroWorkout();
+  showToast('🏋️ Pracovní váha: '+gbKg(kg)+' kg × '+reps);
+}
+function gbGuideAnswer(a){
+  const e = gbEx(gbGuide.exId), step = gbStep(e), r = gbRange(e);
+  if(a==='ok') return gbGuideFinish(gbGuide.kg, r.hi);
+  if(a==='hard') return gbGuideFinish(Math.max(step, gbGuide.kg-step), r.lo);
+  gbGuide.kg = Math.max(gbGuide.kg + 2*step, gbRound(gbGuide.kg*1.15, step));
+  gbGuide.round++;
+  renderGbGuide();
+}
+function gbGuideKnown(){
+  const e = gbEx(gbGuide.exId), r = gbRange(e), step = gbStep(e);
+  const kg = parseFloat(String(document.getElementById('gbg-kg').value).replace(',', '.')), reps = parseInt(document.getElementById('gbg-reps').value, 10);
+  if(!(kg>0) || !(reps>0)){ showToast('Zadej váhu i opakování'); return; }
+  gbGuideFinish(gbRound(gbWeightFor(gbE1RM(kg, reps), r.lo), step), r.lo);
+}
+// Po cviku: poslední série (oprava zápisu, nebo když není co uložit rovnou)
+function openGbLast(exId){
+  const e = gbEx(exId); if(!e) return;
+  gbWeightExId = exId;
+  const weighted = gbUsesWeight(e), tg = gbTarget(e);
+  const kg = e.reps ? e.kg : (tg ? tg.kg : ''), reps = e.reps || (tg ? tg.reps : '');
+  gbModal(`${gbHead(e)}
+    <p class="field-label" style="margin-bottom:10px;">Poslední série</p>
+    <div style="display:grid;grid-template-columns:${weighted?'1fr 1fr':'1fr'};gap:10px;">
+      ${weighted?`<label class="field-label" style="margin:0;">kg<input type="number" inputmode="decimal" step="0.5" min="0" id="gbw-kg" value="${kg}" style="margin-top:6px;font-size:20px;font-weight:700;"></label>`:''}
+      <label class="field-label" style="margin:0;">opakování<input type="number" inputmode="numeric" min="0" id="gbw-reps" value="${reps}" style="margin-top:6px;font-size:20px;font-weight:700;"></label>
+    </div>
+    <div class="btn-row" style="margin-top:8px;">
+      <button class="btn btn-leaf" onclick="saveGbWeight()">✓ Uložit</button>
+      ${e.done ? GB_BTN_CLOSE : `<button class="btn btn-ghost btn-sm" onclick="gbJustTick()">Jen odškrtnout</button>`}
+    </div>`);
+}
+function gbJustTick(){ const e = gbEx(gbWeightExId); if(e){ e.done = true; delete e.kg; delete e.reps; } closeGbWeight(); renderGymbroWorkout(); }
+function saveGbWeight(){
+  const e = gbEx(gbWeightExId);
+  if(!e){ closeGbWeight(); return; }
+  const weighted = gbUsesWeight(e);
+  const reps = parseInt(document.getElementById('gbw-reps').value, 10);
+  const kg = weighted ? parseFloat(String(document.getElementById('gbw-kg').value).replace(',', '.')) : 0;
+  if(!reps || reps<1 || (weighted && !(kg>0))){ showToast(weighted ? 'Zadej váhu i opakování' : 'Zadej počet opakování'); return; }
+  e.kg = weighted ? kg : 0; e.reps = reps; e.done = true;
+  closeGbWeight();
+  renderGymbroWorkout();
+}
+// Odškrtnutí: rovnou uloží dnešní cíl (s hláškou „Upravit“); bez cíle otevře „Poslední série“
+function gbTickWithWeight(exId){
+  const e = gbEx(exId); if(!e) return false;
+  if(e.done || !gbTracksReps(e)) return false;
+  const tg = gbTarget(e);
+  if(!tg){ openGbLast(exId); return true; }
+  e.kg = gbUsesWeight(e) ? tg.kg : 0; e.reps = tg.reps; e.done = true;
+  renderGymbroWorkout();
+  const t = document.getElementById('toast');
+  t.innerHTML = '✓ '+escapeHTML(e.name)+' · '+(gbUsesWeight(e)?gbKg(e.kg)+' kg × ':'× ')+e.reps+` <button class="toast-undo" onclick="openGbLast('${exId}')">Upravit</button>`;
+  t.classList.add('show'); clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(()=>t.classList.remove('show'), 4000);
+  return true;
+}
+function gbSetGoal(g){
+  state.gymbroGoal = g; saveState();
+  selectChip('gb-goal-chips', g);
+  if(gbCurrentWorkout) gbCurrentWorkout.exercises.forEach(e=>{ delete e.meas; });
+  renderGymbroWorkout();
+}
+
 // Kolo 1: karta cviku — malá tlačítka vedle sebe místo pěti velkých pod sebou
 function renderGymbroWorkout(){
   const wrap = document.getElementById('gb-workout-wrap');
@@ -2842,12 +3092,13 @@ function renderGymbroWorkout(){
           <div style="flex:1;min-width:0;cursor:pointer;" onclick="openGbExerciseModal('${e.id}')">
             <div class="jdate" style="${e.done?'text-decoration:line-through;':''}">${e.key?'⭐ ':''}${escapeHTML(e.name)} <span class="gb-meta">${effSets}</span></div>
             <div class="jtext">${escapeHTML(e.desc)} <span style="color:var(--aqua-deep);font-weight:600;">Detail ›</span></div>
+            ${gbWeightChipHTML(e)}
           </div>
           <span class="gb-drag-handle" style="cursor:grab;padding:2px 4px;touch-action:none;" title="Přetáhni pro změnu pořadí">⠿</span>
         </div>
         <div class="gb-actions">
-          <button class="gb-act" onclick="gbAdjustSets('${e.id}',1)" aria-label="Víc">＋ Víc</button>
-          <button class="gb-act" onclick="gbAdjustSets('${e.id}',-1)" aria-label="Míň">− Míň</button>
+          ${gbUsesWeight(e) ? '' : `<button class="gb-act" onclick="gbAdjustSets('${e.id}',1)" aria-label="Víc">＋ Víc</button>
+          <button class="gb-act" onclick="gbAdjustSets('${e.id}',-1)" aria-label="Míň">− Míň</button>`}<!-- Kolo 3: u cviků s váhou postup řídí návrh váhy -->
           <button class="gb-act" onclick="gbSwapExercise('${e.id}')">↻ Vyměnit</button>
           ${levelBtns}
         </div>
@@ -3054,7 +3305,8 @@ function finishGymbroWorkout(force){
   const linked = logGymbroToPohyb(w.env, logId); // Kolo 2: rovnou do bubliny na Domů
   gbPushUndo({type:'finish', logId, workoutSnapshot, pohybLogId: linked ? linked.logId : null});
   const counterDone = !!(w.counter && w.counter.done);
-  const entry = {id:logId, date:todayStr(), cat:w.cat, env:w.env, exercises:w.exercises.map(e=>({id:e.id, name:e.name, muscle:e.muscle}))};
+  // Kolo 3: ke cviku i váha a opakování (jen když je zapsané)
+  const entry = {id:logId, date:todayStr(), cat:w.cat, env:w.env, exercises:w.exercises.map(e=>Object.assign({id:e.id, name:e.name, muscle:e.muscle}, e.reps ? {kg:e.kg||0, reps:e.reps} : {}))};
   if(counterDone) entry.counter = gbCounterLogEntries(w.counter);
   state.gymbroLog.push(entry);
   saveState();
@@ -3585,19 +3837,7 @@ async function testWorkoutxKey(){
   }
 }
 
-function calcGymbro1RM(){
-  const w = parseFloat(document.getElementById('gb-calc-weight').value);
-  const r = parseInt(document.getElementById('gb-calc-reps').value, 10);
-  const out = document.getElementById('gb-calc-result');
-  if(!w || !r || r<1){ out.innerHTML = '<p class="empty-note">Zadej váhu i počet opakování.</p>'; return; }
-  const oneRM = w * (1 + r/30);
-  const round5 = n => Math.round(n/2.5)*2.5;
-  out.innerHTML = `<p class="jtext" style="margin-bottom:8px;"><strong>Odhad 1RM: ${oneRM.toFixed(1)} kg</strong></p>
-    <div class="journal-entry"><div class="jdate">💪 Síla (5×5)</div><div class="jtext">${round5(oneRM*0.85)} kg</div></div>
-    <div class="journal-entry"><div class="jdate">📈 Hypertrofie (4×8)</div><div class="jtext">${round5(oneRM*0.72)} kg</div></div>
-    <div class="journal-entry"><div class="jdate">🔁 Vytrvalost (3×15)</div><div class="jtext">${round5(oneRM*0.60)} kg</div></div>
-    <p class="location-note">Rozcvička: ${round5(oneRM*0.40)} → ${round5(oneRM*0.55)} → ${round5(oneRM*0.70)} kg</p>`;
-}
+// Kolo 3: samostatná kalkulačka 1RM zrušena — je v okně zápisu váhy u cviku
 function initGymbroChips(){
   const wrap = document.getElementById('gb-env-chips');
   if(!wrap) return;
@@ -3613,7 +3853,7 @@ function initGymbroChips(){
 }
 
 function renderAll(){ renderDashboard(); renderActivityGrid(); renderSheetGrid(); renderHistory(); renderStickerTray(); renderJournalList(); updateBackupStatus(); renderFavoritesList(); }
-function init(){ reconcileFreezes(); initBubbles(); initSuggestChips(); initGymbroChips(); renderAll(); }
+function init(){ reconcileFreezes(); initBubbles(); initSuggestChips(); initGymbroChips(); selectChip('gb-goal-chips', gbGoal()); renderAll(); } // Kolo 3: cíl
 document.addEventListener('DOMContentLoaded', init);
 
 if('serviceWorker' in navigator){
