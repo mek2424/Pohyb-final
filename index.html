@@ -354,12 +354,17 @@
   .location-note{font-size:12.5px;color:var(--ink-2);margin-top:8px;text-align:center;line-height:1.45;}
   .loc-picker-row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
   .loc-picker-row .loc-text{font-size:14px;font-weight:600;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:8px;}
-  .burst-particle{position:absolute;left:0;top:0;animation:burstFly .9s ease-out forwards;}
-  @keyframes burstFly{
-    0%{transform:translate(0,0) scale(.4) rotate(0deg); opacity:0;}
-    15%{opacity:1; transform:translate(calc(var(--dx)*0.3), calc(var(--dy)*0.3)) scale(1.15) rotate(20deg);}
-    100%{transform:translate(var(--dx), var(--dy)) scale(.65) rotate(60deg); opacity:0;}
-  }
+  /* Kolo 7: oslava s GymBrem */
+  .bro-cheer{position:fixed;inset:0;z-index:350;pointer-events:none;display:flex;align-items:center;justify-content:center;padding:0 24px;background:rgba(8,50,80,.18);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);animation:fadeIn .2s ease;transition:opacity .3s ease;}
+  .bro-cheer.out{opacity:0;}
+  .bro-cheer-card{display:flex;align-items:flex-end;gap:4px;max-width:380px;width:100%;animation:sheetUp .35s cubic-bezier(.2,.9,.3,1);}
+  .bro-cheer .pose{opacity:0;} .bro-cheer .pose.on{opacity:1;}
+  .bro-cheer .gbz-bubble{font-size:20px;}
+  .bro-cheer.big .gbz-bubble{font-size:26px;}
+  .bro-cheer-bubbles{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
+  .bro-cheer-bubbles i{position:absolute;bottom:-30px;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff,rgba(255,255,255,.2) 60%,transparent 72%);border:1px solid rgba(255,255,255,.8);animation:broRise 1.8s ease-out forwards;}
+  @keyframes broRise{to{transform:translateY(-70vh) translateX(var(--dx));opacity:0}}
+  @media (prefers-reduced-motion:reduce){.bro-cheer-bubbles{display:none}.bro-cheer-card{animation:none}}
 </style>
 </head>
 <body>
@@ -711,14 +716,7 @@
       </div>
       <div id="mapy-settings-wrap"></div>
     </div>
-    <div class="glass small">
-      <div class="set-row">
-        <span class="sr-ic">🎬</span>
-        <div class="sr-main"><div class="sr-title">GIF oslava</div><div class="sr-sub">Giphy GIF po zápisu</div></div>
-        <button class="btn btn-ghost btn-sm" onclick="toggleGiphySettings()">Nastavit</button>
-      </div>
-      <div id="giphy-settings-wrap"></div>
-    </div>
+
     <div class="glass small">
       <div class="set-row">
         <span class="sr-ic">🏋️</span>
@@ -805,14 +803,7 @@
   </div>
 </div>
 
-<div class="modal-backdrop" id="gb-postworkout-modal">
-  <div class="glass modal-card">
-    <p class="field-label" style="font-size:19px;margin-bottom:12px;">💪 Trénink hotový!</p>
-    <div id="gb-postworkout-gif"></div>
-    <div id="gb-postworkout-content"></div>
-    <div class="btn-row"><button class="btn btn-leaf" onclick="closeGbPostWorkoutModal()">Paráda</button></div>
-  </div>
-</div>
+
 
 <div class="modal-backdrop" id="gb-manage-modal" onclick="if(event.target===this)closeGbManageModal()">
   <div class="glass modal-card">
@@ -859,7 +850,7 @@ function getDefaultState(){
     activities: JSON.parse(JSON.stringify(DEFAULT_ACTIVITIES)),
     logs: [], restDays: [], frozenDays: [], freezesUsed: 0,
     lastReconciled: todayStr(), lastAction: null,
-    stickers: [], journal: [], giphyKey: null, discordWebhook: null, lastBackupAt: null, mapyApiKey: null, favoritePlaces: [], gymbroLog: [], workoutxKey: null, gymbroGifCache: {}, gymbroLadderLevel: {}, gymbroCustomSets: {}, gymbroUndoStack: [], gymbroGifCandidates: {}, gymbroCustomExercises: [], gymbroHiddenBuiltins: [], gymbroExerciseOverrides: {}, gymbroCustomLadders: {}, gymbroCustomGifs: {}
+    stickers: [], journal: [], discordWebhook: null, lastBackupAt: null, mapyApiKey: null, favoritePlaces: [], gymbroLog: [], workoutxKey: null, gymbroGifCache: {}, gymbroLadderLevel: {}, gymbroCustomSets: {}, gymbroUndoStack: [], gymbroGifCandidates: {}, gymbroCustomExercises: [], gymbroHiddenBuiltins: [], gymbroExerciseOverrides: {}, gymbroCustomLadders: {}, gymbroCustomGifs: {}
   };
 }
 
@@ -893,6 +884,7 @@ function loadState(){
     if(!merged.activities.some(a=>a.id==='explore')){
       merged.activities.push({id:'explore', name:'Pohyb jinde', icon:'🧭', xp:15, minMinutes:15, category:'solo_any', indoor:false, placeTags:['anywhere']});
     }
+    delete merged.giphyKey; // Kolo 7: Giphy zrušeno
     return merged;
   }catch(e){ console.warn('Nepodařilo se načíst uložená data, začínám nanovo.', e); return getDefaultState(); }
 }
@@ -948,7 +940,7 @@ function logActivity(activityId){
   state.lastAction = {type:'log', logId, date, label:act.icon+' '+act.name};
   checkLevelStickers(oldXP, totalXP());
   saveState();
-  celebrate();
+  gbCelebrate(act, oldXP); // Kolo 7: oslava s GymBrem
   sendDiscordWebhook(act.icon+' **'+act.name+'** — +'+act.xp+' XP (level '+levelInfo(totalXP()).level+')');
   showUndoToast('✓ '+act.name+'  +'+act.xp+' XP');
   renderAll();
@@ -2177,8 +2169,7 @@ function renderJournalList(){
   }).join('');
 }
 
-/* ---- celebration: GIF (Giphy, needs a free personal key) with sparkle fallback ---- */
-const CELEBRATION_QUERIES = ['sports celebration','victory dance','high five','winning moment','champion celebration'];
+
 /* ---- Backup: export/import JSON, track last backup age ---- */
 function updateBackupStatus(){
   const el = document.getElementById('backup-status');
@@ -2298,69 +2289,11 @@ async function testMapyKey(){
   }
 }
 
-function toggleGiphySettings(){
-  const wrap = document.getElementById('giphy-settings-wrap');
-  if(wrap.innerHTML){ wrap.innerHTML=''; return; }
-  wrap.innerHTML = `<input type="text" id="giphy-key-input" placeholder="Vlož svůj Giphy API klíč" value="${state.giphyKey?escapeAttr(state.giphyKey):''}">
-    <div class="btn-row">
-      <button class="btn btn-leaf btn-sm" onclick="saveGiphyKey()">Uložit</button>
-      <button class="btn btn-ghost btn-sm" onclick="testGiphyKey()">🎬 Vyzkoušet</button>
-    </div>
-    <p class="location-note">Zdarma na developers.giphy.com/dashboard. Bez klíče appka použije jiskřičkovou animaci.</p>`;
-}
-function saveGiphyKey(){
-  const input = document.getElementById('giphy-key-input');
-  const val = input ? input.value.trim() : '';
-  state.giphyKey = val || null;
-  saveState();
-  showToast(val ? '🎬 Giphy klíč uložen' : 'Klíč smazán, zpět na jiskřičky');
-}
-async function fetchGiphyGif(query){
-  const url = `https://api.giphy.com/v1/gifs/search?api_key=${encodeURIComponent(state.giphyKey)}&q=${encodeURIComponent(query)}&limit=25&rating=g`;
-  const res = await fetch(url);
-  if(!res.ok){
-    const body = await res.text().catch(()=>'');
-    console.warn('Giphy: chyba', res.status, body);
-    return {ok:false, reason:'http'+res.status};
-  }
-  const data = await res.json();
-  const results = data && data.data;
-  if(!results || !results.length){
-    console.warn('Giphy: žádné výsledky pro dotaz', query, data);
-    return {ok:false, reason:'empty'};
-  }
-  const pick = results[Math.floor(Math.random()*results.length)];
-  const gifUrl = pick && pick.images && pick.images.original && pick.images.original.url;
-  if(!gifUrl){ console.warn('Giphy: výsledek bez URL', pick); return {ok:false, reason:'nourl'}; }
-  return {ok:true, url:gifUrl};
-}
-async function testGiphyKey(){
-  const input = document.getElementById('giphy-key-input');
-  const key = input ? input.value.trim() : state.giphyKey;
-  if(!key){ showToast('Nejdřív vlož klíč'); return; }
-  state.giphyKey = key; // use it live for the test even before Uložit is tapped
-  showToast('🎬 Zkouším…');
-  try{
-    const result = await fetchGiphyGif('celebration');
-    if(result.ok){ showGifOverlay(result.url); return; }
-    if(result.reason==='http401' || result.reason==='http403') showToast('❌ Klíč nefunguje (neplatný nebo nepovolený)');
-    else if(result.reason && result.reason.startsWith('http')) showToast('❌ Chyba '+result.reason.replace('http','')+' — zkus klíč znovu zkopírovat');
-    else showToast('⚠️ Klíč funguje, ale nic nenašlo — zkus to ještě jednou');
-  }catch(e){
-    console.warn('Giphy test error', e);
-    showToast('❌ Nepodařilo se připojit (offline, nebo síť blokuje Giphy)');
-  }
-}
-async function celebrate(){
-  if(state.giphyKey){
-    try{
-      const q = CELEBRATION_QUERIES[Math.floor(Math.random()*CELEBRATION_QUERIES.length)];
-      const result = await fetchGiphyGif(q);
-      if(result.ok){ showGifOverlay(result.url); return; }
-    }catch(e){ console.warn('Giphy celebrate() selhal, padám na jiskřičky', e); }
-  }
-  celebrateBurst();
-}
+// Kolo 7: toggleGiphySettings zrušeno (oslavy dělá GymBro)
+// Kolo 7: saveGiphyKey zrušeno (oslavy dělá GymBro)
+// Kolo 7: fetchGiphyGif zrušeno (oslavy dělá GymBro)
+// Kolo 7: testGiphyKey zrušeno (oslavy dělá GymBro)
+// Kolo 7: celebrate zrušeno (oslavy dělá GymBro)
 /* ---- Discord webhook (optional, fires when an activity is logged) ---- */
 function toggleDiscordSettings(){
   const wrap = document.getElementById('discord-settings-wrap');
@@ -2399,30 +2332,8 @@ async function testDiscordWebhook(){
   }catch(e){ showToast('❌ Nepodařilo se odeslat (offline, nebo špatná URL)'); }
 }
 
-function showGifOverlay(url){
-  const host=document.createElement('div');
-  host.style.cssText='position:fixed;inset:0;z-index:260;display:flex;align-items:center;justify-content:center;background:rgba(3,50,80,.4);backdrop-filter:blur(3px);';
-  host.innerHTML = `<img src="${url}" alt="Oslava" style="max-width:80vw;max-height:60vh;border-radius:20px;box-shadow:0 20px 50px rgba(3,86,133,.4);border:4px solid rgba(255,255,255,.9);">`;
-  host.addEventListener('click', ()=>host.remove());
-  document.body.appendChild(host);
-  setTimeout(()=>host.remove(), 2600);
-}
-function celebrateBurst(){
-  const host=document.createElement('div');
-  host.style.cssText='position:fixed;top:24%;left:50%;transform:translate(-50%,-50%);z-index:250;pointer-events:none;';
-  document.body.appendChild(host);
-  const set=['✨','🫧','⭐','💫','🌟','🍃'];
-  for(let i=0;i<7;i++){
-    const p=document.createElement('div'); p.className='burst-particle';
-    p.textContent=set[Math.floor(Math.random()*set.length)];
-    const angle=(Math.PI*2*i/7)+Math.random()*0.4, dist=55+Math.random()*45;
-    p.style.fontSize=(15+Math.random()*11)+'px';
-    p.style.setProperty('--dx',(Math.cos(angle)*dist)+'px');
-    p.style.setProperty('--dy',(Math.sin(angle)*dist)+'px');
-    host.appendChild(p);
-  }
-  setTimeout(()=>host.remove(), 950);
-}
+// Kolo 7: showGifOverlay zrušeno (oslavy dělá GymBro)
+// Kolo 7: celebrateBurst zrušeno (oslavy dělá GymBro)
 
 /* ================= GYMBRO — separate training-plan companion ================= */
 // env: 'gym' (needs equipment), 'outdoor' (bodyweight/bar-friendly), 'both'
@@ -3480,6 +3391,44 @@ function gbTickWithWeight(exId){
 }
 // Kolo 6: cíl se volí v průvodci (gbWizFinish)
 
+/* ================= Kolo 7: oslavy dělá GymBro (Giphy a jiskřičky zrušené) ================= */
+const BRO_CHEERS = ['Paráda!', 'Tak se to dělá!', 'Jedeš!', 'Mašina!', 'Každý pohyb se počítá!'];
+const BRO_CHEER_POSES = [['arms-flex','face-happy'], ['arms-thumb','face-happy'], ['arms-lift','face-wow'], ['arms-flex','face-wow']];
+function gbCelebrate(act, oldXP){
+  const before = levelInfo(oldXP), now = levelInfo(totalXP());
+  const levelUp = now.level > before.level;
+  const sticker = levelUp && [...Array(now.level-before.level)].some((_,i)=>(before.level+1+i)%5===0);
+  const title = levelUp ? 'Level '+now.level+'!' : BRO_CHEERS[Math.floor(Math.random()*BRO_CHEERS.length)];
+  const sub = levelUp ? (sticker ? 'Nový level a k tomu nálepka do Deníku 🫧' : 'Nový level. Pokračuj.') : act.icon+' '+act.name+' · +'+act.xp+' XP';
+  const pose = levelUp ? ['arms-lift','face-wow'] : BRO_CHEER_POSES[Math.floor(Math.random()*BRO_CHEER_POSES.length)];
+  document.querySelectorAll('.bro-cheer').forEach(x=>x.remove());
+  const host = document.createElement('div');
+  host.className = 'bro-cheer' + (levelUp ? ' big' : '');
+  host.innerHTML = `<div class="bro-cheer-bubbles">${Array.from({length:levelUp?14:8},(_,i)=>`<i style="left:${10+(i*53)%80}%;width:${10+(i*7)%20}px;height:${10+(i*7)%20}px;animation-delay:${(i%5)*.08}s;--dx:${(i%2?1:-1)*(12+i*4)}px"></i>`).join('')}</div>
+    <div class="bro-cheer-card">${gbBro('gbz-bro')}<div class="gbz-bubble">${escapeHTML(title)}<small>${escapeHTML(sub)}</small></div></div>`;
+  host.addEventListener('click', ()=>host.remove());
+  document.body.appendChild(host);
+  gbBroPose(host.querySelector('.gbz-bro'), pose);
+  setTimeout(()=>{ host.classList.add('out'); setTimeout(()=>host.remove(), 300); }, levelUp ? 2600 : 1800);
+}
+
+// Kolo 7: trénink jde zahodit bez započítání (s možností Vrátit v hlášce)
+let gbDiscarded = null;
+function gbDiscardWorkout(){
+  if(!gbCurrentWorkout) return;
+  gbDiscarded = JSON.parse(JSON.stringify(gbCurrentWorkout));
+  gbCurrentWorkout = null; gbAfterCounter = null; gbScreen = 'start';
+  renderGymbroWorkout();
+  const t = document.getElementById('toast');
+  t.innerHTML = 'Trénink zahozen <button class="toast-undo" onclick="gbRestoreDiscarded()">Vrátit</button>';
+  t.classList.add('show'); clearTimeout(window._toastTimer); window._toastTimer = setTimeout(()=>t.classList.remove('show'), 4200);
+}
+function gbRestoreDiscarded(){
+  if(!gbDiscarded) return;
+  gbCurrentWorkout = gbDiscarded; gbDiscarded = null; gbScreen = 'workout';
+  renderGymbroWorkout(); showToast('↩ Trénink vrácen');
+}
+
 /* ================= Kolo 6: GymBro průvodce (5 otázek), zjednodušený trénink, vyrovnání a pochvala ================= */
 let gbScreen = 'start';   // start | wizard | workout | counterOffer | counter | praise
 let gbWiz = null;         // {step, ans:{}, skipEnv}
@@ -3839,14 +3788,7 @@ function gbFinishCounter(){
   renderGbLastWorkoutInfo();
   showToast('⚖️ Vyrovnání zapsáno do GymBro deníku');
 }
-function gbOpenAfterCounter(){
-  if(!gbAfterCounter) return;
-  closeGbPostWorkoutModal();
-  gbAfterCounter.open = true;
-  renderGymbroWorkout();
-  const wrap = document.getElementById('gb-workout-wrap');
-  if(wrap) wrap.scrollIntoView({behavior:'smooth', block:'start'});
-}
+// Kolo 7: gbOpenAfterCounter zrušeno (oslavy dělá GymBro)
 function gbCloseAfterCounter(){
   gbAfterCounter = null;
   renderGymbroWorkout();
@@ -3881,32 +3823,10 @@ function renderGbLastWorkoutInfo(){
   const summary = gbLastWorkoutSummary();
   el.innerHTML = summary ? `<p class="muted" style="margin:0 4px 12px;">📋 ${summary}</p>` : '';
 }
-async function openGbPostWorkoutModal(workout){
-  const muscles = [...new Set(workout.exercises.map(e=>e.muscle))];
-  const counterOffer = gbAfterCounter
-    ? '<button class="btn btn-sun btn-sm" style="margin-bottom:12px;" onclick="gbOpenAfterCounter()">⚖️ Ještě ~5 minut vyrovnání?</button>'
-    : '';
-  document.getElementById('gb-postworkout-content').innerHTML = counterOffer + '<p class="jtext" style="margin-bottom:10px;">Pár tipů na protažení toho, co jsi právě zatížil:</p>'
-    + muscles.map(m=>`<div class="journal-entry"><div class="jtext">${escapeHTML(GB_STRETCH_TIP[m]||'Pár minut lehkého protažení.')}</div></div>`).join('');
-  document.getElementById('gb-postworkout-gif').innerHTML = '';
-  document.getElementById('gb-postworkout-modal').classList.add('show');
-  if(state.giphyKey){
-    try{
-      const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${encodeURIComponent(state.giphyKey)}&q=gullible&limit=15&rating=g`);
-      if(res.ok){
-        const data = await res.json();
-        if(data.data && data.data.length){
-          const pick = data.data[Math.floor(Math.random()*data.data.length)];
-          const gifUrl = pick.images && pick.images.original && pick.images.original.url;
-          if(gifUrl) document.getElementById('gb-postworkout-gif').innerHTML = `<img src="${gifUrl}" style="width:100%;border-radius:16px;margin-bottom:10px;">`;
-        }
-      }
-    }catch(e){ console.warn('Giphy fetch failed', e); }
-  }
-}
+// Kolo 7: openGbPostWorkoutModal (místo okna je pochvalná obrazovka) zrušeno (oslavy dělá GymBro)
 function closeGbPostWorkoutModal(){
-  document.getElementById('gb-postworkout-modal').classList.remove('show');
-  if(gbScreen==='praise' || gbScreen==='counterOffer'){ gbPraise = null; gbScreen = 'start'; renderGymbroWorkout(); } // Kolo 6
+  // Kolo 7: okno zrušeno; funkce ukončí pochvalnou obrazovku
+  if(gbScreen==='praise' || gbScreen==='counterOffer'){ gbPraise = null; gbScreen = 'start'; renderGymbroWorkout(); }
 }
 function finishGymbroWorkout(force){
   if(!gbCurrentWorkout) return;
@@ -3915,7 +3835,8 @@ function finishGymbroWorkout(force){
     document.getElementById('log-confirm-head').innerHTML = `<div class="sugg-icon" style="width:64px;height:64px;font-size:34px;border-radius:20px;">💪</div>
       <div class="sugg-info"><div class="name" style="font-size:19px;">Nic není odškrtnuté</div><div class="meta">0 / ${gbCurrentWorkout.exercises.length} cviků</div></div>`;
     document.getElementById('log-confirm-actions').innerHTML = `<button class="btn btn-leaf" onclick="closeLogConfirm();finishGymbroWorkout(true)">✓ Přesto započítat</button>
-      <button class="btn btn-ghost btn-sm" onclick="closeLogConfirm()">Zpět k tréninku</button>`;
+      <button class="btn btn-ghost btn-sm" onclick="closeLogConfirm()">Zpět k tréninku</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeLogConfirm();gbDiscardWorkout()">✕ Nezapočítat a odejít</button>`; // Kolo 7
     document.getElementById('log-confirm-modal').classList.add('show');
     return;
   }
@@ -3955,7 +3876,7 @@ function startAppRestart(){
 }
 function confirmAppRestart(){
   const keep = {
-    giphyKey: state.giphyKey, discordWebhook: state.discordWebhook, mapyApiKey: state.mapyApiKey,
+    discordWebhook: state.discordWebhook, mapyApiKey: state.mapyApiKey,
     workoutxKey: state.workoutxKey, favoritePlaces: state.favoritePlaces, gymbroGifCache: state.gymbroGifCache,
     gymbroGifCandidates: state.gymbroGifCandidates,
     activities: state.activities
