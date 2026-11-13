@@ -99,6 +99,14 @@
   .xp-bar i{display:block;height:100%;width:0;border-radius:999px;background:var(--gloss-leaf);box-shadow:inset 0 1px 0 rgba(255,255,255,.6);transition:width 1s cubic-bezier(.34,1.3,.4,1);}
   .xp-caption{margin-top:6px;font-weight:600;color:var(--ink-2);font-size:12.5px;}
   /* ---------- posledních 14 dní ---------- */
+  /* Kolo 10: záloha na Disk — štítek na Domů, stav v Nastavení */
+  .disk-nudge{display:inline-flex;align-items:center;gap:4px;min-height:42px;padding:0 13px;border-radius:999px;border:1px solid rgba(245,165,36,.45);background:var(--sun-soft);color:#7A4A00;font-weight:800;font-size:13.5px;box-shadow:var(--shadow-sm), inset 0 1px 0 #fff;}
+  .disk-nudge[hidden]{display:none;}
+  .disk-nudge:active{transform:scale(.96);}
+  .disk-row{margin-top:14px;padding-top:12px;border-top:1px solid rgba(10,120,198,.08);}
+  .sr-sub.disk-warn{color:#8A5200;font-weight:700;}
+  .sr-sub.disk-ok{color:var(--leaf-deep);font-weight:700;}
+  #disk-actions input{margin:10px 0 8px;}
   .freeze-chip{display:inline-flex;align-items:center;gap:5px;font-weight:700;font-size:13.5px;color:#1584BE;background:rgba(255,255,255,.7);padding:4px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.95);box-shadow:inset 0 1px 0 #fff;}
   .streak-dots{display:flex;gap:4px;width:100%;}
   .dot{flex:1 1 0;min-width:0;max-width:24px;aspect-ratio:1/1;border-radius:50%;position:relative;}
@@ -509,7 +517,8 @@
         <p class="eyebrow" id="dash-date"></p>
         <h1 class="h1" id="dash-greeting">Ahoj</h1>
       </div></div>
-      <button class="icon-btn" onclick="goTo('settings')" aria-label="Nastavení"><svg class="ic"><use href="#i-gear"/></svg></button>
+      <div class="tb-actions"><button class="disk-nudge" id="disk-nudge" hidden onclick="diskZalohujTed()" aria-label="Zálohovat na Disk">☁️ Záloha</button><!-- Kolo 10 -->
+      <button class="icon-btn" onclick="goTo('settings')" aria-label="Nastavení"><svg class="ic"><use href="#i-gear"/></svg></button></div>
     </header>
 
     <div class="glass">
@@ -709,6 +718,12 @@
       </div>
       <input type="file" id="import-file-input" accept="application/json,.json" style="display:none;" onchange="handleImportFile(event)">
       <div id="import-confirm-wrap"></div>
+      <!-- Kolo 10: Google Disk -->
+      <div class="set-row disk-row">
+        <span class="sr-ic">☁️</span>
+        <div class="sr-main"><div class="sr-title">Google Disk</div><div class="sr-sub" id="disk-status">Nepropojeno</div></div>
+      </div>
+      <div id="disk-actions"></div>
     </div>
 
     <p class="section-label">Propojení (volitelné)</p>
@@ -892,7 +907,7 @@ function loadState(){
     return merged;
   }catch(e){ console.warn('Nepodařilo se načíst uložená data, začínám nanovo.', e); return getDefaultState(); }
 }
-function saveState(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){ console.warn('Nepodařilo se uložit data.', e); } }
+function saveState(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){ console.warn('Nepodařilo se uložit data.', e); } if(typeof diskOnSave==='function') diskOnSave(); /* Kolo 10 */ }
 
 /* ================= FREEZE / STREAK LOGIC ================= */
 function countActiveDaysTotal(){ return new Set(state.logs.map(l=>l.date)).size; }
@@ -2252,6 +2267,198 @@ function confirmImport(){
   showToast('✅ Záloha importována');
   renderAll();
 }
+
+/* ================= Kolo 10: zálohy na Google Disk ================= */
+// Vzor Bombito (kolo 104): Google Identity Services, oprávnění drive.file (aplikace vidí jen soubory,
+// které sama vytvořila), složka „Pohyb“ v kořeni Disku. Jeden soubor na den „Pohyb – záloha RRRR-MM-DD.json“,
+// drží se posledních 14 (starší jdou do koše). Obsah = stejný JSON jako ruční Export, jde načíst i Importem.
+// Přihlášení drží Google jen hodinu: dokud platí, každá změna se do 15 s uloží (a hned při odchodu z aplikace);
+// potom změny čekají na přihlášení. Když je poslední záloha na Disku starší než 7 dní, na Domů se ukáže štítek ☁️.
+// Client ID: vlastní (pohyb_disk_cfg), jinak převezme Bombito (stejný původ mek2424.github.io).
+var DISK_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+var DISK_API = 'https://www.googleapis.com/drive/v3', DISK_UP = 'https://www.googleapis.com/upload/drive/v3';
+var DISK_KLIC = 'pohyb_disk', DISK_TOK_KLIC = 'pohyb_disk_tok', DISK_CFG_KLIC = 'pohyb_disk_cfg';
+var DISK_AUTO_MS = 15000, DISK_DRZET = 14, DISK_PRIPOMENOUT_DNI = 7;
+var diskTok = null, diskTC = null, diskTCcek = null, diskGisP = null, diskBezi = false, diskTm = null, diskChybaPosl = '';
+function diskCfg(){
+  try{ const o = JSON.parse(localStorage.getItem(DISK_CFG_KLIC)||'null'); if(o && o.clientId) return {clientId:o.clientId, zdroj:'pohyb'}; }catch(e){}
+  try{ const o = JSON.parse(localStorage.getItem('bombito_disk_cfg')||'null'); if(o && o.clientId) return {clientId:o.clientId, zdroj:'bombito'}; }catch(e){}
+  return {clientId:'', zdroj:''};
+}
+function diskNastaveny(){ return !!diskCfg().clientId; }
+function diskStav(){ try{ return JSON.parse(localStorage.getItem(DISK_KLIC)||'{}')||{}; }catch(e){ return {}; } }
+function diskStavPis(o){ try{ localStorage.setItem(DISK_KLIC, JSON.stringify(o)); }catch(e){} }
+function diskTokNacti(){ if(diskTok) return; try{ const t = JSON.parse(sessionStorage.getItem(DISK_TOK_KLIC)||'null'); if(t && t.exp>Date.now()+60000) diskTok = t; }catch(e){} }
+function diskPrihlasen(){ diskTokNacti(); return !!(diskTok && diskTok.exp>Date.now()+30000); }
+function diskOdhlasLokalne(){ diskTok = null; try{ sessionStorage.removeItem(DISK_TOK_KLIC); }catch(e){} }
+function DiskChyba(kod, status){ const e = new Error(kod); e.kod = kod; e.status = status; return e; }
+function diskChybaTxt(e){
+  return {odhlasen:'Přihlášení vypršelo', sit:'Bez spojení s Googlem', prihlaseni:'Přihlášení se nepovedlo', zavreno:'Přihlášení zrušeno',
+    opravneni:'Chybí povolení k Disku', nenacteno:'Google se ještě načítá — zkus to znovu', neplatny:'Soubor není záloha Pohybu', pristup:'Disk odmítl přístup'}[e && e.kod] || ('Chyba Disku'+(e && e.status ? ' ('+e.status+')' : ''));
+}
+function diskSkript(src){ return new Promise((res,rej)=>{ const s = document.createElement('script'); s.src = src; s.async = true; s.onload = ()=>res(); s.onerror = ()=>{ s.remove(); rej(DiskChyba('sit')); }; document.head.appendChild(s); }); }
+// Knihovnu Googlu načte dopředu, aby klepnutí na „Zálohovat“ otevřelo okno Googlu hned (jinak ho prohlížeč zablokuje).
+function diskPriprav(){
+  if(!diskNastaveny()) return Promise.resolve(false);
+  if(!diskGisP) diskGisP = diskSkript('https://accounts.google.com/gsi/client').then(()=>{
+    diskTC = google.accounts.oauth2.initTokenClient({client_id:diskCfg().clientId, scope:DISK_SCOPE,
+      callback:r=>{ const c = diskTCcek; diskTCcek = null; if(!c) return;
+        if(r && r.access_token && (!google.accounts.oauth2.hasGrantedAllScopes || google.accounts.oauth2.hasGrantedAllScopes(r, DISK_SCOPE))){
+          diskTok = {token:r.access_token, exp:Date.now()+(parseInt(r.expires_in,10)||3600)*1000};
+          try{ sessionStorage.setItem(DISK_TOK_KLIC, JSON.stringify(diskTok)); }catch(e){}
+          const st = diskStav(); st.byl = true; diskStavPis(st);
+          c.res(diskTok.token);
+        } else c.rej(DiskChyba(r && r.access_token ? 'opravneni' : 'prihlaseni')); },
+      error_callback:e=>{ const c = diskTCcek; diskTCcek = null; if(c) c.rej(DiskChyba(e && e.type==='popup_closed' ? 'zavreno' : 'prihlaseni')); }});
+  }).catch(e=>{ diskGisP = null; throw e; });
+  return diskGisP.then(()=>true, ()=>false);
+}
+// Musí běžet přímo z klepnutí.
+function diskPrihlas(){
+  if(diskPrihlasen()) return Promise.resolve(diskTok.token);
+  if(!diskTC) return Promise.reject(DiskChyba('nenacteno'));
+  return new Promise((res,rej)=>{ diskTCcek = {res,rej}; diskTC.requestAccessToken({prompt: diskStav().byl ? '' : 'consent'}); });
+}
+async function diskFetch(url, o){
+  o = o||{};
+  if(!diskPrihlasen()) throw DiskChyba('odhlasen');
+  let r;
+  try{ r = await fetch(url, Object.assign({cache:'no-store'}, o, {headers:Object.assign({Authorization:'Bearer '+diskTok.token}, o.headers||{})})); }
+  catch(e){ throw DiskChyba('sit'); }
+  if(r.status===401){ diskOdhlasLokalne(); throw DiskChyba('odhlasen'); }
+  if(r.status===403) throw DiskChyba('pristup', 403);
+  if(!r.ok) throw DiskChyba('chyba', r.status);
+  return r;
+}
+async function diskJson(url, o){ return (await diskFetch(url, o)).json(); }
+async function diskSlozka(){
+  const st = diskStav();
+  if(st.slozka){ try{ const m = await diskJson(DISK_API+'/files/'+st.slozka+'?fields=id,trashed'); if(!m.trashed) return m.id; }catch(e){ if(e.kod!=='chyba') throw e; } }
+  const q = encodeURIComponent("mimeType='application/vnd.google-apps.folder' and name='Pohyb' and trashed=false and 'root' in parents");
+  const l = await diskJson(DISK_API+'/files?q='+q+'&fields=files(id)&spaces=drive');
+  let id = l.files && l.files[0] && l.files[0].id;
+  if(!id) id = (await diskJson(DISK_API+'/files?fields=id', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:'Pohyb', mimeType:'application/vnd.google-apps.folder'})})).id;
+  const st2 = diskStav(); st2.slozka = id; diskStavPis(st2); return id;
+}
+function diskJmeno(den){ return 'Pohyb – záloha '+den+'.json'; }
+function diskOtisk(s){ let h = 0; for(let i=0;i<s.length;i++){ h = (h*31 + s.charCodeAt(i))|0; } return s.length+':'+h; }
+async function diskSeznamZaloh(slozka){
+  const q = encodeURIComponent("'"+slozka+"' in parents and trashed=false and name contains 'Pohyb – záloha'");
+  const l = await diskJson(DISK_API+'/files?q='+q+'&orderBy=name desc&pageSize=100&fields=files(id,name,modifiedTime,size)');
+  return (l.files||[]).filter(f=>/^Pohyb – záloha \d{4}-\d{2}-\d{2}\.json$/.test(f.name)).sort((a,b)=>a.name<b.name?1:-1);
+}
+// Uloží dnešní soubor (přepíše ho, nebo založí), pak pošle do koše zálohy starší než posledních 14.
+async function diskUloz(){
+  const json = JSON.stringify(state), otisk = diskOtisk(json), den = todayStr();
+  const slozka = await diskSlozka();
+  let st = diskStav(), id = st.dnes && st.dnes.den===den ? st.dnes.id : null;
+  let seznam = null;
+  if(!id){ seznam = await diskSeznamZaloh(slozka); const f = seznam.find(x=>x.name===diskJmeno(den)); if(f) id = f.id; }
+  if(id){
+    try{ await diskJson(DISK_UP+'/files/'+id+'?uploadType=media&fields=id', {method:'PATCH', headers:{'Content-Type':'application/json; charset=UTF-8'}, body:json}); }
+    catch(e){ if(e.kod==='chyba' && e.status===404) id = null; else throw e; }
+  }
+  if(!id){
+    const b = 'pohyb'+Math.random().toString(36).slice(2);
+    const meta = {name:diskJmeno(den), mimeType:'application/json', parents:[slozka]};
+    const body = `--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${json}\r\n--${b}--`;
+    id = (await diskJson(DISK_UP+'/files?uploadType=multipart&fields=id', {method:'POST', headers:{'Content-Type':'multipart/related; boundary='+b}, body})).id;
+    seznam = await diskSeznamZaloh(slozka);
+    for(const f of seznam.slice(DISK_DRZET)){ try{ await diskJson(DISK_API+'/files/'+f.id+'?fields=id', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({trashed:true})}); }catch(e){} }
+  }
+  st = diskStav(); st.dnes = {den, id}; st.otisk = otisk; st.kdy = Date.now(); diskStavPis(st);
+}
+function diskZmena(){ const st = diskStav(); return st.otisk!==diskOtisk(JSON.stringify(state)); }
+async function diskSpust(tiche){
+  if(diskBezi) return false;
+  diskBezi = true; diskChybaPosl = ''; diskUkaz();
+  try{ await diskUloz(); return true; }
+  catch(e){ diskChybaPosl = e.kod==='odhlasen' ? '' : diskChybaTxt(e); if(!tiche) showToast('☁️ '+diskChybaTxt(e)); return false; } // vypršelé přihlášení ukáže stav „čekají na přihlášení“
+  finally{ diskBezi = false; diskUkaz(); }
+}
+// volá saveState(): dokud platí přihlášení, uloží změny za 15 s
+function diskOnSave(){
+  if(!diskNastaveny()) return;
+  clearTimeout(diskTm);
+  if(diskPrihlasen() && diskZmena()) diskTm = setTimeout(()=>diskSpust(true), DISK_AUTO_MS);
+  diskUkaz();
+}
+// klepnutí: přihlásit (je-li třeba) a zálohovat hned
+async function diskZalohujTed(){
+  if(!diskNastaveny()){ goTo('settings'); return; }
+  clearTimeout(diskTm);
+  try{ await diskPrihlas(); }catch(e){ diskChybaPosl = diskChybaTxt(e); showToast('☁️ '+diskChybaPosl); diskUkaz(); diskPriprav(); return; }
+  if(await diskSpust(false)) showToast('☁️ Zálohováno na Disk');
+}
+function diskDniOdZalohy(){ const st = diskStav(); return st.kdy ? Math.floor((Date.now()-st.kdy)/86400000) : null; }
+function diskCas(ms){ const d = new Date(ms), dnes = todayStr(), den = formatDate(d), hm = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  if(den===dnes) return 'dnes '+hm; const dd = daysBetween(den, dnes); return dd===1 ? 'včera '+hm : 'před '+dd+' dny'; }
+// stav: štítek na Domů + řádek v Nastavení
+function diskUkaz(){
+  const nudge = document.getElementById('disk-nudge');
+  if(nudge){
+    const dni = diskDniOdZalohy();
+    const ukaz = diskNastaveny() && (dni===null || dni>=DISK_PRIPOMENOUT_DNI);
+    nudge.hidden = !ukaz;
+    if(ukaz) diskPriprav();
+  }
+  const el = document.getElementById('disk-status'); if(!el) return;
+  const cfg = diskCfg(), st = diskStav();
+  let txt, cls = '';
+  if(!cfg.clientId){ txt = 'Nepropojeno'; }
+  else if(diskBezi){ txt = 'Ukládám…'; }
+  else if(diskChybaPosl && !(st.kdy && !diskZmena())){ txt = diskChybaPosl; cls = 'warn'; }
+  else if(!st.kdy){ txt = 'Ještě nezálohováno'; cls = 'warn'; }
+  else if(diskZmena() && !diskPrihlasen()){ txt = 'Změny čekají na přihlášení · '+diskCas(st.kdy); cls = 'warn'; }
+  else if(diskZmena()){ txt = 'Ukládám za chvíli · '+diskCas(st.kdy); }
+  else { txt = 'Uloženo '+diskCas(st.kdy); cls = 'ok'; }
+  el.textContent = txt; el.className = 'sr-sub disk-'+(cls||'none');
+  const act = document.getElementById('disk-actions'); if(!act) return;
+  if(!cfg.clientId){
+    act.innerHTML = `<input type="text" id="disk-client-input" placeholder="Google Client ID" autocomplete="off"><div class="btn-row" style="margin-top:0"><button class="btn btn-leaf btn-sm" onclick="diskUlozClientId()">Uložit</button></div>`;
+    return;
+  }
+  if(!act.dataset.ready){
+    act.dataset.ready = '1';
+    act.innerHTML = `<div class="btn-row"><button class="btn btn-leaf btn-sm" id="disk-btn-now" onclick="diskZalohujTed()">☁️ Zálohovat teď</button><button class="btn btn-ghost btn-sm" onclick="diskObnovSeznam()">Obnovit z Disku</button></div><div id="disk-restore-wrap"></div>`;
+  }
+  const b = document.getElementById('disk-btn-now'); if(b) b.disabled = diskBezi;
+}
+function diskUlozClientId(){
+  const v = (document.getElementById('disk-client-input')||{}).value; const id = (v||'').trim();
+  if(!/\.apps\.googleusercontent\.com$/.test(id)){ showToast('❌ Tohle nevypadá jako Client ID'); return; }
+  try{ localStorage.setItem(DISK_CFG_KLIC, JSON.stringify({clientId:id})); }catch(e){}
+  diskGisP = null; diskTC = null; diskPriprav(); diskUkaz();
+  showToast('☁️ Google Disk propojen');
+}
+function diskDen(ds){ const d = daysBetween(ds, todayStr()); return d===0 ? 'Dnes' : d===1 ? 'Včera' : new Date(ds+'T00:00:00').toLocaleDateString('cs-CZ', {weekday:'short', day:'numeric', month:'numeric'}); }
+function diskHM(iso){ const d = new Date(iso); return isNaN(d) ? '' : String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+// Obnovit: seznam záloh na Disku → klepnutí → stejné potvrzení jako u Importu
+async function diskObnovSeznam(){
+  const wrap = document.getElementById('disk-restore-wrap'); if(!wrap) return;
+  if(wrap.innerHTML){ wrap.innerHTML = ''; return; }
+  try{ await diskPrihlas(); }catch(e){ showToast('☁️ '+diskChybaTxt(e)); diskPriprav(); return; }
+  wrap.innerHTML = '<p class="muted" style="margin:10px 2px 0;">Načítám…</p>';
+  try{
+    const l = await diskSeznamZaloh(await diskSlozka());
+    window._diskSeznam = l;
+    wrap.innerHTML = l.length ? `<div style="margin-top:8px;">${l.map((f,i)=>`<div class="list-row"><span class="lr-ic">☁️</span><div class="lr-main"><div class="lr-title">${diskDen(f.name.slice(15,25))}</div><div class="lr-sub">${diskHM(f.modifiedTime)}</div></div><button class="btn btn-ghost btn-sm" onclick="diskObnov(${i})">Obnovit</button></div>`).join('')}</div>`
+      : '<p class="muted" style="margin:10px 2px 0;">Na Disku zatím žádná záloha.</p>';
+  }catch(e){ wrap.innerHTML = ''; showToast('☁️ '+diskChybaTxt(e)); }
+}
+async function diskObnov(i){
+  const f = (window._diskSeznam||[])[i]; if(!f) return;
+  try{
+    const t = await (await diskFetch(DISK_API+'/files/'+f.id+'?alt=media')).text();
+    let d; try{ d = JSON.parse(t); }catch(e){ throw DiskChyba('neplatny'); }
+    if(!d || !Array.isArray(d.activities) || !Array.isArray(d.logs)) throw DiskChyba('neplatny');
+    document.getElementById('disk-restore-wrap').innerHTML = '';
+    showImportConfirm(d);
+  }catch(e){ showToast('☁️ '+diskChybaTxt(e)); }
+}
+document.addEventListener('visibilitychange', ()=>{ // odchod z aplikace → neuložené změny hned
+  if(document.visibilityState==='hidden' && diskTm && diskPrihlasen() && diskZmena()){ clearTimeout(diskTm); diskTm = null; diskSpust(true); }
+});
 
 /* ---- Mapy.com (optional, replaces OSM/Overpass for "Podle okolí" once a key is set) ---- */
 function toggleMapySettings(){
@@ -4461,8 +4668,8 @@ function initGymbroChips(){
   });
 }
 
-function renderAll(){ renderDashboard(); renderPlans(); renderActivityGrid(); renderSheetGrid(); renderHistory(); renderStickerTray(); renderJournalList(); updateBackupStatus(); renderFavoritesList(); }
-function init(){ reconcileFreezes(); initBubbles(); initSuggestChips(); initGymbroChips(); renderAll(); renderGymbroWorkout(); initBackNav(); /* Kolo 8 */ autoWeatherChip(); refreshWeather(); } // Kolo 3: cíl · Kolo 4: počasí
+function renderAll(){ renderDashboard(); renderPlans(); renderActivityGrid(); renderSheetGrid(); renderHistory(); renderStickerTray(); renderJournalList(); updateBackupStatus(); renderFavoritesList(); diskUkaz(); /* Kolo 10 */ }
+function init(){ reconcileFreezes(); initBubbles(); initSuggestChips(); initGymbroChips(); renderAll(); renderGymbroWorkout(); initBackNav(); /* Kolo 8 */ diskOnSave(); /* Kolo 10 */ autoWeatherChip(); refreshWeather(); } // Kolo 3: cíl · Kolo 4: počasí
 document.addEventListener('DOMContentLoaded', init);
 
 if('serviceWorker' in navigator){
