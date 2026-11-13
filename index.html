@@ -227,6 +227,9 @@
   .gb-weight{margin-top:8px;min-height:32px;padding:0 12px;border-radius:999px;border:1px solid rgba(10,120,198,.18);background:#fff;font-size:13.5px;font-weight:700;color:var(--ink);display:inline-flex;align-items:center;gap:4px;box-shadow:inset 0 1px 0 #fff, 0 1px 3px rgba(6,60,100,.1);}
   .gb-weight.measure{color:var(--aqua-deep);border-style:dashed;}
   .gb-weight.done{background:var(--leaf-soft);color:var(--leaf-deep);border-color:rgba(30,138,79,.25);}
+  /* Kolo 4: počasí a štítky proti pravidlům */
+  .ctx-row{display:flex;gap:12px;font-size:13px;font-weight:700;color:var(--ink-2);margin:-4px 0 12px;}
+  .issue{display:inline-flex;align-items:center;justify-content:center;font-size:12px;min-width:22px;height:20px;padding:0 4px;border-radius:999px;background:var(--sun-soft);vertical-align:2px;}
   .gb-big{font-size:30px;font-weight:800;letter-spacing:-.02em;color:var(--ink);}
   .gb-flag{font-weight:800;padding:0 6px;border-radius:999px;font-size:12.5px;}
   .gb-flag.up{background:var(--leaf-soft);color:var(--leaf-deep);}
@@ -379,7 +382,7 @@
         <div class="chip-row" id="chips-social">
           <button class="chip" data-val="any">Nezáleží</button><button class="chip" data-val="solo">Radši sám</button><button class="chip" data-val="social">S partou</button>
         </div>
-        <p class="field-label">Počasí</p>
+        <p class="field-label">Počasí <span class="muted" id="weather-now-hint" style="font-weight:600;margin-left:4px;"></span></p>
         <div class="chip-row" id="chips-weather">
           <button class="chip" data-val="any">Nezáleží</button><button class="chip" data-val="outdoor">Venku pohoda</button><button class="chip" data-val="indoor">Radši uvnitř</button>
         </div>
@@ -861,14 +864,200 @@ function filterActivities({minutes, social, weather}){
     return true;
   });
 }
-function suggestActivities(opts){
+// Kolo 4: suggestActivities nahrazeno funkcemi rankWithRules + poolForOpts
+
+/* ================= Kolo 4: chytrý Nápad na teď (počasí, tma, otevírací doba, historie) ================= */
+// Vlastnosti aktivit: light = potřebuje denní světlo, minTemp = nejnižší teplota (°C), home = doma, venue = hala s otevírací dobou,
+// type = sila / kardio / protazeni / parta / zabava, effort = lehka / stredni / narocna, daylightMin = kolik minut světla musí zbývat.
+const ACT_RULES = {
+  walk:{light:false, minTemp:-10, type:'kardio', effort:'lehka'},
+  run:{light:false, minTemp:10, type:'kardio', effort:'narocna'},
+  hike:{light:true, minTemp:8, type:'kardio', effort:'narocna', daylightMin:120},
+  bike:{light:true, minTemp:12, type:'kardio', effort:'stredni'},
+  jumprope:{light:true, minTemp:12, type:'kardio', effort:'stredni'},
+  longboard:{light:true, minTemp:15, type:'zabava', effort:'stredni'},
+  calisthenics:{light:true, minTemp:15, type:'sila', effort:'narocna'},
+  pickup:{light:true, minTemp:15, type:'parta', effort:'narocna'},
+  volleyball_doubles:{light:true, minTemp:18, type:'parta', effort:'narocna'},
+  beach:{light:true, minTemp:22, type:'parta', effort:'narocna'},
+  explore:{light:true, minTemp:10, type:'kardio', effort:'lehka'},
+  gym:{venue:true, type:'sila', effort:'narocna'},
+  swim:{venue:true, type:'kardio', effort:'stredni'},
+  home_routine:{home:true, type:'sila', effort:'stredni'},
+  yoga:{home:true, type:'protazeni', effort:'lehka'}
+};
+function actRules(a){
+  const base = a.indoor ? {home:true, type:'kardio', effort:'stredni'} : {light:true, minTemp:12, type:'kardio', effort:'stredni'};
+  return Object.assign({}, base, ACT_RULES[a.id]||{}, a.rules||{});
+}
+function isOutdoorRule(r){ return !r.home && !r.venue; }
+
+// Východ/západ slunce (algoritmus NOAA), zenit 90,833° = západ, 96° = konec občanského soumraku (tma)
+function sunTime(date, lat, lon, rise, zenith){
+  const rad = Math.PI/180;
+  const start = new Date(date.getFullYear(), 0, 0);
+  const N = Math.floor((new Date(date.getFullYear(), date.getMonth(), date.getDate()) - start)/86400000);
+  const lngHour = lon/15, t = N + ((rise?6:18) - lngHour)/24;
+  const M = 0.9856*t - 3.289;
+  let L = (M + 1.916*Math.sin(M*rad) + 0.020*Math.sin(2*M*rad) + 282.634) % 360; if(L<0) L+=360;
+  let RA = Math.atan(0.91764*Math.tan(L*rad))/rad; RA = (RA+360)%360;
+  RA = (RA + Math.floor(L/90)*90 - Math.floor(RA/90)*90)/15;
+  const sinDec = 0.39782*Math.sin(L*rad), cosDec = Math.cos(Math.asin(sinDec));
+  const cosH = (Math.cos(zenith*rad) - sinDec*Math.sin(lat*rad))/(cosDec*Math.cos(lat*rad));
+  if(cosH>1 || cosH<-1) return null;
+  const H = (rise ? 360-Math.acos(cosH)/rad : Math.acos(cosH)/rad)/15;
+  let UT = (H + RA - 0.06571*t - 6.622 - lngHour) % 24; if(UT<0) UT+=24;
+  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) + UT*3600000);
+}
+const MONTH_TEMP = [1,3,8,14,19,22,24,24,19,13,7,2]; // odhad denní teploty v ČR, když není internet
+function basePos(){ return state.approxPos || lastKnownPosition || {lat:50.08, lon:14.44}; }
+function buildCtx(when, weather, isNow){
+  const p = basePos();
+  const sunset = sunTime(when, p.lat, p.lon, false, 90.833);
+  const dusk = sunTime(when, p.lat, p.lon, false, 96), dawn = sunTime(when, p.lat, p.lon, true, 96);
+  const dark = !!((dusk && when > dusk) || (dawn && when < dawn));
+  const est = MONTH_TEMP[when.getMonth()] - ((when.getHours()<8 || when.getHours()>=20) ? 5 : 0);
+  return {when, isNow, hour: when.getHours()+when.getMinutes()/60, live: !!weather,
+    temp: weather ? weather.temp : est, code: weather ? weather.code : null, rainy: weather ? isRainyCode(weather.code) : false,
+    dark, sunset, minsToSunset: sunset ? (sunset-when)/60000 : 600};
+}
+function nowCtx(){
+  const w = state.weatherNow && (Date.now()-state.weatherNow.ts < 3*3600000) ? state.weatherNow : null;
+  return buildCtx(new Date(), w, true);
+}
+let weatherAsked = false;
+async function refreshWeather(){
+  if(state.weatherNow && Date.now()-state.weatherNow.ts < 3600000) return; // nejvýš jednou za hodinu
+  try{
+    if(!state.approxPos && !weatherAsked){ weatherAsked = true; await ensurePosition(); }
+    if(!state.approxPos) return;
+    const p = state.approxPos;
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lon}&current=temperature_2m,weather_code&timezone=auto`);
+    if(!res.ok) return;
+    const d = await res.json();
+    if(!d.current) return;
+    state.weatherNow = {ts: Date.now(), temp: d.current.temperature_2m, code: d.current.weather_code};
+    saveState();
+    refreshTodayIdeas(); renderTodayIdea(); autoWeatherChip();
+  }catch(e){ /* bez polohy nebo internetu jede odhad podle měsíce */ }
+}
+// Proč aktivita teď nesedí (prázdné = sedí)
+function ruleIssues(a, ctx){
+  const r = actRules(a), out = [];
+  if(r.venue && (ctx.hour<6 || ctx.hour>=21)) out.push('closed');
+  if(ctx.isNow){
+    if((ctx.hour>=22 || ctx.hour<6) && !r.home) out.push('late');
+    else if(ctx.hour>=21 && a.minMinutes>30) out.push('late');
+  }
+  if(isOutdoorRule(r)){
+    if((r.light && ctx.dark) || (r.daylightMin && ctx.minsToSunset < r.daylightMin)) out.push('dark');
+    if(r.minTemp!=null && r.minTemp!=='' && ctx.temp < r.minTemp) out.push('cold');
+    if(ctx.rainy) out.push('rain');
+  }
+  return [...new Set(out)];
+}
+const ISSUE_ICON = {dark:'🌙', cold:'❄️', rain:'🌧', closed:'🕘', late:'🕘'};
+const ISSUE_TITLE = {dark:'po setmění', cold:'zima', rain:'prší', closed:'zavřeno', late:'pozdě'};
+function issueBadges(a, ctx){
+  return ruleIssues(a, ctx).map(i=>`<span class="issue" title="${ISSUE_TITLE[i]}">${ISSUE_ICON[i]}</span>`).join('');
+}
+function yesterdayInfo(){
+  const y = new Date(); y.setDate(y.getDate()-1); const ys = formatDate(y);
+  const acts = state.logs.filter(l=>l.date===ys).map(l=>state.activities.find(a=>a.id===l.activityId)).filter(Boolean);
+  const gb = state.gymbroLog.some(l=>l.date===ys);
+  return {strength: gb || acts.some(a=>actRules(a).type==='sila'), hard: gb || acts.some(a=>actRules(a).effort==='narocna')};
+}
+function habitCount(a, hour){
+  const c = new Date(); c.setDate(c.getDate()-60); const cs = formatDate(c);
+  return state.logs.filter(l=>l.activityId===a.id && l.date>=cs && l.time && Math.abs(parseInt(l.time,10)-Math.floor(hour))<=2).length;
+}
+function smartScore(a, ctx, yi, doneToday){
+  const r = actRules(a); let s = 0;
+  const d = lastDoneDays(a.id); s += d===999 ? 8 : Math.min(d, 14);                     // 6. dlouho nedělané
+  if(yi.strength && r.type==='sila') s -= 6;                                            // 7. střídání
+  if(yi.strength && (r.type==='kardio' || r.type==='protazeni')) s += 2;
+  if(yi.hard){ if(r.effort==='lehka') s += 3; if(r.effort==='narocna') s -= 3; }       // 8. den po náročném
+  s += Math.min(habitCount(a, ctx.hour), 5)*0.8;                                        // 9. zvyky
+  if(doneToday && r.effort==='lehka') s += 5;                                           // 10. dnes hotovo → lehké
+  if(ctx.temp>=18 && !ctx.rainy && !ctx.dark && isOutdoorRule(r)) s += 4;               // 11. teplo táhne ven
+  if(ctx.temp<10 && !isOutdoorRule(r)) s += 3;
+  return s + Math.random()*1.5;
+}
+function ideaReason(a, yi, ctx){
+  const r = actRules(a), d = lastDoneDays(a.id);
+  if(d===999) return 'Ještě jsi to nezkoušel';
+  if(yi.strength && r.type!=='sila' && (r.type==='kardio'||r.type==='protazeni')) return 'Po včerejší síle';
+  if(yi.hard && r.effort==='lehka') return 'Na odpočinek po včerejšku';
+  if(habitCount(a, ctx.hour)>=3) return 'Obvykle v tuhle dobu';
+  if(d>=7) return 'Dlouho jsi to nedělal';
+  return 'Naposledy '+lastDoneText(d);
+}
+function ctxTempText(ctx){
+  const n = Math.round(ctx.temp);
+  return (ctx.live ? weatherCodeInfo(ctx.code)[0]+' ' : '🌡️ ~') + (n<0 ? '−'+Math.abs(n) : n) + ' °C';
+}
+function ctxRowHTML(ctx){
+  const sun = ctx.dark ? '🌙 tma' : (ctx.sunset && ctx.minsToSunset>0 ? '🌇 '+pad(ctx.sunset.getHours())+':'+pad(ctx.sunset.getMinutes()) : '');
+  return `<div class="ctx-row"><span>${ctxTempText(ctx)}</span>${sun?`<span>${sun}</span>`:''}</div>`;
+}
+// Seřadí aktivity: nejdřív ty, co teď sedí, pak ty proti tabulce (se štítkem)
+function rankWithRules(pool, ctx){
+  const yi = yesterdayInfo(), today = todayStr();
+  const doneToday = state.logs.some(l=>l.date===today) || state.restDays.includes(today);
+  const scored = pool.map(a=>({a, s: smartScore(a, ctx, yi, doneToday), bad: ruleIssues(a, ctx).length>0}));
+  return scored.sort((x,y)=> (x.bad-y.bad) || (y.s-x.s)).map(x=>x.a);
+}
+function poolForOpts(opts){
   let pool = filterActivities(opts);
   if(!pool.length) pool = filterActivities(Object.assign({}, opts, {weather:'any'}));
   if(!pool.length) pool = filterActivities(Object.assign({}, opts, {weather:'any', social:'any'}));
   if(!pool.length) pool = state.activities.slice();
-  const scored = pool.map(a=>({...a, score: lastDoneDays(a.id) + Math.random()*2.5}));
-  scored.sort((x,y)=>y.score-x.score);
-  return scored.slice(0,3);
+  return pool;
+}
+let weatherTouched = false;
+function autoWeatherChip(){
+  const ctx = nowCtx();
+  const hint = document.getElementById('weather-now-hint');
+  if(hint) hint.textContent = ctxTempText(ctx) + (ctx.dark ? ' · 🌙 tma' : '');
+  if(weatherTouched) return;
+  const target = (ctx.rainy || ctx.dark || ctx.temp<10) ? 'indoor' : (ctx.temp>=18 ? 'outdoor' : 'any');
+  suggestOpts.weather = target; selectChip('chips-weather', target);
+}
+let lastPlanCtx = null;
+// Formulář „Moje aktivity“: vlastnosti pro návrhy
+function activityRulesFormHTML(act){
+  const r = act ? actRules(act) : {light:true, minTemp:12, type:'kardio', effort:'stredni'};
+  const chip = (v,l)=>`<button class="chip" data-val="${v}">${l}</button>`;
+  return `<div id="af-outdoor-fields">
+      <p class="field-label">Potřebuje denní světlo?</p>
+      <div class="chip-row" id="af-light">${chip('yes','Ano')}${chip('no','Ne')}</div>
+      <p class="field-label">Nejnižší teplota (°C)</p>
+      <input type="number" id="af-mintemp" placeholder="bez omezení" value="${r.minTemp!=null?r.minTemp:''}">
+    </div>
+    <p class="field-label">Druh pohybu</p>
+    <div class="chip-row" id="af-type">${chip('sila','Síla')}${chip('kardio','Kardio')}${chip('protazeni','Protažení')}${chip('parta','Parta')}${chip('zabava','Zábava')}</div>
+    <p class="field-label">Náročnost</p>
+    <div class="chip-row" id="af-effort">${chip('lehka','Lehká')}${chip('stredni','Střední')}${chip('narocna','Náročná')}</div>`;
+}
+function bindActivityRulesForm(act){
+  const r = act ? actRules(act) : {light:true, type:'kardio', effort:'stredni'};
+  bindChipGroup('af-light', true); bindChipGroup('af-type', true); bindChipGroup('af-effort', true);
+  selectChip('af-light', r.light ? 'yes' : 'no'); selectChip('af-type', r.type); selectChip('af-effort', r.effort);
+  const where = document.getElementById('af-indoor');
+  const sync = ()=>{ const v = where.querySelector('.chip.selected'); document.getElementById('af-outdoor-fields').style.display = (v && v.dataset.val==='no') ? '' : 'none'; };
+  where.addEventListener('click', sync); sync(); // chip onclick proběhne dřív (cíl), pak bublání sem
+}
+function readActivityRulesForm(whereVal){
+  const val = id=>{ const c = document.querySelector('#'+id+' .chip.selected'); return c ? c.dataset.val : null; };
+  const rules = {type: val('af-type')||'kardio', effort: val('af-effort')||'stredni'};
+  if(whereVal==='yes') rules.home = true;
+  else if(whereVal==='venue') rules.venue = true;
+  else {
+    rules.light = val('af-light')!=='no';
+    const t = document.getElementById('af-mintemp').value.trim();
+    rules.minTemp = t==='' ? null : parseFloat(t);
+  }
+  return rules;
 }
 
 /* ================= LOCATION SUGGESTIONS (OpenStreetMap Overpass) ================= */
@@ -1104,7 +1293,8 @@ async function runLocationSuggestGeneric(resultsElId, mode, dateStr, timeVal){
           cardIcon = '🧭'; cardName = p.name;
         }
         const distTxt = p.dist<1000 ? Math.round(p.dist)+' m' : (p.dist/1000).toFixed(1)+' km';
-        const badge = isNew ? ' <span style="font-size:10px;font-weight:800;color:var(--aqua-deeper);">✨ nová</span>' : '';
+        const badge = (isNew ? ' <span style="font-size:10px;font-weight:800;color:var(--aqua-deep);">✨ nová</span>' : '')
+          + ' ' + issueBadges(act || {id:'_new', indoor:false, minMinutes:30}, mode==='plan' ? (lastPlanCtx || buildCtx(new Date(dateStr+'T'+(timeVal||'14:00')+':00'), null, false)) : nowCtx()); // Kolo 4
         const metaLine = honest
           ? (p.info ? escapeHTML(p.info)+' · '+distTxt : distTxt)
           : '📍 '+escapeHTML(p.name)+' · '+distTxt;
@@ -1159,6 +1349,7 @@ async function ensurePosition(){
     navigator.geolocation.getCurrentPosition(resolve, reject, {timeout:10000});
   });
   lastKnownPosition = {lat:pos.coords.latitude, lon:pos.coords.longitude};
+  state.approxPos = {lat: Math.round(pos.coords.latitude*100)/100, lon: Math.round(pos.coords.longitude*100)/100}; saveState(); // Kolo 4: přibližně (~1 km) pro počasí a západ slunce
   return lastKnownPosition;
 }
 async function fetchForecastForDateTime(dateStr, timeHHMM){
@@ -1366,15 +1557,22 @@ function quickSaveFavoriteByIndex(idx){
 let suggestOpts = {minutes:30, social:'any', weather:'any'};
 let planOpts = {minutes:60, social:'any', weather:'any'};
 
-function runPlanSuggest(){
+async function runPlanSuggest(){
   const dateStr = document.getElementById('plan-date').value;
   if(!dateStr){ showToast('Vyber nejdřív datum'); return; }
   const timeVal = document.getElementById('plan-time').value || '14:00';
-  const results = suggestActivities(planOpts);
   const wrap = document.getElementById('plan-results');
+  // Kolo 4: předpověď + západ slunce pro zvolený den a hodinu (bez internetu odhad podle měsíce)
+  let w = null;
+  try{ w = await fetchForecastForDateTime(dateStr, timeVal); }catch(e){}
+  const ctx = buildCtx(new Date(dateStr+'T'+timeVal+':00'), w, false);
+  lastPlanCtx = ctx;
+  const ranked = rankWithRules(poolForOpts(planOpts), ctx);
+  const ok = ranked.filter(a=>!ruleIssues(a, ctx).length), bad = ranked.filter(a=>ruleIssues(a, ctx).length);
+  const results = ok.slice(0,3).concat(planOpts.weather==='outdoor' || ok.length<3 ? bad.slice(0, Math.max(2, 3-ok.length)) : []);
   if(!results.length){ wrap.innerHTML='<p class="empty-note">Zatím žádné aktivity k návrhu.</p>'; return; }
-  wrap.innerHTML = results.map(a=>`<div class="sugg-card"><div class="sugg-icon">${a.icon}</div>
-      <div class="sugg-info"><div class="name">${escapeHTML(a.name)}</div><div class="meta">min. ${a.minMinutes} min · +${a.xp} XP</div></div>
+  wrap.innerHTML = ctxRowHTML(ctx) + results.map(a=>`<div class="sugg-card"><div class="sugg-icon">${a.icon}</div>
+      <div class="sugg-info"><div class="name">${escapeHTML(a.name)} ${issueBadges(a, ctx)}</div><div class="meta">min. ${a.minMinutes} min · +${a.xp} XP</div></div>
       <button class="sugg-go plan-btn" onclick="planActivity('${a.id}','${dateStr}','${timeVal}')">📅 Přidat</button></div>`).join('');
 }
 function planActivity(activityId, dateStr, timeVal){
@@ -1406,6 +1604,7 @@ function goTo(view){
   if(navEl) navEl.classList.add('active');
   window.scrollTo(0,0);
   if(view==='gymbro') renderGbLastWorkoutInfo();
+  if(view==='suggest') autoWeatherChip(); // Kolo 4
 }
 
 /* ---- Kolo 1: zápis jedním klepnutím — spodní panel (zelené + v liště) ---- */
@@ -1434,8 +1633,12 @@ function activitiesByUsage(){
 /* ---- Kolo 1: Nápad na teď (přímo na Domů) ---- */
 let todayIdeas = [], todayIdeaIdx = 0;
 function refreshTodayIdeas(){
-  const h = new Date().getHours();
-  todayIdeas = suggestActivities({minutes: h>=21 ? 30 : 60, social:'any', weather:'any'});
+  // Kolo 4: jen aktivity, které teď dávají smysl (tma, teplota, déšť, otevírací doba, pozdní hodina), seřazené podle historie
+  const ctx = nowCtx(), today = todayStr();
+  const doneToday = state.logs.some(l=>l.date===today) || state.restDays.includes(today);
+  let pool = state.activities.filter(a=>!ruleIssues(a, ctx).length);
+  if(doneToday){ const light = pool.filter(a=>actRules(a).effort==='lehka'); if(light.length) pool = light; }
+  todayIdeas = rankWithRules(pool, ctx).slice(0, 6);
   todayIdeaIdx = 0;
 }
 function nextTodayIdea(){
@@ -1447,12 +1650,11 @@ function renderTodayIdea(){
   const el = document.getElementById('today-idea');
   if(!el) return;
   if(!todayIdeas.length) refreshTodayIdeas();
+  const ctx = nowCtx();
   const a = todayIdeas[todayIdeaIdx];
-  if(!a){ el.innerHTML = '<p class="empty-note">Přidej si aktivity v Nastavení → Moje aktivity.</p>'; return; }
-  const d = lastDoneDays(a.id);
-  const why = d===999 ? 'Ještě jsi to nezkoušel' : (d>=7 ? 'Dlouho jsi to nedělal' : 'Naposledy '+lastDoneText(d));
-  el.innerHTML = `<div class="idea"><div class="sugg-icon">${a.icon}</div>
-      <div class="sugg-info"><div class="name" style="font-size:17px;">${escapeHTML(a.name)}</div><div class="meta">${why} · od ${a.minMinutes} min · +${a.xp} XP</div></div></div>
+  if(!a){ el.innerHTML = ctxRowHTML(ctx) + '<p class="empty-note">Teď nic venku ani uvnitř nesedí. Odpočinek je taky fajn 😌</p>'; return; }
+  el.innerHTML = `${ctxRowHTML(ctx)}<div class="idea"><div class="sugg-icon">${a.icon}</div>
+      <div class="sugg-info"><div class="name" style="font-size:17px;">${escapeHTML(a.name)}</div><div class="meta">${ideaReason(a, yesterdayInfo(), ctx)} · od ${a.minMinutes} min · +${a.xp} XP</div></div></div>
     <div class="idea-actions">
       <button class="btn btn-leaf" onclick="askLog('${a.id}')">Beru</button>
       <button class="icon-btn" onclick="nextTodayIdea()" aria-label="Jiný nápad" title="Jiný nápad"><svg class="ic"><use href="#i-refresh"/></svg></button>
@@ -1558,8 +1760,9 @@ function openActivityForm(activityId){
         <button class="chip" data-val="solo_out">Sám, potřebuju vyrazit</button>
         <button class="chip" data-val="social">S ostatními</button>
       </div>
-      <p class="field-label">Jde i doma / uvnitř?</p>
-      <div class="chip-row" id="af-indoor"><button class="chip" data-val="yes">Ano</button><button class="chip" data-val="no">Jen venku</button></div>
+      <p class="field-label">Kde</p>
+      <div class="chip-row" id="af-indoor"><button class="chip" data-val="no">Venku</button><button class="chip" data-val="yes">Doma</button><button class="chip" data-val="venue">V hale / bazénu</button></div>
+      ${activityRulesFormHTML(act)}<!-- Kolo 4 -->
       <p class="field-label">Kde to jde dělat (pro návrhy podle okolí)</p>
       <div class="chip-row" id="af-place">
         <button class="chip" data-val="park">Park</button><button class="chip" data-val="wood">Les</button>
@@ -1572,8 +1775,9 @@ function openActivityForm(activityId){
       </div>
     </div>`;
   bindChipGroup('af-cat', true); bindChipGroup('af-indoor', true); bindChipGroup('af-place', false);
-  if(act){ selectChip('af-cat', act.category); selectChip('af-indoor', act.indoor?'yes':'no'); (act.placeTags||[]).forEach(t=>selectChip('af-place', t, false)); }
-  else { selectChip('af-cat','solo_any'); selectChip('af-indoor','yes'); selectChip('af-place','anywhere'); }
+  if(act){ selectChip('af-cat', act.category); selectChip('af-indoor', actRules(act).venue ? 'venue' : (act.indoor?'yes':'no')); (act.placeTags||[]).forEach(t=>selectChip('af-place', t, false)); }
+  else { selectChip('af-cat','solo_any'); selectChip('af-indoor','no'); selectChip('af-place','anywhere'); }
+  bindActivityRulesForm(act); // Kolo 4
 }
 function selectChip(containerId, val, exclusive=true){
   const container=document.getElementById(containerId); const chip=container.querySelector(`.chip[data-val="${val}"]`);
@@ -1598,14 +1802,16 @@ function saveActivityForm(activityId){
   const catChip = document.querySelector('#af-cat .chip.selected');
   const indoorChip = document.querySelector('#af-indoor .chip.selected');
   const cat = catChip ? catChip.dataset.val : 'solo_any';
-  const indoor = indoorChip ? indoorChip.dataset.val==='yes' : true;
+  const whereVal = indoorChip ? indoorChip.dataset.val : 'no';
+  const indoor = whereVal!=='no'; // Kolo 4: Doma i V hale = jde uvnitř
+  const rules = readActivityRulesForm(whereVal);
   const placeTags = Array.from(document.querySelectorAll('#af-place .chip.selected')).map(c=>c.dataset.val);
   const xp = Math.min(40, Math.round(min/2)+5+(cat==='social'?8:0));
   if(activityId){
     const act=state.activities.find(a=>a.id===activityId);
-    Object.assign(act, {name, icon, minMinutes:min, category:cat, indoor, placeTags: placeTags.length?placeTags:['anywhere'], xp});
+    Object.assign(act, {name, icon, minMinutes:min, category:cat, indoor, placeTags: placeTags.length?placeTags:['anywhere'], xp, rules});
   } else {
-    state.activities.push({id:'c'+Date.now(), name, icon, xp, minMinutes:min, category:cat, indoor, placeTags: placeTags.length?placeTags:['anywhere'], custom:true});
+    state.activities.push({id:'c'+Date.now(), name, icon, xp, minMinutes:min, category:cat, indoor, placeTags: placeTags.length?placeTags:['anywhere'], custom:true, rules});
   }
   saveState();
   document.getElementById('add-form-wrap').innerHTML=''; document.getElementById('add-form-wrap').dataset.openFor='';
@@ -1629,7 +1835,7 @@ function bindSelectableGroup(containerId, onSelect, defaultVal){
 function initSuggestChips(){
   bindSelectableGroup('chips-time', val=>suggestOpts.minutes=parseInt(val,10), '30');
   bindSelectableGroup('chips-social', val=>suggestOpts.social=val, 'any');
-  bindSelectableGroup('chips-weather', val=>suggestOpts.weather=val, 'any');
+  bindSelectableGroup('chips-weather', val=>{ suggestOpts.weather=val; weatherTouched=true; }, 'any'); // Kolo 4: ruční volba přebije automatiku
   bindSelectableGroup('chips-plan-time', val=>planOpts.minutes=parseInt(val,10), '60');
   bindSelectableGroup('chips-plan-weather', val=>planOpts.weather=val, 'any');
   bindSelectableGroup('chips-plan-tod', val=>{ document.getElementById('plan-time').value=val; }, '14:00');
@@ -1647,13 +1853,17 @@ function initSuggestChips(){
   dateInput.min = todayStr(); dateInput.value = todayStr();
 }
 function runSuggest(){
-  const results=suggestActivities(suggestOpts);
+  // Kolo 4: stejná pravidla jako Nápad na teď; co jde proti tabulce, je na konci se štítkem
+  const ctx = nowCtx();
+  const ranked = rankWithRules(poolForOpts(suggestOpts), ctx);
+  const ok = ranked.filter(a=>!ruleIssues(a, ctx).length), bad = ranked.filter(a=>ruleIssues(a, ctx).length);
+  const results = ok.slice(0,3).concat(suggestOpts.weather==='outdoor' || ok.length<3 ? bad.slice(0, Math.max(2, 3-ok.length)) : []);
   const wrap=document.getElementById('suggest-results');
-  if(!results.length){ wrap.innerHTML='<p class="empty-note">Zatím žádné aktivity — přidej si nějaké v Aktivitách.</p>'; return; }
+  if(!results.length){ wrap.innerHTML='<p class="empty-note">Zatím žádné aktivity — přidej si nějaké v Nastavení → Moje aktivity.</p>'; return; }
   wrap.innerHTML = results.map(a=>{
-    const d=lastDoneDays(a.id); const lastTxt=d===999?'ještě nikdy':(d===0?'dnes':('před '+d+' dny'));
+    const lastTxt=lastDoneText(lastDoneDays(a.id)).replace('ještě nikdy','ještě nikdy');
     return `<div class="sugg-card"><div class="sugg-icon">${a.icon}</div>
-      <div class="sugg-info"><div class="name">${escapeHTML(a.name)}</div><div class="meta">min. ${a.minMinutes} min · +${a.xp} XP · naposledy ${lastTxt}</div></div>
+      <div class="sugg-info"><div class="name">${escapeHTML(a.name)} ${issueBadges(a, ctx)}</div><div class="meta">min. ${a.minMinutes} min · +${a.xp} XP · ${lastTxt==='ještě nikdy'?'ještě nikdy':'naposledy '+lastTxt}</div></div>
       <button class="sugg-go" onclick="askLog('${a.id}')">Beru</button></div>`;
   }).join('') + '<button class="btn btn-ghost btn-sm" style="margin-top:4px;" onclick="runSuggest()">🔄 Jiné nápady</button>';
 }
@@ -3853,7 +4063,7 @@ function initGymbroChips(){
 }
 
 function renderAll(){ renderDashboard(); renderActivityGrid(); renderSheetGrid(); renderHistory(); renderStickerTray(); renderJournalList(); updateBackupStatus(); renderFavoritesList(); }
-function init(){ reconcileFreezes(); initBubbles(); initSuggestChips(); initGymbroChips(); selectChip('gb-goal-chips', gbGoal()); renderAll(); } // Kolo 3: cíl
+function init(){ reconcileFreezes(); initBubbles(); initSuggestChips(); initGymbroChips(); selectChip('gb-goal-chips', gbGoal()); renderAll(); autoWeatherChip(); refreshWeather(); } // Kolo 3: cíl · Kolo 4: počasí
 document.addEventListener('DOMContentLoaded', init);
 
 if('serviceWorker' in navigator){

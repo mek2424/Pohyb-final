@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pohyb-cache-v5'; // Kolo 3
+const CACHE_NAME = 'pohyb-cache-v6'; // Kolo 4
 const APP_SHELL = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
