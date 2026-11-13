@@ -107,6 +107,14 @@
   .sr-sub.disk-warn{color:#8A5200;font-weight:700;}
   .sr-sub.disk-ok{color:var(--leaf-deep);font-weight:700;}
   #disk-actions input{margin:10px 0 8px;}
+  /* Kolo 13: návratový bonus */
+  .navrat-card{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:end;gap:4px 8px;background:linear-gradient(170deg,rgba(236,252,241,.92),rgba(221,246,230,.7));}
+  .navrat-card .gbz-bubble{margin-bottom:46px;}
+  .navrat-card .pose{opacity:0;transition:opacity .15s ease;} .navrat-card .pose.on{opacity:1;}
+  .quick.bonus{border-color:rgba(47,174,102,.45);}
+  .q-bonus{font-size:11.5px;font-weight:800;color:var(--leaf-deep);background:var(--leaf-soft);padding:1px 7px;border-radius:99px;}
+  .navrat-meta{color:var(--leaf-deep);font-weight:800;}
+  .navrat-rec{background:var(--leaf-soft);text-align:center;}
   .haptic-toggle{min-width:96px;} .haptic-toggle.on{background:var(--leaf-soft);color:var(--leaf-deep);border-color:rgba(30,138,79,.25);} /* Kolo 12 */
   .disk-auto{margin-top:12px;} .disk-auto > summary{font-size:13.5px;color:var(--ink-2);} /* Kolo 11 */
   .freeze-chip{display:inline-flex;align-items:center;gap:5px;font-weight:700;font-size:13.5px;color:#1584BE;background:rgba(255,255,255,.7);padding:4px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.95);box-shadow:inset 0 1px 0 #fff;}
@@ -546,6 +554,7 @@
       </div>
     </div>
 
+    <div id="navrat-card"></div><!-- Kolo 13 -->
     <div id="plans-card"></div><!-- Kolo 5 -->
 
     <div class="glass">
@@ -922,7 +931,27 @@ function saveState(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(stat
 
 /* ================= FREEZE / STREAK LOGIC ================= */
 function countActiveDaysTotal(){ return new Set(state.logs.map(l=>l.date)).size; }
-function freezesAvailable(){ const earned=Math.floor(countActiveDaysTotal()/5); return Math.max(0, Math.min(3, earned-state.freezesUsed)); }
+// Kolo 13: každý návrat po pauze přidá 1 zmrazení, i nad strop 3 (strop je pak 4)
+function freezesAvailable(){ const navraty=state.logs.filter(l=>l.navrat).length; const earned=Math.floor(countActiveDaysTotal()/5)+navraty; return Math.max(0, Math.min(navraty?4:3, earned-state.freezesUsed)); }
+/* ================= Kolo 13: návratový bonus po pauze ================= */
+// Pauza = celé dny bez zápisu pohybu mezi posledním zápisem a dneškem (odpočinek i zmrazení se počítají do pauzy).
+// První zápis dne po pauze 3–13 dní = ×2 XP, po 14+ dnech ×3 XP, k tomu +1 zmrazení. Vrátit vrací i bonus (je součástí zápisu).
+function navratPauza(){
+  const today = todayStr(); let last = null;
+  for(const l of state.logs){ if(l.date===today) return 0; if(l.date<today && (!last || l.date>last)) last = l.date; }
+  return last ? daysBetween(last, today)-1 : 0;
+}
+function navratBonus(){ const p = navratPauza(); return p>=14 ? {pauza:p, nasobek:3} : p>=3 ? {pauza:p, nasobek:2} : null; }
+function navratXP(act){ const b = navratBonus(); return act.xp * (b ? b.nasobek : 1); }
+function navratDnyTxt(n){ return n+' '+(n===1?'den':n<5?'dny':'dní'); }
+function renderNavrat(){
+  const el = document.getElementById('navrat-card'); if(!el) return;
+  const b = navratBonus();
+  if(!b){ el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="glass navrat-card">${gbBro('gbz-bro small navrat-bro')}
+    <div class="gbz-bubble">Vítej zpátky! 🌱<small>První pohyb dnes ×${b.nasobek} XP a zmrazení navíc.</small></div></div>`;
+  gbBroPose(el.querySelector('.gbz-bro'), ['arms-flex','face-happy']);
+}
 
 
 function reconcileFreezes(){
@@ -965,15 +994,18 @@ function logActivity(activityId){
   if(!act) return;
   const oldXP = totalXP();
   const date=todayStr(), time=nowTimeStr(), logId='l'+Date.now();
-  state.logs.push({id:logId, activityId, date, time, xp:act.xp});
+  const nb = navratBonus(); // Kolo 13
+  const entry = {id:logId, activityId, date, time, xp:act.xp*(nb?nb.nasobek:1)};
+  if(nb){ entry.navrat = nb.pauza; entry.nasobek = nb.nasobek; }
+  state.logs.push(entry);
   if(state.plans) state.plans = state.plans.filter(p=>!(p.activityId===activityId && p.date===date)); // Kolo 5: splněný plán zmizí
   state.lastAction = {type:'log', logId, date, label:act.icon+' '+act.name};
   checkLevelStickers(oldXP, totalXP());
   saveState();
-  gbCelebrate(act, oldXP); // Kolo 7: oslava s GymBrem
-  haptic(levelInfo(totalXP()).level > levelInfo(oldXP).level ? 'level' : 'log'); // Kolo 12
-  sendDiscordWebhook(act.icon+' **'+act.name+'** — +'+act.xp+' XP (level '+levelInfo(totalXP()).level+')');
-  showUndoToast('✓ '+act.name+'  +'+act.xp+' XP');
+  gbCelebrate(act, oldXP, nb ? {xp:entry.xp, pauza:nb.pauza, nasobek:nb.nasobek} : null); // Kolo 7: oslava s GymBrem · Kolo 13: návrat
+  haptic(levelInfo(totalXP()).level > levelInfo(oldXP).level || nb ? 'level' : 'log'); // Kolo 12 · Kolo 13: návrat = fanfára
+  sendDiscordWebhook(act.icon+' **'+act.name+'** — +'+entry.xp+' XP'+(nb?' (🌱 návrat po '+navratDnyTxt(nb.pauza)+')':'')+' (level '+levelInfo(totalXP()).level+')');
+  showUndoToast('✓ '+act.name+'  +'+entry.xp+' XP');
   renderAll();
 }
 function markRestDay(){
@@ -991,7 +1023,7 @@ function askLog(activityId){
   pendingLogId = activityId;
   const env = GB_ACTIVITY_ENV[activityId];
   document.getElementById('log-confirm-head').innerHTML = `<div class="sugg-icon" style="width:64px;height:64px;font-size:34px;border-radius:20px;">${act.icon}</div>
-    <div class="sugg-info"><div class="name" style="font-size:19px;">${escapeHTML(act.name)}</div><div class="meta">+${act.xp} XP</div></div>`;
+    <div class="sugg-info"><div class="name" style="font-size:19px;">${escapeHTML(act.name)}</div><div class="meta">${navratBonus()?`<b class="navrat-meta">🌱 +${navratXP(act)} XP (×${navratBonus().nasobek})</b>`:'+'+act.xp+' XP'}</div></div>`; // Kolo 13
   document.getElementById('log-confirm-actions').innerHTML = env
     ? `<button class="btn btn-leaf" onclick="confirmLog()">✓ Mám hotovo</button>
        <button class="btn btn-primary" onclick="startGymbroFrom('${env}')">💪 Jdu cvičit</button>
@@ -1019,11 +1051,14 @@ function logGymbroToPohyb(env, gbLogId){
   if(!act) return null;
   const oldXP = totalXP();
   const logId = 'l'+Date.now();
-  state.logs.push({id:logId, activityId:act.id, date:todayStr(), time:nowTimeStr(), xp:act.xp, gbLogId});
+  const nb = navratBonus(); // Kolo 13
+  const entry = {id:logId, activityId:act.id, date:todayStr(), time:nowTimeStr(), xp:act.xp*(nb?nb.nasobek:1), gbLogId};
+  if(nb){ entry.navrat = nb.pauza; entry.nasobek = nb.nasobek; }
+  state.logs.push(entry);
   state.lastAction = {type:'log', logId, date:todayStr(), label:act.icon+' '+act.name, gbLogId};
   checkLevelStickers(oldXP, totalXP());
-  sendDiscordWebhook(act.icon+' **'+act.name+'** (GymBro) — +'+act.xp+' XP (level '+levelInfo(totalXP()).level+')');
-  return {logId, act};
+  sendDiscordWebhook(act.icon+' **'+act.name+'** (GymBro) — +'+entry.xp+' XP'+(nb?' (🌱 návrat po '+navratDnyTxt(nb.pauza)+')':'')+' (level '+levelInfo(totalXP()).level+')');
+  return {logId, act, xp:entry.xp, navrat:nb};
 }
 
 function undoLast(){
@@ -1854,7 +1889,7 @@ function renderSheetGrid(){
   const grid = document.getElementById('sheet-grid');
   if(!grid) return;
   grid.innerHTML = activitiesByUsage().map(a=>`<button class="act-card" onclick="logFromSheet('${a.id}')">
-      <span class="icon">${a.icon}</span><span class="name">${escapeHTML(a.name)}</span><span class="last">${lastDoneText(lastDoneDays(a.id))}</span>
+      <span class="icon">${a.icon}</span><span class="name">${escapeHTML(a.name)}</span><span class="last">${lastDoneText(lastDoneDays(a.id))}</span>${navratBonus()?`<span class="q-bonus">+${navratXP(a)} XP</span>`:''}<!-- Kolo 13 -->
     </button>`).join('');
 }
 // Nejčastěji používané (posledních 60 dní) jdou dopředu, zbytek v původním pořadí.
@@ -1889,7 +1924,7 @@ function renderTodayIdea(){
   const a = todayIdeas[todayIdeaIdx];
   if(!a){ el.innerHTML = ctxRowHTML(ctx) + '<p class="empty-note">Teď nic venku ani uvnitř nesedí. Odpočinek je taky fajn 😌</p>'; return; }
   el.innerHTML = `${ctxRowHTML(ctx)}<div class="idea"><div class="sugg-icon">${a.icon}</div>
-      <div class="sugg-info"><div class="name" style="font-size:17px;">${escapeHTML(a.name)}</div><div class="meta">${ideaReason(a, yesterdayInfo(), ctx)} · od ${a.minMinutes} min · +${a.xp} XP</div></div></div>
+      <div class="sugg-info"><div class="name" style="font-size:17px;">${escapeHTML(a.name)}</div><div class="meta">${ideaReason(a, yesterdayInfo(), ctx)} · od ${a.minMinutes} min · +${navratXP(a)} XP</div></div></div>
     <div class="idea-actions">
       <button class="btn btn-leaf" onclick="askLog('${a.id}')">Beru</button>
       <button class="icon-btn" onclick="nextTodayIdea()" aria-label="Jiný nápad" title="Jiný nápad"><svg class="ic"><use href="#i-refresh"/></svg></button>
@@ -1914,7 +1949,7 @@ function renderHistory(){
     const a = state.activities.find(x=>x.id===l.activityId);
     return `<div class="list-row"><div class="lr-ic">${a?a.icon:'⭐'}</div>
       <div class="lr-main"><div class="lr-title">${escapeHTML(a?a.name:'Aktivita')}</div><div class="lr-sub">${niceDate(l.date)}${l.time?' · '+l.time:''}</div></div>
-      <div class="lr-end">+${l.xp} XP</div></div>`;
+      <div class="lr-end">${l.navrat?'<span class="navrat-tag" title="návrat po pauze">🌱</span> ':''}+${l.xp} XP</div></div>`; // Kolo 13
   }).join('');
 }
 function showToast(msg){
@@ -1951,7 +1986,8 @@ function renderDashboard(){
     ? 'Zatím žádná historie — zapiš první pohyb zeleným +.' : activeDays+' ze 14 dní v pohybu.';
 
   const quickEl = document.getElementById('quick-log');
-  quickEl.innerHTML = activitiesByUsage().slice(0,6).map(a=>`<button class="quick" onclick="askLog('${a.id}')"><span class="q-ic">${a.icon}</span><span class="q-name">${escapeHTML(a.name)}</span></button>`).join('')
+  const nbq = navratBonus(); // Kolo 13: po pauze je na dlaždicích vidět bonusové XP
+  quickEl.innerHTML = activitiesByUsage().slice(0,6).map(a=>`<button class="quick${nbq?' bonus':''}" onclick="askLog('${a.id}')"><span class="q-ic">${a.icon}</span><span class="q-name">${escapeHTML(a.name)}</span>${nbq?`<span class="q-bonus">+${a.xp*nbq.nasobek} XP</span>`:''}</button>`).join('')
     + `<button class="quick more" onclick="openLogSheet()"><span class="q-ic" style="font-size:22px;">＋</span><span class="q-name">Další</span></button>`;
 
   renderTodayIdea();
@@ -2098,7 +2134,7 @@ function runSuggest(){
   wrap.innerHTML = results.map(a=>{
     const lastTxt=lastDoneText(lastDoneDays(a.id)).replace('ještě nikdy','ještě nikdy');
     return `<div class="sugg-card"><div class="sugg-icon">${a.icon}</div>
-      <div class="sugg-info"><div class="name">${escapeHTML(a.name)} ${issueBadges(a, ctx)}</div><div class="meta">min. ${a.minMinutes} min · +${a.xp} XP · ${lastTxt==='ještě nikdy'?'ještě nikdy':'naposledy '+lastTxt}</div></div>
+      <div class="sugg-info"><div class="name">${escapeHTML(a.name)} ${issueBadges(a, ctx)}</div><div class="meta">min. ${a.minMinutes} min · +${navratXP(a)} XP · ${lastTxt==='ještě nikdy'?'ještě nikdy':'naposledy '+lastTxt}</div></div>
       <button class="sugg-go" onclick="askLog('${a.id}')">Beru</button></div>`;
   }).join('') + '<button class="btn btn-ghost btn-sm" style="margin-top:4px;" onclick="runSuggest()">🔄 Jiné nápady</button>';
 }
@@ -3707,22 +3743,24 @@ function initBackNav(){
 /* ================= Kolo 7: oslavy dělá GymBro (Giphy a jiskřičky zrušené) ================= */
 const BRO_CHEERS = ['Paráda!', 'Tak se to dělá!', 'Jedeš!', 'Mašina!', 'Každý pohyb se počítá!'];
 const BRO_CHEER_POSES = [['arms-flex','face-happy'], ['arms-thumb','face-happy'], ['arms-lift','face-wow'], ['arms-flex','face-wow']];
-function gbCelebrate(act, oldXP){
+function gbCelebrate(act, oldXP, navrat){
   const before = levelInfo(oldXP), now = levelInfo(totalXP());
   const levelUp = now.level > before.level;
   const sticker = levelUp && [...Array(now.level-before.level)].some((_,i)=>(before.level+1+i)%5===0);
-  const title = levelUp ? 'Level '+now.level+'!' : BRO_CHEERS[Math.floor(Math.random()*BRO_CHEERS.length)];
-  const sub = levelUp ? (sticker ? 'Nový level a k tomu nálepka do Deníku 🫧' : 'Nový level. Pokračuj.') : act.icon+' '+act.name+' · +'+act.xp+' XP';
-  const pose = levelUp ? ['arms-lift','face-wow'] : BRO_CHEER_POSES[Math.floor(Math.random()*BRO_CHEER_POSES.length)];
+  // Kolo 13: návrat po pauze má vlastní oslavu (level má přednost v titulku, bonus zůstane v podtitulku)
+  const title = levelUp ? 'Level '+now.level+'!' : navrat ? 'Vítej zpátky!' : BRO_CHEERS[Math.floor(Math.random()*BRO_CHEERS.length)];
+  const navratSub = navrat ? '🌱 '+act.name+' · +'+navrat.xp+' XP (×'+navrat.nasobek+') a 🧊 navíc' : '';
+  const sub = levelUp ? (navrat ? navratSub : sticker ? 'Nový level a k tomu nálepka do Deníku 🫧' : 'Nový level. Pokračuj.') : navrat ? navratSub : act.icon+' '+act.name+' · +'+act.xp+' XP';
+  const pose = levelUp || navrat ? ['arms-lift','face-wow'] : BRO_CHEER_POSES[Math.floor(Math.random()*BRO_CHEER_POSES.length)];
   document.querySelectorAll('.bro-cheer').forEach(x=>x.remove());
   const host = document.createElement('div');
-  host.className = 'bro-cheer' + (levelUp ? ' big' : '');
+  host.className = 'bro-cheer' + (levelUp || navrat ? ' big' : '');
   host.innerHTML = `<div class="bro-cheer-bubbles">${Array.from({length:levelUp?14:8},(_,i)=>`<i style="left:${10+(i*53)%80}%;width:${10+(i*7)%20}px;height:${10+(i*7)%20}px;animation-delay:${(i%5)*.08}s;--dx:${(i%2?1:-1)*(12+i*4)}px"></i>`).join('')}</div>
     <div class="bro-cheer-card">${gbBro('gbz-bro')}<div class="gbz-bubble">${escapeHTML(title)}<small>${escapeHTML(sub)}</small></div></div>`;
   host.addEventListener('click', ()=>host.remove());
   document.body.appendChild(host);
   gbBroPose(host.querySelector('.gbz-bro'), pose);
-  setTimeout(()=>{ host.classList.add('out'); setTimeout(()=>host.remove(), 300); }, levelUp ? 2600 : 1800);
+  setTimeout(()=>{ host.classList.add('out'); setTimeout(()=>host.remove(), 300); }, levelUp || navrat ? 2600 : 1800);
 }
 
 // Kolo 7: trénink jde zahodit bez započítání (s možností Vrátit v hlášce)
@@ -3905,7 +3943,8 @@ function gbPraiseHTML(p){
   return `<div class="gbz gbz-praise">
     <div class="gbz-confetti">${Array.from({length:14},(_,i)=>`<i style="left:${(i*37)%100}%;width:${10+(i*7)%22}px;height:${10+(i*7)%22}px;animation-duration:${2.6+(i%5)*.5}s;animation-delay:${(i%6)*.15}s;--dx:${(i%2?1:-1)*(10+i*3)}px"></i>`).join('')}</div>
     <div class="gbz-stage" style="justify-content:center;">${gbBro('gbz-bro')}</div>
-    <h2 class="gbz-q" style="font-size:30px;text-align:center;">Trénink hotový!</h2>
+    <h2 class="gbz-q" style="font-size:30px;text-align:center;">${p.navrat?'Vítej zpátky!':'Trénink hotový!'}</h2>
+    ${p.navrat?`<div class="gbz-rec navrat-rec">🌱 Návrat po ${navratDnyTxt(p.navrat.pauza)} · ×${p.navrat.nasobek} XP a 🧊 navíc</div>`:''}<!-- Kolo 13 -->
     <p class="muted" style="text-align:center;margin:0 0 12px;">Tohle se počítá. Příště na řadě: ${GB_CAT_SHORT[gbNextCat(p.cat)]}.</p>
     <div class="gbz-stats"><div><b>+${p.xp}</b><span>XP</span></div><div><b>${p.done}</b><span>${nWord}${p.counter?' + vyrovnání':''}</span></div><div><b>${p.records.length}</b><span>nové váhy</span></div></div>
     ${p.records.map(r=>`<div class="gbz-rec">↑ ${escapeHTML(r.name)}: <b>${gbKg(r.kg)} kg × ${r.reps}</b></div>`).join('')}
@@ -3921,8 +3960,8 @@ function gbAfterWorkout(w, linked, xpBefore){
   const records = (last ? last.exercises : []).filter(x=>x.kg).map(x=>{
     const h = gbHistory(x.id); return (h[1] && x.kg > h[1].kg) ? {name:x.name, kg:x.kg, reps:x.reps} : null; }).filter(Boolean);
   const before = levelInfo(xpBefore);
-  haptic(levelInfo(totalXP()).level > before.level ? 'level' : 'workout'); // Kolo 12: ta-ta-TÁÁ
-  gbPraise = {cat:w.cat, xp: linked ? linked.act.xp : 0, done: w.exercises.filter(e=>e.done).length,
+  haptic(levelInfo(totalXP()).level > before.level || (linked && linked.navrat) ? 'level' : 'workout'); // Kolo 12: ta-ta-TÁÁ · Kolo 13: návrat = fanfára
+  gbPraise = {cat:w.cat, xp: linked ? (linked.xp||linked.act.xp) : 0, navrat: linked && linked.navrat || null, done: w.exercises.filter(e=>e.done).length,
     records, muscles: w.exercises.map(e=>e.muscle), fromProgress: before.level===levelInfo(totalXP()).level ? before.progress : 0, counter:false};
   gbScreen = gbAfterCounter ? 'counterOffer' : 'praise';
   window.scrollTo(0,0);
@@ -4180,7 +4219,7 @@ function finishGymbroWorkout(force){
   renderGymbroWorkout();
   renderGbLastWorkoutInfo();
   renderAll();
-  if(linked) showUndoToast('💪 '+linked.act.name+' · +'+linked.act.xp+' XP');
+  if(linked) showUndoToast('💪 '+linked.act.name+' · +'+(linked.xp||linked.act.xp)+' XP'); // Kolo 13
   else showToast('💪 Trénink zapsán do GymBro deníku');
 }
 
@@ -4733,7 +4772,7 @@ function renderHapticSetting(){
   const b = document.getElementById('haptic-toggle'); if(!b) return;
   const on = hapticZap(); b.textContent = on ? 'Zapnuto' : 'Vypnuto'; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false');
 }
-function renderAll(){ renderHapticSetting(); /* Kolo 12 */ renderDashboard(); renderPlans(); renderActivityGrid(); renderSheetGrid(); renderHistory(); renderStickerTray(); renderJournalList(); updateBackupStatus(); renderFavoritesList(); diskUkaz(); /* Kolo 10 */ }
+function renderAll(){ renderHapticSetting(); /* Kolo 12 */ renderNavrat(); /* Kolo 13 */ renderDashboard(); renderPlans(); renderActivityGrid(); renderSheetGrid(); renderHistory(); renderStickerTray(); renderJournalList(); updateBackupStatus(); renderFavoritesList(); diskUkaz(); /* Kolo 10 */ }
 function init(){ reconcileFreezes(); initBubbles(); initSuggestChips(); initGymbroChips(); renderAll(); renderGymbroWorkout(); initBackNav(); /* Kolo 8 */ diskOnSave(); /* Kolo 10 */ autoWeatherChip(); refreshWeather(); } // Kolo 3: cíl · Kolo 4: počasí
 document.addEventListener('DOMContentLoaded', init);
 
