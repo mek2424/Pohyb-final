@@ -216,9 +216,13 @@
 
   /* ---------- gymbro ---------- */
   .gb-cats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
-  .gb-ex-card.dragging{opacity:.5;}
+  /* Kolo 9: přetahování pořadí cviků — úchyt ⠿ vlevo, karta jede pod prstem, ostatní uhýbají */
+  .gb-ex-card.dragging{position:relative;z-index:20;transition:none!important;box-shadow:0 18px 34px -10px rgba(6,60,100,.45);opacity:1;}
+  .gb-ex-card.gb-shift{transition:transform .16s ease;}
   .gb-ex-card.drop-hover{outline:2.5px dashed var(--aqua);outline-offset:2px;}
   .gb-drag-handle{color:var(--ink-3);font-size:18px;user-select:none;-webkit-user-select:none;}
+  .gbw-card .gb-drag-handle{grid-row:span 2;align-self:stretch;display:flex;align-items:center;justify-content:center;width:26px;margin:-6px -6px -6px -4px;cursor:grab;touch-action:none;color:var(--ink-2);}
+  body.gb-dragging{user-select:none;-webkit-user-select:none;}
   .gb-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;padding-left:30px;}
   .gb-act{min-height:32px;padding:0 11px;border-radius:999px;border:1px solid rgba(10,120,198,.14);background:rgba(255,255,255,.85);font-size:12.5px;font-weight:700;color:var(--aqua-deep);display:inline-flex;align-items:center;gap:4px;}
   .gb-act:disabled{opacity:.35;}
@@ -274,7 +278,7 @@
   .gbw-head > div{flex:1;min-width:0;}
   .gbw-ttl{font-weight:800;font-size:19px;letter-spacing:-.01em;}
   .gbw-meta{font-size:13px;font-weight:700;color:var(--ink-2);}
-  .gbw-card{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 12px;align-items:center;}
+  .gbw-card{display:grid;grid-template-columns:auto auto minmax(0,1fr);gap:8px 12px;align-items:center;} /* Kolo 9: + sloupec pro úchyt */
   .gbw-card.done{opacity:.6;}
   .gbw-card .gb-check{grid-row:span 2;margin:0;}
   .gbw-name{all:unset;cursor:pointer;display:flex;align-items:center;gap:6px;min-width:0;font-weight:800;font-size:15.5px;color:var(--ink);}
@@ -3123,39 +3127,62 @@ function gbToggleDone(exId){
   if(ex) ex.done = !ex.done;
   renderGymbroWorkout();
 }
+// Kolo 9: přesune cvik z pozice from na pozici to (pořadí v tréninku)
+function gbMoveExercise(from, to){
+  if(!gbCurrentWorkout) return;
+  const arr = gbCurrentWorkout.exercises;
+  if(from===to || from<0 || to<0 || from>=arr.length || to>=arr.length) return;
+  const [item] = arr.splice(from,1);
+  arr.splice(to,0,item);
+}
 function gbReorderExercise(draggedId, targetId){
   if(!gbCurrentWorkout || draggedId===targetId) return;
   const arr = gbCurrentWorkout.exercises;
-  const fromIdx = arr.findIndex(e=>e.id===draggedId);
-  const toIdx = arr.findIndex(e=>e.id===targetId);
-  if(fromIdx===-1 || toIdx===-1) return;
-  const [item] = arr.splice(fromIdx,1);
-  arr.splice(toIdx,0,item);
+  gbMoveExercise(arr.findIndex(e=>e.id===draggedId), arr.findIndex(e=>e.id===targetId));
   renderGymbroWorkout();
 }
-function bindGbDrag(el, exId){
-  let dragging=false;
-  el.addEventListener('pointerdown', e=>{
-    dragging=true; try{ el.setPointerCapture(e.pointerId); }catch(err){}
-    el.classList.add('dragging'); e.preventDefault();
+// Kolo 9: táhnutí za úchyt ⠿ — karta jede s prstem, ostatní karty jí uhýbají, u okraje se stránka posouvá
+function bindGbDrag(handle, exId){
+  handle.addEventListener('pointerdown', e=>{
+    if(e.button>0 || !gbCurrentWorkout) return;
+    const card = handle.closest('.gb-ex-card'); if(!card) return;
+    const cards = [...card.parentElement.querySelectorAll(':scope > .gb-ex-card')];
+    const from = cards.indexOf(card); if(from<0) return;
+    e.preventDefault();
+    try{ handle.setPointerCapture(e.pointerId); }catch(err){}
+    const tops = cards.map(c=>c.getBoundingClientRect().top + window.scrollY);
+    const h = card.getBoundingClientRect().height;
+    const gap = cards.length>1 ? tops[1] - tops[0] - cards[0].offsetHeight : 0, step = h + gap;
+    const startY = e.clientY, startScroll = window.scrollY;
+    let to = from, lastY = e.clientY, raf = 0, ended = false;
+    card.classList.add('dragging'); document.body.classList.add('gb-dragging');
+    cards.forEach(c=>{ if(c!==card) c.classList.add('gb-shift'); });
+    const layout = ()=>{
+      const dy = lastY - startY + (window.scrollY - startScroll);
+      card.style.transform = `translateY(${dy}px)`;
+      const mid = tops[from] + dy + h/2;
+      let n = 0; cards.forEach((c,i)=>{ if(i!==from && tops[i] + c.offsetHeight/2 < mid) n++; });
+      to = n;
+      cards.forEach((c,i)=>{ if(c===card) return;
+        let s = 0; if(from<to && i>from && i<=to) s = -step; if(from>to && i<from && i>=to) s = step;
+        c.style.transform = s ? `translateY(${s}px)` : ''; });
+    };
+    const edge = ()=>{ raf = 0; if(ended) return;
+      const zone = 70, bottomGap = 150; let v = 0;
+      if(lastY < zone) v = -Math.ceil((zone-lastY)/6);
+      else if(lastY > window.innerHeight - bottomGap) v = Math.ceil((lastY-(window.innerHeight-bottomGap))/6);
+      if(v){ const before = window.scrollY; window.scrollBy(0, v); if(window.scrollY!==before){ layout(); raf = requestAnimationFrame(edge); } } };
+    const move = ev=>{ lastY = ev.clientY; layout(); if(!raf) raf = requestAnimationFrame(edge); };
+    const end = ev=>{ if(ended) return; ended = true;
+      handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', end); handle.removeEventListener('pointercancel', end);
+      if(raf) cancelAnimationFrame(raf);
+      document.body.classList.remove('gb-dragging');
+      if(ev.type==='pointerup' && to!==from) gbMoveExercise(from, to);
+      renderGymbroWorkout(); };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', end);
+    handle.addEventListener('pointercancel', end);
   });
-  el.addEventListener('pointermove', e=>{
-    if(!dragging) return;
-    document.querySelectorAll('.gb-ex-card').forEach(c=>c.classList.remove('drop-hover'));
-    const hovered = document.elementFromPoint(e.clientX, e.clientY);
-    const targetEl = hovered ? hovered.closest('.gb-ex-card') : null;
-    if(targetEl && targetEl!==el.closest('.gb-ex-card')) targetEl.classList.add('drop-hover');
-  });
-  el.addEventListener('pointerup', e=>{
-    if(!dragging) return;
-    dragging=false;
-    document.querySelectorAll('.gb-ex-card').forEach(c=>c.classList.remove('drop-hover'));
-    const hovered = document.elementFromPoint(e.clientX, e.clientY);
-    const targetEl = hovered ? hovered.closest('.gb-ex-card') : null;
-    if(targetEl && targetEl.dataset.exId) gbReorderExercise(exId, targetEl.dataset.exId);
-    else renderGymbroWorkout();
-  });
-  el.addEventListener('pointercancel', ()=>{ dragging=false; renderGymbroWorkout(); });
 }
 /* ================= Kolo 3: váhy u cviků (paměť, návrh na příště, cíl) ================= */
 // Zápis po cviku: váha + opakování v POSLEDNÍ sérii (nejunavenější — když dá horní hranici, dal ji všude).
@@ -3597,6 +3624,7 @@ function gbWorkoutHTML(w){
       <div class="gbw-meta">${w.env==='gym'?'🏋️':'🌳'} · ${GB_GOALS[gbGoal()]} · ${done} / ${w.exercises.length}</div></div>
       <button class="icon-btn" onclick="gbReroll()" aria-label="Jiná sestava" title="Jiná sestava"><svg class="ic"><use href="#i-refresh"/></svg></button></div>
     ${w.exercises.map(e=>`<div class="journal-entry gb-ex-card gbw-card ${e.done?'done':''}" data-ex-id="${e.id}">
+      <span class="gb-drag-handle" role="button" aria-label="Přesunout" title="Přesunout">⠿</span><!-- Kolo 9 -->
       <input type="checkbox" class="gb-check" ${e.done?'checked':''} onclick="event.stopPropagation();gbToggleDone('${e.id}')" aria-label="Hotovo">
       <button class="gbw-name" onclick="openGbExerciseModal('${e.id}')"><span>${e.key?'⭐ ':''}${escapeHTML(e.name)}</span><span class="gb-meta">${escapeHTML(gbEffectiveSets(e))}</span><b>›</b></button>
       <div class="gbw-row">${gbWeightChipHTML(e)}<button class="gb-act" onclick="gbSwapExercise('${e.id}')">↻ Vyměnit</button></div>
@@ -3697,6 +3725,7 @@ function renderGymbroWorkout(){
   if(gbScreen==='workout'){
     const w = gbCurrentWorkout;
     wrap.innerHTML = gbWorkoutHTML(w);
+    wrap.querySelectorAll('.gbw-card .gb-drag-handle').forEach(hd=>{ const c=hd.closest('.gb-ex-card'); if(c) bindGbDrag(hd, c.dataset.exId); }); // Kolo 9
     const n = w.exercises.filter(e=>e.done).length;
     gbBroPose(wrap.querySelector('.gbw-bro'), n===w.exercises.length ? ['arms-lift','face-wow'] : n ? ['arms-thumb','face-happy'] : ['arms-hips','face-happy'], false);
     return;
