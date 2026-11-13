@@ -107,6 +107,7 @@
   .sr-sub.disk-warn{color:#8A5200;font-weight:700;}
   .sr-sub.disk-ok{color:var(--leaf-deep);font-weight:700;}
   #disk-actions input{margin:10px 0 8px;}
+  .disk-auto{margin-top:12px;} .disk-auto > summary{font-size:13.5px;color:var(--ink-2);} /* Kolo 11 */
   .freeze-chip{display:inline-flex;align-items:center;gap:5px;font-weight:700;font-size:13.5px;color:#1584BE;background:rgba(255,255,255,.7);padding:4px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.95);box-shadow:inset 0 1px 0 #fff;}
   .streak-dots{display:flex;gap:4px;width:100%;}
   .dot{flex:1 1 0;min-width:0;max-width:24px;aspect-ratio:1/1;border-radius:50%;position:relative;}
@@ -517,7 +518,7 @@
         <p class="eyebrow" id="dash-date"></p>
         <h1 class="h1" id="dash-greeting">Ahoj</h1>
       </div></div>
-      <div class="tb-actions"><button class="disk-nudge" id="disk-nudge" hidden onclick="diskZalohujTed()" aria-label="Zálohovat na Disk">☁️ Záloha</button><!-- Kolo 10 -->
+      <div class="tb-actions"><button class="disk-nudge" id="disk-nudge" hidden onclick="diskSdilej()" aria-label="Zálohovat na Disk">☁️ Záloha</button><!-- Kolo 10 · Kolo 11: bez Client ID přes Sdílet -->
       <button class="icon-btn" onclick="goTo('settings')" aria-label="Nastavení"><svg class="ic"><use href="#i-gear"/></svg></button></div>
     </header>
 
@@ -2394,18 +2395,25 @@ function diskDniOdZalohy(){ const st = diskStav(); return st.kdy ? Math.floor((D
 function diskCas(ms){ const d = new Date(ms), dnes = todayStr(), den = formatDate(d), hm = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
   if(den===dnes) return 'dnes '+hm; const dd = daysBetween(den, dnes); return dd===1 ? 'včera '+hm : 'před '+dd+' dny'; }
 // stav: štítek na Domů + řádek v Nastavení
+// Kolo 11: bez Client ID se na Disk ukládá jako v Bombitu — nabídkou Sdílet (Android .json.txt)
+function diskPosledniZaloha(){ // nejnovější záloha jakoukoli cestou (Disk, Sdílet, Export) v ms, nebo null
+  const st = diskStav(); let t = Math.max(st.kdy||0, st.sdileno||0);
+  if(state.lastBackupAt){ const d = new Date(state.lastBackupAt+'T12:00:00').getTime(); if(d>t) t = d; }
+  return t || null;
+}
 function diskUkaz(){
   const nudge = document.getElementById('disk-nudge');
+  const api = diskNastaveny();
   if(nudge){
-    const dni = diskDniOdZalohy();
-    const ukaz = diskNastaveny() && (dni===null || dni>=DISK_PRIPOMENOUT_DNI);
+    const t = diskPosledniZaloha(), dni = t ? Math.floor((Date.now()-t)/86400000) : null;
+    const ukaz = (api || (state.logs||[]).length>0) && (dni===null || dni>=DISK_PRIPOMENOUT_DNI);
     nudge.hidden = !ukaz;
-    if(ukaz) diskPriprav();
+    if(ukaz && api) diskPriprav();
   }
   const el = document.getElementById('disk-status'); if(!el) return;
-  const cfg = diskCfg(), st = diskStav();
+  const st = diskStav();
   let txt, cls = '';
-  if(!cfg.clientId){ txt = 'Nepropojeno'; }
+  if(!api){ txt = st.sdileno ? 'Uloženo '+diskCas(st.sdileno) : 'Ještě neuloženo'; cls = st.sdileno ? 'ok' : ''; }
   else if(diskBezi){ txt = 'Ukládám…'; }
   else if(diskChybaPosl && !(st.kdy && !diskZmena())){ txt = diskChybaPosl; cls = 'warn'; }
   else if(!st.kdy){ txt = 'Ještě nezálohováno'; cls = 'warn'; }
@@ -2414,21 +2422,44 @@ function diskUkaz(){
   else { txt = 'Uloženo '+diskCas(st.kdy); cls = 'ok'; }
   el.textContent = txt; el.className = 'sr-sub disk-'+(cls||'none');
   const act = document.getElementById('disk-actions'); if(!act) return;
-  if(!cfg.clientId){
-    act.innerHTML = `<input type="text" id="disk-client-input" placeholder="Google Client ID" autocomplete="off"><div class="btn-row" style="margin-top:0"><button class="btn btn-leaf btn-sm" onclick="diskUlozClientId()">Uložit</button></div>`;
-    return;
-  }
-  if(!act.dataset.ready){
-    act.dataset.ready = '1';
-    act.innerHTML = `<div class="btn-row"><button class="btn btn-leaf btn-sm" id="disk-btn-now" onclick="diskZalohujTed()">☁️ Zálohovat teď</button><button class="btn btn-ghost btn-sm" onclick="diskObnovSeznam()">Obnovit z Disku</button></div><div id="disk-restore-wrap"></div>`;
+  const mode = api ? 'api' : 'share';
+  if(act.dataset.mode!==mode){
+    act.dataset.mode = mode;
+    act.innerHTML = api
+      ? `<div class="btn-row"><button class="btn btn-leaf btn-sm" id="disk-btn-now" onclick="diskZalohujTed()">☁️ Zálohovat teď</button><button class="btn btn-ghost btn-sm" onclick="diskObnovSeznam()">Obnovit z Disku</button></div><div id="disk-restore-wrap"></div>`
+      : `<div class="btn-row"><button class="btn btn-leaf btn-sm" id="disk-btn-share" onclick="diskSdilej()">☁️ Uložit na Google Disk</button></div>
+         <details class="fold disk-auto"><summary>Automatické zálohy</summary><input type="text" id="disk-client-input" placeholder="Google Client ID" autocomplete="off"><div class="btn-row" style="margin-top:0"><button class="btn btn-ghost btn-sm" onclick="diskUlozClientId()">Uložit</button></div></details>`;
   }
   const b = document.getElementById('disk-btn-now'); if(b) b.disabled = diskBezi;
+}
+function diskSdilTxt(){ try{ return /Android/i.test(navigator.userAgent) || localStorage.getItem('pohyb_sdil_txt')==='1'; }catch(e){ return false; } }
+function diskSdilSoubor(json, jmeno){
+  try{
+    if(!navigator.canShare || !matchMedia('(pointer:coarse)').matches) return null;
+    const ft = new File([json], jmeno+'.txt', {type:'text/plain'}), fj = new File([json], jmeno, {type:'application/json'});
+    for(const f of diskSdilTxt() ? [ft,fj] : [fj,ft]) if(navigator.canShare({files:[f]})) return f;
+  }catch(e){}
+  return null;
+}
+// Klepnutí: nabídka Sdílet → v ní Disk. Na počítači (bez sdílení) se záloha jen stáhne.
+function diskSdilej(){
+  if(diskNastaveny()){ diskZalohujTed(); return; }
+  const json = JSON.stringify(state, null, 2), file = diskSdilSoubor(json, 'pohyb-zaloha-'+todayStr()+'.json');
+  if(!file){ exportBackup(); diskUkaz(); return; }
+  navigator.share({files:[file], title:'Pohyb záloha'})
+    .then(()=>{ const st = diskStav(); st.sdileno = Date.now(); diskStavPis(st); state.lastBackupAt = todayStr(); saveState(); updateBackupStatus(); diskUkaz(); showToast('☁️ Záloha uložena'); })
+    .catch(err=>{
+      if(err && err.name==='AbortError') return;
+      if(err && err.name==='NotAllowedError' && !/\.txt$/.test(file.name)){ try{ localStorage.setItem('pohyb_sdil_txt','1'); }catch(e){}
+        const t = document.getElementById('toast'); t.innerHTML = '☁️ Disk soubor nepřijal <button class="toast-undo" onclick="diskSdilej()">Znovu</button>'; t.classList.add('show'); clearTimeout(window._toastTimer); window._toastTimer = setTimeout(()=>t.classList.remove('show'), 4200); return; }
+      showToast('☁️ Sdílení selhalo — použij Exportovat');
+    });
 }
 function diskUlozClientId(){
   const v = (document.getElementById('disk-client-input')||{}).value; const id = (v||'').trim();
   if(!/\.apps\.googleusercontent\.com$/.test(id)){ showToast('❌ Tohle nevypadá jako Client ID'); return; }
   try{ localStorage.setItem(DISK_CFG_KLIC, JSON.stringify({clientId:id})); }catch(e){}
-  diskGisP = null; diskTC = null; diskPriprav(); diskUkaz();
+  diskGisP = null; diskTC = null; diskPriprav(); diskUkaz(); diskOnSave();
   showToast('☁️ Google Disk propojen');
 }
 function diskDen(ds){ const d = daysBetween(ds, todayStr()); return d===0 ? 'Dnes' : d===1 ? 'Včera' : new Date(ds+'T00:00:00').toLocaleDateString('cs-CZ', {weekday:'short', day:'numeric', month:'numeric'}); }
