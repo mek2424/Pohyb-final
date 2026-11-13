@@ -107,6 +107,21 @@
   .sr-sub.disk-warn{color:#8A5200;font-weight:700;}
   .sr-sub.disk-ok{color:var(--leaf-deep);font-weight:700;}
   #disk-actions input{margin:10px 0 8px;}
+  /* Kolo 14: řada dní, splněné týdny */
+  .chips-14{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;}
+  .chips-14 .freeze-chip{padding:4px 9px;}
+  .rada-chip{color:#B4510A;} .tydny-chip{color:var(--leaf-deep);}
+  .week-row{display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid rgba(10,120,198,.08);}
+  .wk-days{display:flex;gap:4px;flex:1;min-width:0;}
+  .wk-days i{flex:1;min-width:0;text-align:center;font-style:normal;font-size:11.5px;font-weight:700;color:var(--ink-2);padding:3px 0;border-radius:8px;background:rgba(255,255,255,.5);}
+  .wk-days i.on{background:var(--leaf-soft);color:var(--leaf-deep);}
+  .wk-days i.rest{background:#EAF6FF;color:#2F6E9A;}
+  .wk-days i.today{box-shadow:0 0 0 1.5px var(--aqua);}
+  .wk-state{font-size:13px;font-weight:800;color:var(--ink-2);min-width:30px;text-align:center;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,.6);}
+  .wk-state.ok{background:var(--gloss-leaf);color:#fff;}
+  .rada-best{font-size:12px;font-weight:700;color:var(--ink-2);white-space:nowrap;}
+  .head-14{flex-wrap:wrap;row-gap:8px;} .head-14 .h2{white-space:nowrap;}
+  .rada-best:empty{display:none;}
   /* Kolo 13: návratový bonus */
   .navrat-card{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:end;gap:4px 8px;background:linear-gradient(170deg,rgba(236,252,241,.92),rgba(221,246,230,.7));}
   .navrat-card .gbz-bubble{margin-bottom:46px;}
@@ -545,13 +560,14 @@
     </div>
 
     <div class="glass">
-      <div class="card-head"><h2 class="h2">Posledních 14 dní</h2><span class="freeze-chip" title="zmrazení">🧊 <span id="freeze-count">0</span></span></div>
+      <div class="card-head head-14"><h2 class="h2">Posledních 14 dní</h2><div class="chips-14"><span class="freeze-chip rada-chip" id="rada-chip" title="řada dní">🔥 <span id="rada-count">0</span></span><span class="freeze-chip tydny-chip" title="splněné týdny v řadě">📅 <span id="tydny-count">0</span></span><span class="freeze-chip" title="zmrazení">🧊 <span id="freeze-count">0</span></span></div></div><!-- Kolo 14 -->
       <div class="streak-dots" id="streak-dots"></div>
       <div class="legend">
         <span><i style="background:#3DBB72"></i>aktivní</span>
         <span><i style="background:#A9D8F5"></i>odpočinek</span>
         <span><i style="background:#CFF1FD;box-shadow:inset 0 0 0 1px #8FD8F2"></i>zamrazeno</span>
       </div>
+      <div class="week-row" id="week-row"></div><!-- Kolo 14 -->
     </div>
 
     <div id="navrat-card"></div><!-- Kolo 13 -->
@@ -932,7 +948,77 @@ function saveState(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(stat
 /* ================= FREEZE / STREAK LOGIC ================= */
 function countActiveDaysTotal(){ return new Set(state.logs.map(l=>l.date)).size; }
 // Kolo 13: každý návrat po pauze přidá 1 zmrazení, i nad strop 3 (strop je pak 4)
-function freezesAvailable(){ const navraty=state.logs.filter(l=>l.navrat).length; const earned=Math.floor(countActiveDaysTotal()/5)+navraty; return Math.max(0, Math.min(navraty?4:3, earned-state.freezesUsed)); }
+// Kolo 14: +1 zmrazení i za každý splněný týden (stejně jako za návrat; strop je pak 4)
+function freezesAvailable(){ const extra=state.logs.filter(l=>l.navrat).length+state.logs.filter(l=>l.tyden).length; const earned=Math.floor(countActiveDaysTotal()/5)+extra; return Math.max(0, Math.min(extra?4:3, earned-state.freezesUsed)); }
+/* ================= Kolo 14: řada dní 🔥 a splněné týdny 📅 ================= */
+// Řada = dny pohybu v řadě. Zmrazení a odpočinek (nejvýš 2 dny v týdnu Po–Ne) ji drží, ale neprodlouží.
+// Den bez pohybu ji přeruší (dnešek až po jeho konci); začne znovu od 1, nejlepší řada zůstává.
+// Týden je splněný, když má aspoň 2 dny pohybu. Druhý den pohybu v týdnu = odměna: +20 XP, +1 zmrazení,
+// každý 4. splněný týden v řadě vzácná nálepka. Odměna patří k zápisu, takže ji Vrátit vrátí.
+const TYDEN_XP = 20, TYDEN_DNI = 2, ODPOCINEK_TYDNE = 2;
+const RARE_STICKERS = ['🏅','🏆','🌟','🎖️'];
+function pondeli(ds){ const d = new Date(ds+'T12:00:00'); d.setDate(d.getDate()-((d.getDay()+6)%7)); return formatDate(d); }
+function posunDen(ds, n){ const d = new Date(ds+'T12:00:00'); d.setDate(d.getDate()+n); return formatDate(d); }
+// odpočinek drží řadu jen první 2 dny v týdnu
+function odpocinekPlati(ds){
+  if(!state.restDays.includes(ds)) return false;
+  const po = pondeli(ds);
+  return state.restDays.filter(x=>pondeli(x)===po && x<ds).length < ODPOCINEK_TYDNE;
+}
+function aktivniDnyTydne(po){ const ne = posunDen(po, 6); return new Set(state.logs.filter(l=>l.date>=po && l.date<=ne).map(l=>l.date)).size; }
+function radaInfo(){
+  const aktivni = new Set(state.logs.map(l=>l.date)), zmraz = new Set(state.frozenDays), today = todayStr();
+  if(!aktivni.size) return {cur:0, best:0};
+  let ds = [...aktivni].sort()[0], cur = 0, best = 0, g = 0;
+  while(ds<=today && g<4000){
+    if(aktivni.has(ds)) cur++;
+    else if(zmraz.has(ds) || odpocinekPlati(ds) || ds===today){ /* drží */ }
+    else cur = 0;
+    if(cur>best) best = cur;
+    ds = posunDen(ds, 1); g++;
+  }
+  return {cur, best};
+}
+function radaTydnu(){
+  let po = pondeli(todayStr()), n = aktivniDnyTydne(po)>=TYDEN_DNI ? 1 : 0, g = 0; // rozběhnutý týden řadu nepřeruší
+  po = posunDen(po, -7);
+  while(g<520 && aktivniDnyTydne(po)>=TYDEN_DNI){ n++; po = posunDen(po, -7); g++; }
+  return n;
+}
+// volá se při zápisu: before = stav před zápisem; vrátí odměny pro oslavu (a upraví entry)
+function odmenyZapisu(entry, before){
+  const po = pondeli(entry.date), odm = {};
+  if(before.tyden < TYDEN_DNI && aktivniDnyTydne(po) >= TYDEN_DNI){
+    entry.tyden = true; entry.xp += TYDEN_XP; odm.tyden = true;
+    const tydnu = radaTydnu(); odm.tydnu = tydnu;
+    if(tydnu>0 && tydnu%4===0){
+      const st = {id:'s'+Date.now()+Math.random().toString(36).slice(2,6), emoji:RARE_STICKERS[Math.floor(tydnu/4-1)%RARE_STICKERS.length], label:tydnu+' týdnů v pohybu'};
+      state.stickers.push(st); entry.tydenNalepka = st.id; odm.nalepka = st;
+    }
+  }
+  const r = radaInfo().cur;
+  if(r>before.rada && r%7===0) odm.rada = r;
+  return odm;
+}
+function predZapisem(){ return {tyden:aktivniDnyTydne(pondeli(todayStr())), rada:radaInfo().cur}; }
+function odmenyTxt(o){
+  const p = [];
+  if(o && o.tyden) p.push('✓ Týden splněn · +'+TYDEN_XP+' XP a 🧊'+(o.nalepka?' a nálepka '+o.nalepka.emoji:''));
+  if(o && o.rada) p.push('🔥 '+o.rada+' dní v řadě');
+  return p;
+}
+function renderTyden(){
+  const el = document.getElementById('week-row'); if(!el) return;
+  const po = pondeli(todayStr()), today = todayStr(), r = radaInfo(), n = aktivniDnyTydne(po), w = radaTydnu();
+  const dny = ['Po','Út','St','Čt','Pá','So','Ne'].map((x,i)=>{ const ds = posunDen(po,i);
+    const c = state.logs.some(l=>l.date===ds) ? 'on' : (state.restDays.includes(ds) ? 'rest' : '');
+    return `<i class="${c}${ds===today?' today':''}">${x}</i>`; }).join('');
+  el.innerHTML = `<div class="wk-days">${dny}</div><span class="rada-best" id="rada-best"></span><span class="wk-state${n>=TYDEN_DNI?' ok':''}">${n>=TYDEN_DNI?'✓':n+'/'+TYDEN_DNI}</span>`;
+  const rc = document.getElementById('rada-count'); if(rc) rc.textContent = r.cur;
+  const rb = document.getElementById('rada-chip'); if(rb) rb.title = 'řada dní · nejlepší '+r.best;
+  const best = document.getElementById('rada-best'); if(best) best.textContent = r.best>r.cur ? 'nej '+r.best : '';
+  const wc = document.getElementById('tydny-count'); if(wc) wc.textContent = w;
+}
 /* ================= Kolo 13: návratový bonus po pauze ================= */
 // Pauza = celé dny bez zápisu pohybu mezi posledním zápisem a dneškem (odpočinek i zmrazení se počítají do pauzy).
 // První zápis dne po pauze 3–13 dní = ×2 XP, po 14+ dnech ×3 XP, k tomu +1 zmrazení. Vrátit vrací i bonus (je součástí zápisu).
@@ -961,12 +1047,12 @@ function reconcileFreezes(){
   while(formatDate(cursor) < today && guard<60){
     const ds = formatDate(cursor);
     const hasLog = state.logs.some(l=>l.date===ds);
-    const isRest = state.restDays.includes(ds);
+    const isRest = odpocinekPlati(ds); // Kolo 14: třetí a další odpočinek v týdnu se chová jako den bez pohybu
     if(!hasLog && !isRest && !state.frozenDays.includes(ds) && freezesAvailable()>0){ state.frozenDays.push(ds); state.freezesUsed++; }
     cursor.setDate(cursor.getDate()+1); guard++;
   }
   state.lastReconciled = today;
-  const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-45);
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-400); // Kolo 14: delší paměť kvůli řadě (dřív 45 dní)
   const cutoffStr = formatDate(cutoff);
   state.restDays = state.restDays.filter(d=>d>=cutoffStr);
   state.frozenDays = state.frozenDays.filter(d=>d>=cutoffStr);
@@ -978,7 +1064,7 @@ function getDayStatuses(n){
   for(let i=n-1;i>=0;i--){
     const d=new Date(today); d.setDate(d.getDate()-i); const ds=formatDate(d);
     const hasLog=state.logs.some(l=>l.date===ds), isRest=state.restDays.includes(ds), isFrozen=state.frozenDays.includes(ds);
-    let status='empty'; if(hasLog) status='active'; else if(isRest) status='rest'; else if(isFrozen) status='frozen';
+    let status='empty'; if(hasLog) status='active'; else if(isFrozen) status='frozen'; else if(isRest) status='rest'; // Kolo 14: zmrazený odpočinek navíc je led
     out.push({date:ds, status, isToday:i===0});
   }
   return out;
@@ -995,15 +1081,17 @@ function logActivity(activityId){
   const oldXP = totalXP();
   const date=todayStr(), time=nowTimeStr(), logId='l'+Date.now();
   const nb = navratBonus(); // Kolo 13
+  const pred = predZapisem(); // Kolo 14
   const entry = {id:logId, activityId, date, time, xp:act.xp*(nb?nb.nasobek:1)};
   if(nb){ entry.navrat = nb.pauza; entry.nasobek = nb.nasobek; }
   state.logs.push(entry);
+  const odm = odmenyZapisu(entry, pred); // Kolo 14: splněný týden, řada
   if(state.plans) state.plans = state.plans.filter(p=>!(p.activityId===activityId && p.date===date)); // Kolo 5: splněný plán zmizí
   state.lastAction = {type:'log', logId, date, label:act.icon+' '+act.name};
   checkLevelStickers(oldXP, totalXP());
   saveState();
-  gbCelebrate(act, oldXP, nb ? {xp:entry.xp, pauza:nb.pauza, nasobek:nb.nasobek} : null); // Kolo 7: oslava s GymBrem · Kolo 13: návrat
-  haptic(levelInfo(totalXP()).level > levelInfo(oldXP).level || nb ? 'level' : 'log'); // Kolo 12 · Kolo 13: návrat = fanfára
+  gbCelebrate(act, oldXP, nb ? {xp:entry.xp, pauza:nb.pauza, nasobek:nb.nasobek} : null, odm); // Kolo 7: oslava s GymBrem · Kolo 13: návrat · Kolo 14: týden, řada
+  haptic(levelInfo(totalXP()).level > levelInfo(oldXP).level || nb || odm.tyden || odm.rada ? 'level' : 'log'); // Kolo 12 · Kolo 13–14: velké odměny = fanfára
   sendDiscordWebhook(act.icon+' **'+act.name+'** — +'+entry.xp+' XP'+(nb?' (🌱 návrat po '+navratDnyTxt(nb.pauza)+')':'')+' (level '+levelInfo(totalXP()).level+')');
   showUndoToast('✓ '+act.name+'  +'+entry.xp+' XP');
   renderAll();
@@ -1052,19 +1140,23 @@ function logGymbroToPohyb(env, gbLogId){
   const oldXP = totalXP();
   const logId = 'l'+Date.now();
   const nb = navratBonus(); // Kolo 13
+  const pred = predZapisem(); // Kolo 14
   const entry = {id:logId, activityId:act.id, date:todayStr(), time:nowTimeStr(), xp:act.xp*(nb?nb.nasobek:1), gbLogId};
   if(nb){ entry.navrat = nb.pauza; entry.nasobek = nb.nasobek; }
   state.logs.push(entry);
+  const odm = odmenyZapisu(entry, pred); // Kolo 14
   state.lastAction = {type:'log', logId, date:todayStr(), label:act.icon+' '+act.name, gbLogId};
   checkLevelStickers(oldXP, totalXP());
   sendDiscordWebhook(act.icon+' **'+act.name+'** (GymBro) — +'+entry.xp+' XP'+(nb?' (🌱 návrat po '+navratDnyTxt(nb.pauza)+')':'')+' (level '+levelInfo(totalXP()).level+')');
-  return {logId, act, xp:entry.xp, navrat:nb};
+  return {logId, act, xp:entry.xp, navrat:nb, odm};
 }
 
 function undoLast(){
   const a = state.lastAction;
   if(!a){ showToast('Není co vracet'); return; }
   if(a.type==='log'){
+    const zl = state.logs.find(l=>l.id===a.logId); // Kolo 14: s zápisem zmizí i nálepka za splněný týden
+    if(zl && zl.tydenNalepka) state.stickers = state.stickers.filter(s=>s.id!==zl.tydenNalepka);
     state.logs=state.logs.filter(l=>l.id!==a.logId);
     if(a.gbLogId){ state.gymbroLog = state.gymbroLog.filter(l=>l.id!==a.gbLogId); renderGbLastWorkoutInfo(); } // Kolo 2: vrátí i záznam v GymBro
   }
@@ -1981,7 +2073,7 @@ function renderDashboard(){
   const dotsEl=document.getElementById('streak-dots');
   dotsEl.innerHTML = statuses.map(s=>`<div class="dot ${s.status}${s.isToday?' today':''}" title="${s.date}"></div>`).join('');
 
-  const activeDays=statuses.filter(s=>s.status!=='empty').length;
+  const activeDays=statuses.filter(s=>s.status==='active').length; // Kolo 14: jen skutečný pohyb
   document.getElementById('dash-subline').textContent = state.logs.length===0
     ? 'Zatím žádná historie — zapiš první pohyb zeleným +.' : activeDays+' ze 14 dní v pohybu.';
 
@@ -3743,24 +3835,27 @@ function initBackNav(){
 /* ================= Kolo 7: oslavy dělá GymBro (Giphy a jiskřičky zrušené) ================= */
 const BRO_CHEERS = ['Paráda!', 'Tak se to dělá!', 'Jedeš!', 'Mašina!', 'Každý pohyb se počítá!'];
 const BRO_CHEER_POSES = [['arms-flex','face-happy'], ['arms-thumb','face-happy'], ['arms-lift','face-wow'], ['arms-flex','face-wow']];
-function gbCelebrate(act, oldXP, navrat){
+function gbCelebrate(act, oldXP, navrat, odm){
   const before = levelInfo(oldXP), now = levelInfo(totalXP());
   const levelUp = now.level > before.level;
   const sticker = levelUp && [...Array(now.level-before.level)].some((_,i)=>(before.level+1+i)%5===0);
   // Kolo 13: návrat po pauze má vlastní oslavu (level má přednost v titulku, bonus zůstane v podtitulku)
-  const title = levelUp ? 'Level '+now.level+'!' : navrat ? 'Vítej zpátky!' : BRO_CHEERS[Math.floor(Math.random()*BRO_CHEERS.length)];
+  const odmT = odmenyTxt(odm); // Kolo 14
+  const title = levelUp ? 'Level '+now.level+'!' : navrat ? 'Vítej zpátky!' : odm && odm.tyden ? 'Týden splněn!' : odm && odm.rada ? odm.rada+' dní v řadě!' : BRO_CHEERS[Math.floor(Math.random()*BRO_CHEERS.length)];
   const navratSub = navrat ? '🌱 '+act.name+' · +'+navrat.xp+' XP (×'+navrat.nasobek+') a 🧊 navíc' : '';
   const sub = levelUp ? (navrat ? navratSub : sticker ? 'Nový level a k tomu nálepka do Deníku 🫧' : 'Nový level. Pokračuj.') : navrat ? navratSub : act.icon+' '+act.name+' · +'+act.xp+' XP';
-  const pose = levelUp || navrat ? ['arms-lift','face-wow'] : BRO_CHEER_POSES[Math.floor(Math.random()*BRO_CHEER_POSES.length)];
+  const velka = levelUp || navrat || odmT.length; // Kolo 14
+  const sub2 = odmT.length ? (levelUp || navrat ? sub+' · ' : '')+odmT.join(' · ') : sub;
+  const pose = velka ? ['arms-lift','face-wow'] : BRO_CHEER_POSES[Math.floor(Math.random()*BRO_CHEER_POSES.length)];
   document.querySelectorAll('.bro-cheer').forEach(x=>x.remove());
   const host = document.createElement('div');
-  host.className = 'bro-cheer' + (levelUp || navrat ? ' big' : '');
+  host.className = 'bro-cheer' + (velka ? ' big' : '');
   host.innerHTML = `<div class="bro-cheer-bubbles">${Array.from({length:levelUp?14:8},(_,i)=>`<i style="left:${10+(i*53)%80}%;width:${10+(i*7)%20}px;height:${10+(i*7)%20}px;animation-delay:${(i%5)*.08}s;--dx:${(i%2?1:-1)*(12+i*4)}px"></i>`).join('')}</div>
-    <div class="bro-cheer-card">${gbBro('gbz-bro')}<div class="gbz-bubble">${escapeHTML(title)}<small>${escapeHTML(sub)}</small></div></div>`;
+    <div class="bro-cheer-card">${gbBro('gbz-bro')}<div class="gbz-bubble">${escapeHTML(title)}<small>${escapeHTML(sub2)}</small></div></div>`;
   host.addEventListener('click', ()=>host.remove());
   document.body.appendChild(host);
   gbBroPose(host.querySelector('.gbz-bro'), pose);
-  setTimeout(()=>{ host.classList.add('out'); setTimeout(()=>host.remove(), 300); }, levelUp || navrat ? 2600 : 1800);
+  setTimeout(()=>{ host.classList.add('out'); setTimeout(()=>host.remove(), 300); }, velka ? 2600 : 1800);
 }
 
 // Kolo 7: trénink jde zahodit bez započítání (s možností Vrátit v hlášce)
@@ -3945,6 +4040,7 @@ function gbPraiseHTML(p){
     <div class="gbz-stage" style="justify-content:center;">${gbBro('gbz-bro')}</div>
     <h2 class="gbz-q" style="font-size:30px;text-align:center;">${p.navrat?'Vítej zpátky!':'Trénink hotový!'}</h2>
     ${p.navrat?`<div class="gbz-rec navrat-rec">🌱 Návrat po ${navratDnyTxt(p.navrat.pauza)} · ×${p.navrat.nasobek} XP a 🧊 navíc</div>`:''}<!-- Kolo 13 -->
+    ${odmenyTxt(p.odm).map(x=>`<div class="gbz-rec navrat-rec">${x}</div>`).join('')}<!-- Kolo 14 -->
     <p class="muted" style="text-align:center;margin:0 0 12px;">Tohle se počítá. Příště na řadě: ${GB_CAT_SHORT[gbNextCat(p.cat)]}.</p>
     <div class="gbz-stats"><div><b>+${p.xp}</b><span>XP</span></div><div><b>${p.done}</b><span>${nWord}${p.counter?' + vyrovnání':''}</span></div><div><b>${p.records.length}</b><span>nové váhy</span></div></div>
     ${p.records.map(r=>`<div class="gbz-rec">↑ ${escapeHTML(r.name)}: <b>${gbKg(r.kg)} kg × ${r.reps}</b></div>`).join('')}
@@ -3960,8 +4056,9 @@ function gbAfterWorkout(w, linked, xpBefore){
   const records = (last ? last.exercises : []).filter(x=>x.kg).map(x=>{
     const h = gbHistory(x.id); return (h[1] && x.kg > h[1].kg) ? {name:x.name, kg:x.kg, reps:x.reps} : null; }).filter(Boolean);
   const before = levelInfo(xpBefore);
-  haptic(levelInfo(totalXP()).level > before.level || (linked && linked.navrat) ? 'level' : 'workout'); // Kolo 12: ta-ta-TÁÁ · Kolo 13: návrat = fanfára
-  gbPraise = {cat:w.cat, xp: linked ? (linked.xp||linked.act.xp) : 0, navrat: linked && linked.navrat || null, done: w.exercises.filter(e=>e.done).length,
+  const odm = linked && linked.odm || {}; // Kolo 14
+  haptic(levelInfo(totalXP()).level > before.level || (linked && linked.navrat) || odm.tyden || odm.rada ? 'level' : 'workout'); // Kolo 12: ta-ta-TÁÁ · Kolo 13–14: velké odměny = fanfára
+  gbPraise = {cat:w.cat, xp: linked ? (linked.xp||linked.act.xp) : 0, navrat: linked && linked.navrat || null, odm, done: w.exercises.filter(e=>e.done).length,
     records, muscles: w.exercises.map(e=>e.muscle), fromProgress: before.level===levelInfo(totalXP()).level ? before.progress : 0, counter:false};
   gbScreen = gbAfterCounter ? 'counterOffer' : 'praise';
   window.scrollTo(0,0);
@@ -4772,7 +4869,7 @@ function renderHapticSetting(){
   const b = document.getElementById('haptic-toggle'); if(!b) return;
   const on = hapticZap(); b.textContent = on ? 'Zapnuto' : 'Vypnuto'; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false');
 }
-function renderAll(){ renderHapticSetting(); /* Kolo 12 */ renderNavrat(); /* Kolo 13 */ renderDashboard(); renderPlans(); renderActivityGrid(); renderSheetGrid(); renderHistory(); renderStickerTray(); renderJournalList(); updateBackupStatus(); renderFavoritesList(); diskUkaz(); /* Kolo 10 */ }
+function renderAll(){ renderHapticSetting(); /* Kolo 12 */ renderNavrat(); /* Kolo 13 */ renderDashboard(); renderTyden(); /* Kolo 14 */ renderPlans(); renderActivityGrid(); renderSheetGrid(); renderHistory(); renderStickerTray(); renderJournalList(); updateBackupStatus(); renderFavoritesList(); diskUkaz(); /* Kolo 10 */ }
 function init(){ reconcileFreezes(); initBubbles(); initSuggestChips(); initGymbroChips(); renderAll(); renderGymbroWorkout(); initBackNav(); /* Kolo 8 */ diskOnSave(); /* Kolo 10 */ autoWeatherChip(); refreshWeather(); } // Kolo 3: cíl · Kolo 4: počasí
 document.addEventListener('DOMContentLoaded', init);
 
