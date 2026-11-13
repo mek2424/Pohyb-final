@@ -266,7 +266,7 @@
   input[type=text],input[type=number],input[type=date],input[type=time],select{width:100%;min-height:46px;padding:10px 14px;border-radius:var(--r-sm);border:1px solid rgba(10,120,198,.14);background:rgba(255,255,255,.85);font-family:inherit;font-size:15px;font-weight:500;color:var(--ink);margin-bottom:10px;box-shadow:inset 0 1px 3px rgba(6,60,100,.06);}
   input:focus,select:focus,textarea:focus{outline:none;border-color:var(--aqua);box-shadow:0 0 0 3px rgba(26,163,232,.2);}
   #undo-banner:empty{display:none;}
-  #undo-banner{margin-top:6px;text-align:center;}
+  #undo-banner{margin-top:8px;display:flex;justify-content:center;} /* Kolo 2 */
   .weather-caption{font-size:13.5px;font-weight:600;color:var(--aqua-deep);margin:8px 2px 4px;min-height:18px;}
   .location-note{font-size:12.5px;color:var(--ink-2);margin-top:8px;text-align:center;line-height:1.45;}
   .loc-picker-row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
@@ -471,7 +471,7 @@
         <button class="icon-btn" onclick="gbOpenManageModal()" aria-label="Cviky a žebříčky" title="Cviky a žebříčky"><svg class="ic"><use href="#i-sliders"/></svg></button>
       </div>
     </header>
-    <p class="muted" style="margin:-6px 4px 12px;">Parťák na trénink. Do XP se počítá přes zápis „Posilovna“.</p>
+
     <div id="gb-last-workout-info"></div>
 
     <div class="glass">
@@ -593,6 +593,14 @@
     <div class="btn-row" style="margin-top:14px;">
       <button class="btn btn-ghost" onclick="closeLogSheet();markRestDay()">😌 Dnes odpočívám</button>
     </div>
+  </div>
+</div>
+
+<!-- Kolo 2: potvrzení zápisu -->
+<div class="modal-backdrop" id="log-confirm-modal" style="z-index:320;" onclick="if(event.target===this)closeLogConfirm()">
+  <div class="glass modal-card">
+    <div class="idea" id="log-confirm-head"></div>
+    <div class="btn-row" id="log-confirm-actions" style="margin-top:18px;"></div>
   </div>
 </div>
 
@@ -772,10 +780,57 @@ function markRestDay(){
   else { showToast('Dnešek už je odpočinkový'); }
   renderAll();
 }
+/* ---- Kolo 2: potvrzení zápisu (proti ukliknutí); u Posilovny/Kalisteniky volba „Jdu cvičit“ → GymBro ---- */
+const GB_ACTIVITY_ENV = {gym:'gym', calisthenics:'outdoor'};
+let pendingLogId = null;
+function askLog(activityId){
+  const act = state.activities.find(a=>a.id===activityId);
+  if(!act) return;
+  pendingLogId = activityId;
+  const env = GB_ACTIVITY_ENV[activityId];
+  document.getElementById('log-confirm-head').innerHTML = `<div class="sugg-icon" style="width:64px;height:64px;font-size:34px;border-radius:20px;">${act.icon}</div>
+    <div class="sugg-info"><div class="name" style="font-size:19px;">${escapeHTML(act.name)}</div><div class="meta">+${act.xp} XP</div></div>`;
+  document.getElementById('log-confirm-actions').innerHTML = env
+    ? `<button class="btn btn-leaf" onclick="confirmLog()">✓ Mám hotovo</button>
+       <button class="btn btn-primary" onclick="startGymbroFrom('${env}')">💪 Jdu cvičit</button>
+       <button class="btn btn-ghost btn-sm" onclick="closeLogConfirm()">Zrušit</button>`
+    : `<button class="btn btn-leaf" onclick="confirmLog()">✓ Zapsat</button>
+       <button class="btn btn-ghost btn-sm" onclick="closeLogConfirm()">Zrušit</button>`;
+  document.getElementById('log-confirm-modal').classList.add('show');
+}
+function closeLogConfirm(){ document.getElementById('log-confirm-modal').classList.remove('show'); pendingLogId = null; }
+function confirmLog(){ const id = pendingLogId; closeLogConfirm(); closeLogSheet(); if(id) logActivity(id); }
+function startGymbroFrom(env){
+  closeLogConfirm();
+  closeLogSheet();
+  if(gbCurrentEnv !== env){ gbCurrentEnv = env; gbCurrentWorkout = null; renderGymbroWorkout(); }
+  selectChip('gb-env-chips', env);
+  goTo('gymbro');
+}
+// Kolo 2: GymBro „Odcvičeno“ se rovnou zapíše jako aktivita (bez oslavy navíc — po tréninku je vlastní okno)
+function gbActivityForEnv(env){
+  const want = env==='outdoor' ? 'calisthenics' : 'gym';
+  return state.activities.find(a=>a.id===want) || state.activities.find(a=>a.id==='explore') || null;
+}
+function logGymbroToPohyb(env, gbLogId){
+  const act = gbActivityForEnv(env);
+  if(!act) return null;
+  const oldXP = totalXP();
+  const logId = 'l'+Date.now();
+  state.logs.push({id:logId, activityId:act.id, date:todayStr(), time:nowTimeStr(), xp:act.xp, gbLogId});
+  state.lastAction = {type:'log', logId, date:todayStr(), label:act.icon+' '+act.name, gbLogId};
+  checkLevelStickers(oldXP, totalXP());
+  sendDiscordWebhook(act.icon+' **'+act.name+'** (GymBro) — +'+act.xp+' XP (level '+levelInfo(totalXP()).level+')');
+  return {logId, act};
+}
+
 function undoLast(){
   const a = state.lastAction;
   if(!a){ showToast('Není co vracet'); return; }
-  if(a.type==='log'){ state.logs=state.logs.filter(l=>l.id!==a.logId); }
+  if(a.type==='log'){
+    state.logs=state.logs.filter(l=>l.id!==a.logId);
+    if(a.gbLogId){ state.gymbroLog = state.gymbroLog.filter(l=>l.id!==a.gbLogId); renderGbLastWorkoutInfo(); } // Kolo 2: vrátí i záznam v GymBro
+  }
   else if(a.type==='rest'){ state.restDays=state.restDays.filter(d=>d!==a.date); }
   state.lastAction=null; saveState(); showToast('↩ Vráceno: '+(a.label||'')); renderAll();
 }
@@ -858,7 +913,7 @@ function createAndUseActivity(name, icon, sportTag, placeKind, mode, dateStr, ti
     showToast('✨ '+icon+' '+name+' přidáno mezi aktivity');
   }
   if(mode==='plan'){ planActivity(act.id, dateStr, timeVal); }
-  else { logActivity(act.id); }
+  else { askLog(act.id); } // Kolo 2
 }
 function bestActivityForKind(kind){
   const matches = state.activities.filter(a=>(a.placeTags||[]).includes(kind));
@@ -971,7 +1026,7 @@ async function runLocationSuggestGeneric(resultsElId, mode, dateStr, timeVal){
         const distTxt = f.dist<1000 ? Math.round(f.dist)+' m' : (f.dist/1000).toFixed(1)+' km';
         const btn = mode==='plan'
           ? `<button class="sugg-go plan-btn" onclick="planActivity('${f.activityId}','${dateStr}','${timeVal}')">📅 Přidat</button>`
-          : `<button class="sugg-go" onclick="logActivity('${f.activityId}')">Beru</button>`;
+          : `<button class="sugg-go" onclick="askLog('${f.activityId}')">Beru</button>`;
         return `<div class="sugg-card"><div class="sugg-icon">${act?act.icon:f.icon}</div>
           <div class="sugg-info"><div class="name">${escapeHTML(f.name)} <span style="font-size:11px;">⭐</span></div><div class="meta">${distTxt}</div></div>
           ${btn}</div>`;
@@ -1049,7 +1104,7 @@ async function runLocationSuggestGeneric(resultsElId, mode, dateStr, timeVal){
           : (act
               ? (mode==='plan'
                   ? `<button class="sugg-go plan-btn" onclick="planActivity('${act.id}','${dateStr}','${timeVal}')">📅 Přidat</button>`
-                  : `<button class="sugg-go" onclick="logActivity('${act.id}')">Beru</button>`)
+                  : `<button class="sugg-go" onclick="askLog('${act.id}')">Beru</button>`)
               : '');
         if(!isNew && !act) return '';
         return `<div class="sugg-card"><div class="sugg-icon">${cardIcon}</div>
@@ -1348,7 +1403,7 @@ function openLogSheet(){
   document.getElementById('log-sheet').classList.add('show');
 }
 function closeLogSheet(){ document.getElementById('log-sheet').classList.remove('show'); }
-function logFromSheet(activityId){ closeLogSheet(); logActivity(activityId); }
+function logFromSheet(activityId){ askLog(activityId); } // Kolo 2: panel zůstane otevřený pod potvrzením
 function lastDoneText(d){ return d===999 ? 'ještě nikdy' : (d===0 ? 'dnes' : (d===1 ? 'včera' : 'před '+d+' dny')); }
 function renderSheetGrid(){
   const grid = document.getElementById('sheet-grid');
@@ -1388,7 +1443,7 @@ function renderTodayIdea(){
   el.innerHTML = `<div class="idea"><div class="sugg-icon">${a.icon}</div>
       <div class="sugg-info"><div class="name" style="font-size:17px;">${escapeHTML(a.name)}</div><div class="meta">${why} · od ${a.minMinutes} min · +${a.xp} XP</div></div></div>
     <div class="idea-actions">
-      <button class="btn btn-leaf" onclick="logActivity('${a.id}')">Hotovo, zapsat</button>
+      <button class="btn btn-leaf" onclick="askLog('${a.id}')">Beru</button>
       <button class="icon-btn" onclick="nextTodayIdea()" aria-label="Jiný nápad" title="Jiný nápad"><svg class="ic"><use href="#i-refresh"/></svg></button>
     </div>`;
 }
@@ -1448,13 +1503,14 @@ function renderDashboard(){
     ? 'Zatím žádná historie — zapiš první pohyb zeleným +.' : activeDays+' ze 14 dní v pohybu.';
 
   const quickEl = document.getElementById('quick-log');
-  quickEl.innerHTML = activitiesByUsage().slice(0,6).map(a=>`<button class="quick" onclick="logActivity('${a.id}')"><span class="q-ic">${a.icon}</span><span class="q-name">${escapeHTML(a.name)}</span></button>`).join('')
+  quickEl.innerHTML = activitiesByUsage().slice(0,6).map(a=>`<button class="quick" onclick="askLog('${a.id}')"><span class="q-ic">${a.icon}</span><span class="q-name">${escapeHTML(a.name)}</span></button>`).join('')
     + `<button class="quick more" onclick="openLogSheet()"><span class="q-ic" style="font-size:22px;">＋</span><span class="q-name">Další</span></button>`;
 
   renderTodayIdea();
 
   const undoBanner=document.getElementById('undo-banner');
-  undoBanner.innerHTML = (state.lastAction && state.lastAction.date===today) ? `<button class="link-btn" onclick="undoLast()">↩ Vrátit poslední: ${escapeHTML(state.lastAction.label||'')}</button>` : '';
+  // Kolo 2: vrácení posledního zápisu jako tlačítko (ikona + co se vrací)
+  undoBanner.innerHTML = (state.lastAction && state.lastAction.date===today) ? `<button class="btn btn-ghost btn-sm" onclick="undoLast()" aria-label="Vrátit poslední zápis"><svg class="ic sm"><use href="#i-undo"/></svg> ${escapeHTML(state.lastAction.label||'')}</button>` : '';
 }
 
 function renderActivityGrid(){
@@ -1587,7 +1643,7 @@ function runSuggest(){
     const d=lastDoneDays(a.id); const lastTxt=d===999?'ještě nikdy':(d===0?'dnes':('před '+d+' dny'));
     return `<div class="sugg-card"><div class="sugg-icon">${a.icon}</div>
       <div class="sugg-info"><div class="name">${escapeHTML(a.name)}</div><div class="meta">min. ${a.minMinutes} min · +${a.xp} XP · naposledy ${lastTxt}</div></div>
-      <button class="sugg-go" onclick="logActivity('${a.id}')">Beru</button></div>`;
+      <button class="sugg-go" onclick="askLog('${a.id}')">Beru</button></div>`;
   }).join('') + '<button class="btn btn-ghost btn-sm" style="margin-top:4px;" onclick="runSuggest()">🔄 Jiné nápady</button>';
 }
 
@@ -2515,6 +2571,7 @@ function gbUndo(){
     }
   } else if(action.type==='finish'){
     state.gymbroLog = state.gymbroLog.filter(l=>l.id!==action.logId);
+    if(action.pohybLogId){ state.logs = state.logs.filter(l=>l.id!==action.pohybLogId); if(state.lastAction && state.lastAction.logId===action.pohybLogId) state.lastAction=null; renderAll(); } // Kolo 2
     gbCurrentWorkout = action.workoutSnapshot;
     gbAfterCounter = null;
   } else if(action.type==='counter'){
@@ -2980,12 +3037,22 @@ async function openGbPostWorkoutModal(workout){
   }
 }
 function closeGbPostWorkoutModal(){ document.getElementById('gb-postworkout-modal').classList.remove('show'); }
-function finishGymbroWorkout(){
+function finishGymbroWorkout(force){
   if(!gbCurrentWorkout) return;
+  // Kolo 2: nic neodškrtnuto → zeptat se, jestli trénink přesto započítat
+  if(!force && !gbCurrentWorkout.exercises.some(e=>e.done)){
+    document.getElementById('log-confirm-head').innerHTML = `<div class="sugg-icon" style="width:64px;height:64px;font-size:34px;border-radius:20px;">💪</div>
+      <div class="sugg-info"><div class="name" style="font-size:19px;">Nic není odškrtnuté</div><div class="meta">0 / ${gbCurrentWorkout.exercises.length} cviků</div></div>`;
+    document.getElementById('log-confirm-actions').innerHTML = `<button class="btn btn-leaf" onclick="closeLogConfirm();finishGymbroWorkout(true)">✓ Přesto započítat</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeLogConfirm()">Zpět k tréninku</button>`;
+    document.getElementById('log-confirm-modal').classList.add('show');
+    return;
+  }
   const logId = 'gb'+Date.now();
   const workoutSnapshot = JSON.parse(JSON.stringify(gbCurrentWorkout));
-  gbPushUndo({type:'finish', logId, workoutSnapshot});
   const w = gbCurrentWorkout;
+  const linked = logGymbroToPohyb(w.env, logId); // Kolo 2: rovnou do bubliny na Domů
+  gbPushUndo({type:'finish', logId, workoutSnapshot, pohybLogId: linked ? linked.logId : null});
   const counterDone = !!(w.counter && w.counter.done);
   const entry = {id:logId, date:todayStr(), cat:w.cat, env:w.env, exercises:w.exercises.map(e=>({id:e.id, name:e.name, muscle:e.muscle}))};
   if(counterDone) entry.counter = gbCounterLogEntries(w.counter);
@@ -2999,7 +3066,9 @@ function finishGymbroWorkout(){
   gbCurrentWorkout = null;
   renderGymbroWorkout();
   renderGbLastWorkoutInfo();
-  showToast('💪 Trénink zapsán do GymBro deníku');
+  renderAll();
+  if(linked) showUndoToast('💪 '+linked.act.name+' · +'+linked.act.xp+' XP');
+  else showToast('💪 Trénink zapsán do GymBro deníku');
 }
 
 /* ---- App-wide restart: clears progress, keeps API keys / favorites / GIF cache / custom activities ---- */
