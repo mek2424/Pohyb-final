@@ -1126,8 +1126,9 @@ function closeNapoveda(){ napOtevreno = null; document.getElementById('nap-sheet
 
 
 function reconcileFreezes(){
+  // Kolo 17: začíná přímo dnem lastReconciled — ten den byl při posledním otevření „dnes“, takže se ještě nevyhodnotil
+  // (dřív se přeskočil: den, kdy jsi aplikaci otevřel a nepohnul se, nikdy nedostal zmrazení). Dny s pohybem/zmrazením se přeskočí, opakování nevadí.
   let cursor = new Date((state.lastReconciled||todayStr())+'T00:00:00');
-  cursor.setDate(cursor.getDate()+1);
   const today = todayStr(); let guard=0;
   while(formatDate(cursor) < today && guard<60){
     const ds = formatDate(cursor);
