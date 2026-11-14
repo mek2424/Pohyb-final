@@ -122,6 +122,13 @@
   .rada-best{font-size:12px;font-weight:700;color:var(--ink-2);white-space:nowrap;}
   .head-14{flex-wrap:wrap;row-gap:8px;} .head-14 .h2{white-space:nowrap;}
   .rada-best:empty{display:none;}
+  /* Kolo 16: nápověda — klepnutí na čip, řádek týdne, kartu návratu nebo štítek 🌱 otevře panel */
+  .chips-14 .freeze-chip,.week-row,.navrat-card,.navrat-tag{cursor:pointer;-webkit-tap-highlight-color:transparent;}
+  .chips-14 .freeze-chip:active,.week-row:active,.navrat-card:active{transform:scale(.97);}
+  .nap-head{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:end;gap:4px 8px;margin:4px 0 6px;}
+  .nap-head .gbz-bubble{margin-bottom:46px;font-size:15px;}
+  .nap-head .pose{opacity:0;transition:opacity .15s ease;} .nap-head .pose.on{opacity:1;}
+  #nap-rows .list-row:last-child{border-bottom:none;}
   /* Kolo 13: návratový bonus */
   .navrat-card{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:end;gap:4px 8px;background:linear-gradient(170deg,rgba(236,252,241,.92),rgba(221,246,230,.7));}
   .navrat-card .gbz-bubble{margin-bottom:46px;}
@@ -560,14 +567,14 @@
     </div>
 
     <div class="glass">
-      <div class="card-head head-14"><h2 class="h2">Posledních 14 dní</h2><div class="chips-14"><span class="freeze-chip rada-chip" id="rada-chip" title="řada dní">🔥 <span id="rada-count">0</span></span><span class="freeze-chip tydny-chip" title="splněné týdny v řadě">📅 <span id="tydny-count">0</span></span><span class="freeze-chip" title="zmrazení">🧊 <span id="freeze-count">0</span></span></div></div><!-- Kolo 14 -->
+      <div class="card-head head-14"><h2 class="h2">Posledních 14 dní</h2><div class="chips-14"><span class="freeze-chip rada-chip" id="rada-chip" title="řada dní" role="button" tabindex="0" onclick="openNapoveda('rada')">🔥 <span id="rada-count">0</span></span><span class="freeze-chip tydny-chip" title="splněné týdny v řadě" role="button" tabindex="0" onclick="openNapoveda('tyden')">📅 <span id="tydny-count">0</span></span><span class="freeze-chip" title="zmrazení" role="button" tabindex="0" onclick="openNapoveda('zmraz')">🧊 <span id="freeze-count">0</span></span></div></div><!-- Kolo 14 · Kolo 16: čipy otevírají nápovědu -->
       <div class="streak-dots" id="streak-dots"></div>
       <div class="legend">
         <span><i style="background:#3DBB72"></i>aktivní</span>
         <span><i style="background:#A9D8F5"></i>odpočinek</span>
         <span><i style="background:#CFF1FD;box-shadow:inset 0 0 0 1px #8FD8F2"></i>zamrazeno</span>
       </div>
-      <div class="week-row" id="week-row"></div><!-- Kolo 14 -->
+      <div class="week-row" id="week-row" role="button" tabindex="0" onclick="openNapoveda('tyden')"></div><!-- Kolo 14 · Kolo 16 -->
     </div>
 
     <div id="navrat-card"></div><!-- Kolo 13 -->
@@ -811,6 +818,16 @@
 </div>
 
 <!-- ============ SHEET: zápis pohybu ============ -->
+<!-- Kolo 16: nápověda k řadě, týdnům, zmrazení a návratu -->
+<div class="sheet-backdrop" id="nap-sheet" onclick="if(event.target===this)closeNapoveda()">
+  <div class="sheet">
+    <h2 class="h2" style="font-size:19px;" id="nap-title"></h2>
+    <div class="nap-head" id="nap-head"></div>
+    <div id="nap-rows"></div>
+    <div class="btn-row" style="margin-top:12px;"><button class="btn btn-ghost" onclick="closeNapoveda()">Jasně</button></div>
+  </div>
+</div>
+
 <div class="sheet-backdrop" id="log-sheet" onclick="if(event.target===this)closeLogSheet()">
   <div class="sheet">
     <div class="card-head"><h2 class="h2" style="font-size:19px;">Jaký pohyb zapsat?</h2><button class="link-btn" onclick="closeLogSheet();goTo('activities')">Upravit</button></div>
@@ -1034,10 +1051,78 @@ function renderNavrat(){
   const el = document.getElementById('navrat-card'); if(!el) return;
   const b = navratBonus();
   if(!b){ el.innerHTML = ''; return; }
-  el.innerHTML = `<div class="glass navrat-card">${gbBro('gbz-bro small navrat-bro')}
+  el.innerHTML = `<div class="glass navrat-card" role="button" tabindex="0" onclick="openNapoveda('navrat')">${gbBro('gbz-bro small navrat-bro')}
     <div class="gbz-bubble">Vítej zpátky! 🌱<small>První pohyb dnes ×${b.nasobek} XP a zmrazení navíc.</small></div></div>`;
   gbBroPose(el.querySelector('.gbz-bro'), ['arms-flex','face-happy']);
 }
+/* ================= Kolo 16: nápověda — panel s GymBrem a tvými čísly ================= */
+// Jen čte stav; nic nepočítá jinak než řada (radaInfo), týdny (radaTydnu) a zmrazení (freezesAvailable, reconcileFreezes).
+let napOtevreno = null;
+function dnyTxt(n){ return n+' '+(n===1?'den':n>=2&&n<=4?'dny':'dní'); }
+function tydnuTxt(n){ return n+' '+(n===1?'týden':n>=2&&n<=4?'týdny':'týdnů'); }
+function odpocinkuZbyva(){ const po = pondeli(todayStr()); return Math.max(0, ODPOCINEK_TYDNE - state.restDays.filter(x=>pondeli(x)===po).length); }
+// co se stane s řadou, když se dnes nepohneš (stejně jako reconcileFreezes zítra ráno)
+function radaDnes(){
+  const today = todayStr();
+  if(state.logs.some(l=>l.date===today)) return 'hotovo';
+  if(!radaInfo().cur) return 'zacni';
+  if(state.frozenDays.includes(today)) return 'zmrazeni';
+  if(odpocinekPlati(today)) return 'odpocinek';
+  if(freezesAvailable()>0) return 'zmrazeni';
+  return (!state.restDays.includes(today) && odpocinkuZbyva()>0) ? 'jenOdpocinek' : 'konec';
+}
+function zmrazInfo(){
+  const extra = state.logs.filter(l=>l.navrat).length + state.logs.filter(l=>l.tyden).length, cap = extra?4:3, dny = countActiveDaysTotal();
+  const raw = Math.floor(dny/5) + extra - state.freezesUsed; // stejně jako freezesAvailable()
+  return {mas:freezesAvailable(), cap, plno:raw>=cap, dalsi:5-(dny%5), pouzito:state.freezesUsed};
+}
+function tydenInfo(){
+  const today = todayStr(), po = pondeli(today), i = daysBetween(po, today), n = aktivniDnyTydne(po), w = radaTydnu();
+  const zbyva = 7 - i - (state.logs.some(l=>l.date===today) ? 1 : 0);
+  return {n, hotovo:n>=TYDEN_DNI, zbyva, w, doNalepky: 4 - (w % 4)};
+}
+function napRow(ic, title, sub, end){ return `<div class="list-row"><div class="lr-ic">${ic}</div><div class="lr-main"><div class="lr-title">${title}</div>${sub?`<div class="lr-sub">${sub}</div>`:''}</div>${end?`<div class="lr-end">${end}</div>`:''}</div>`; }
+function napObsah(co){
+  if(co==='rada'){
+    const r = radaInfo(), d = radaDnes(), z = odpocinkuZbyva();
+    const DN = {hotovo:['✅','Dnes hotovo','řada roste'], zacni:['🌱','Dnes začni novou řadu',''],
+      odpocinek:['😌','Podrží ji odpočinek','když se dnes nepohneš'], zmrazeni:['🧊','Podrží ji 🧊','když se dnes nepohneš'],
+      jenOdpocinek:['😌','Podrží ji jen odpočinek','když se dnes nepohneš'], konec:['💤','Řada skončí','když se dnes nepohneš']}[d];
+    return {title:'Řada dní', say:'Každý den s pohybem přidá 🔥', small:'Odpočinek (2× týdně) a 🧊 řadu podrží.', pose:['arms-flex','face-happy'],
+      rows: napRow('🔥', dnyTxt(r.cur)+' v řadě', '', 'nej '+r.best) + napRow(DN[0], DN[1], DN[2]) + napRow('😌', 'Zbývá '+z+' ze '+ODPOCINEK_TYDNE, 'odpočinek tento týden')};
+  }
+  if(co==='tyden'){
+    const t = tydenInfo();
+    const sub = t.hotovo ? 'splněno' : t.zbyva<=0 ? 'týden končí' : t.zbyva===1 ? 'zbývá poslední den' : 'do neděle zbývá '+dnyTxt(t.zbyva);
+    return {title:'Splněné týdny', say:'Týden Po–Ne je splněný po 2 dnech pohybu', small:'+'+TYDEN_XP+' XP a 🧊. Každý 4. týden v řadě vzácná nálepka.', pose:['arms-thumb','face-happy'],
+      rows: napRow('📅', t.hotovo ? 'Tento týden ✓' : 'Tento týden '+t.n+'/'+TYDEN_DNI, sub)
+        + napRow('🔗', tydnuTxt(t.w)+' v řadě', 'splněné týdny')
+        + napRow('🏅', t.doNalepky===1 ? 'Ještě 1 splněný týden' : 'Ještě '+t.doNalepky+' splněné týdny', 'do vzácné nálepky')};
+  }
+  if(co==='zmraz'){
+    const z = zmrazInfo();
+    return {title:'Zmrazení', say:'🧊 podrží řadu za den bez pohybu', small:'Použije se samo. Dostaneš ho za 5 dní pohybu, splněný týden a návrat po pauze.', pose:['arms-hips','face-cool'],
+      rows: napRow('🧊', 'Máš '+z.mas+' z '+z.cap, '')
+        + (z.plno ? napRow('✨', 'Plno', 'další přibude, až nějaké použiješ') : napRow('➕', 'Další za '+dnyTxt(z.dalsi)+' pohybu', 'nebo za splněný týden'))
+        + napRow('✔️', 'Použito '+z.pouzito+'×', 'celkem')};
+  }
+  // návrat
+  const b = navratBonus(), dnes = state.logs.find(l=>l.date===todayStr() && l.navrat), k = state.logs.filter(l=>l.navrat).length;
+  const prvni = b ? napRow('🌱', 'Pauza '+dnyTxt(b.pauza), 'první pohyb dnes', '×'+b.nasobek)
+    : dnes ? napRow('🌱', 'Dnes ×'+(dnes.nasobek||2)+' ✓', 'bonus máš') : napRow('🌱', 'Teď bez pauzy', 'bonus počká na návrat');
+  return {title:'Návrat po pauze', say:'Po pauze 3–13 dní je první pohyb dne ×2 XP, po 14+ dnech ×3', small:'A k tomu 🧊 navíc.', pose:['arms-flex','face-happy'],
+    rows: prvni + napRow('🔁', 'Návraty: '+k, 'celkem')};
+}
+function openNapoveda(co){
+  const o = napObsah(co); napOtevreno = co;
+  document.getElementById('nap-title').textContent = o.title;
+  const h = document.getElementById('nap-head');
+  h.innerHTML = `${gbBro('gbz-bro small')}<div class="gbz-bubble">${o.say}<small>${o.small}</small></div>`;
+  gbBroPose(h.querySelector('.gbz-bro'), o.pose);
+  document.getElementById('nap-rows').innerHTML = o.rows;
+  document.getElementById('nap-sheet').classList.add('show');
+}
+function closeNapoveda(){ napOtevreno = null; document.getElementById('nap-sheet').classList.remove('show'); }
 
 
 function reconcileFreezes(){
@@ -2041,7 +2126,7 @@ function renderHistory(){
     const a = state.activities.find(x=>x.id===l.activityId);
     return `<div class="list-row"><div class="lr-ic">${a?a.icon:'⭐'}</div>
       <div class="lr-main"><div class="lr-title">${escapeHTML(a?a.name:'Aktivita')}</div><div class="lr-sub">${niceDate(l.date)}${l.time?' · '+l.time:''}</div></div>
-      <div class="lr-end">${l.navrat?'<span class="navrat-tag" title="návrat po pauze">🌱</span> ':''}+${l.xp} XP</div></div>`; // Kolo 13
+      <div class="lr-end">${l.navrat?'<span class="navrat-tag" title="návrat po pauze" role="button" onclick="openNapoveda(\'navrat\')">🌱</span> ':''}+${l.xp} XP</div></div>`; // Kolo 13
   }).join('');
 }
 function showToast(msg){
@@ -3812,6 +3897,7 @@ function navBackStep(){
   if(shown('gb-manage-modal')){ if(gbManageView!=='list'){ gbManageView='list'; renderGbManage(); } else closeGbManageModal(); return true; }
   if(shown('location-modal')){ closeLocationPicker(); return true; }
   if(shown('log-sheet')){ closeLogSheet(); return true; }
+  if(shown('nap-sheet')){ closeNapoveda(); return true; } // Kolo 16
   if(viewCurrent==='gymbro'){
     if(gbScreen==='wizard'){ gbWizBack(); return true; }
     if(gbScreen==='counter'){ gbScreen='counterOffer'; if(gbAfterCounter) gbAfterCounter.open=false; renderGymbroWorkout(); return true; }
