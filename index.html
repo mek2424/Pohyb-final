@@ -1116,26 +1116,32 @@ function markRestDay(){
   else { showToast('Dnešek už je odpočinkový'); }
   renderAll();
 }
-/* ---- Kolo 2: potvrzení zápisu (proti ukliknutí); u Posilovny/Kalisteniky volba „Jdu cvičit“ → GymBro ---- */
+/* ---- Kolo 2: potvrzení zápisu (proti ukliknutí) · Kolo 21: Posilovna/Kalistenika jen přes GymBro ---- */
 const GB_ACTIVITY_ENV = {gym:'gym', calisthenics:'outdoor'};
-let pendingLogId = null;
+let pendingLogId = null, gbEnvZnamy = false;
 function askLog(activityId){
   const act = state.activities.find(a=>a.id===activityId);
   if(!act) return;
-  pendingLogId = activityId;
   const env = GB_ACTIVITY_ENV[activityId];
+  if(env){ openGymbroStart(env); return; } // Kolo 21: XP za Posilovnu/Kalisteniku jen za trénink s GymBrem
+  pendingLogId = activityId;
   document.getElementById('log-confirm-head').innerHTML = `<div class="sugg-icon" style="width:64px;height:64px;font-size:34px;border-radius:20px;">${act.icon}</div>
     <div class="sugg-info"><div class="name" style="font-size:19px;">${escapeHTML(act.name)}</div><div class="meta">${navratBonus()?`<b class="navrat-meta">🌱 +${navratXP(act)} XP (×${navratBonus().nasobek})</b>`:'+'+act.xp+' XP'}</div></div>`; // Kolo 13
-  document.getElementById('log-confirm-actions').innerHTML = env
-    ? `<button class="btn btn-leaf" onclick="confirmLog()">✓ Mám hotovo</button>
-       <button class="btn btn-primary" onclick="startGymbroFrom('${env}')">💪 Jdu cvičit</button>
-       <button class="btn btn-ghost btn-sm" onclick="closeLogConfirm()">Zrušit</button>`
-    : `<button class="btn btn-leaf" onclick="confirmLog()">✓ Zapsat</button>
+  document.getElementById('log-confirm-actions').innerHTML = `<button class="btn btn-leaf" onclick="confirmLog()">✓ Zapsat</button>
        <button class="btn btn-ghost btn-sm" onclick="closeLogConfirm()">Zrušit</button>`;
   document.getElementById('log-confirm-modal').classList.add('show');
 }
 function closeLogConfirm(){ document.getElementById('log-confirm-modal').classList.remove('show'); pendingLogId = null; }
 function confirmLog(){ const id = pendingLogId; closeLogConfirm(); closeLogSheet(); if(id) logActivity(id); }
+// Kolo 21: úvod GymBra se známým prostředím – „Začít trénink“ pak přeskočí otázku „Kde“; rozdělaný trénink zůstane
+function openGymbroStart(env){
+  closeLogConfirm(); closeLogSheet();
+  if(gbCurrentEnv !== env){ gbCurrentEnv = env; gbCurrentWorkout = null; }
+  goTo('gymbro');
+  gbEnvZnamy = true;
+  if(!gbCurrentWorkout){ gbWiz = null; gbPraise = null; gbScreen = 'start'; }
+  renderGymbroWorkout();
+}
 function startGymbroFrom(env){
   closeLogConfirm();
   closeLogSheet();
@@ -1918,6 +1924,7 @@ function planActivity(activityId, dateStr, timeVal){
 function prunePlans(){
   const before = (state.plans||[]).length;
   state.plans = (state.plans||[]).filter(p=>state.activities.some(a=>a.id===p.activityId)); // Kolo 18: proběhlé plány čekají na „Proběhlo?“
+  state.plans = state.plans.filter(p=>!(GB_ACTIVITY_ENV[p.activityId] && p.date<todayStr())); // Kolo 21: plán GymBra je jen připomínka – po dni tiše zmizí
   if(state.plans.length!==before) saveState();
 }
 function planDayText(ds){ const d = daysBetween(todayStr(), ds); return d===0 ? 'Dnes' : d===1 ? 'Zítra' : d===-1 ? 'Včera' : new Date(ds+'T00:00:00').toLocaleDateString('cs-CZ', {weekday:'short', day:'numeric', month:'numeric'}); }
@@ -1926,14 +1933,14 @@ function renderPlans(){
   if(!el) return;
   prunePlans();
   planCheck(); // Kolo 18
-  const ted = new Date(), plans = state.plans.filter(p=>planEnd(p)>ted).slice(0, 3); // Kolo 18: proběhlé řeší „Proběhlo?“
+  const ted = new Date(), plans = state.plans.filter(p=>planEnd(p)>ted || (GB_ACTIVITY_ENV[p.activityId] && p.date===todayStr())).slice(0, 3); // Kolo 18: proběhlé řeší „Proběhlo?“ · Kolo 21: plán GymBra visí do konce dne
   if(!plans.length){ el.innerHTML = ''; return; }
   el.innerHTML = `<div class="glass small">${plans.map(p=>{
     const a = state.activities.find(x=>x.id===p.activityId);
     const today = p.date===todayStr();
     return `<div class="list-row"><div class="lr-ic">${a.icon}</div>
       <div class="lr-main"><div class="lr-title">${escapeHTML(a.name)}</div><div class="lr-sub">📅 ${planDayText(p.date)} ${p.time}${planCasTxt(p)?` · <span class="plan-soon">${planCasTxt(p)}</span>`:''}</div></div>
-      ${today ? `<button class="sugg-go" onclick="askLog('${a.id}')">Beru</button>` : ''}
+      ${today ? `<button class="sugg-go" onclick="askLog('${a.id}')">${GB_ACTIVITY_ENV[a.id] ? '💪 Cvičit' : 'Beru'}</button>` : ''}<!-- Kolo 21 -->
       <button class="icon-btn" style="width:34px;height:34px;font-size:15px;" onclick="planDoKalendare('${p.id}')" aria-label="Přidat do kalendáře">🗓️</button><!-- Kolo 18 -->
       <button class="icon-btn" style="width:34px;height:34px;font-size:14px;" onclick="removePlan('${p.id}')" aria-label="Zrušit plán">✕</button></div>`;
   }).join('')}</div>`;
@@ -2000,7 +2007,7 @@ function planTick(){
   if(zmena) saveState();
   renderPlans();
 }
-function planyKPotvrzeni(){ const ted = new Date(); return (state.plans||[]).filter(p=>planEnd(p)<=ted).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)); }
+function planyKPotvrzeni(){ const ted = new Date(); return (state.plans||[]).filter(p=>planEnd(p)<=ted && !GB_ACTIVITY_ENV[p.activityId]).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)); } // Kolo 21: plán GymBra se na „Proběhlo?“ neptá
 function planCheck(){
   const m = document.getElementById('plan-check-modal'); if(!m) return;
   const q = planyKPotvrzeni();
@@ -2056,6 +2063,7 @@ function goTo(view, fromBack){
   if(navEl) navEl.classList.add('active');
   window.scrollTo(0,0);
   if(view==='gymbro') renderGbLastWorkoutInfo();
+  else gbEnvZnamy = false; // Kolo 21
   if(view==='suggest') autoWeatherChip(); // Kolo 4
 }
 
@@ -4179,7 +4187,7 @@ function gbStartHTML(){
   const sum = gbLastWorkoutSummary();
   return `<div class="glass gbz-start">${gbBro('gbz-bro small')}
     <div class="gbz-bubble">Jdeme cvičit?<small>${sum ? escapeHTML(sum) : 'Projdeme spolu pět rychlých otázek a sestavím ti trénink.'}</small></div>
-    <button class="btn btn-primary" onclick="gbStartWizard()">💪 Začít trénink</button></div>`;
+    <button class="btn btn-primary" onclick="gbStartWizard(gbEnvZnamy)">💪 Začít trénink</button></div>`; // Kolo 21
 }
 function gbCounterOfferHTML(c){
   return `<div class="gbz">

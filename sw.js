@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pohyb-cache-v22'; // Kolo 20: ikona GymBro s brýlemi na pozadí aplikace
+const CACHE_NAME = 'pohyb-cache-v23'; // Kolo 21: Posilovna a Kalistenika jen přes GymBro
 const APP_SHELL = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
