@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pohyb-cache-v21'; // Kolo 19: nový GymBro
+const CACHE_NAME = 'pohyb-cache-v22'; // Kolo 20: ikona GymBro s brýlemi na pozadí aplikace
 const APP_SHELL = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
