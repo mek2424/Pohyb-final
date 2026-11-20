@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pohyb-cache-v24'; // Kolo 22: kalendář v Deníku
+const CACHE_NAME = 'pohyb-cache-v25'; // Kolo 23: pravidelné plány
 const APP_SHELL = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
