@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pohyb-cache-v19'; // Kolo 17: zmrazení i pro den otevření
+const CACHE_NAME = 'pohyb-cache-v20'; // Kolo 18: plánování a „Proběhlo?“
 const APP_SHELL = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {

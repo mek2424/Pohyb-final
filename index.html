@@ -129,6 +129,11 @@
   .nap-head .gbz-bubble{margin-bottom:46px;font-size:15px;}
   .nap-head .pose{opacity:0;transition:opacity .15s ease;} .nap-head .pose.on{opacity:1;}
   #nap-rows .list-row:last-child{border-bottom:none;}
+  /* Kolo 18: plánování z ＋, připomínka, „Proběhlo?“ */
+  #sheet-mode{margin-bottom:12px;}
+  .plan-soon{color:var(--sun-deep);font-weight:800;}
+  .pc-count{font-size:12.5px;font-weight:700;color:var(--ink-2);text-align:center;margin-top:10px;}
+  #plan-form-day{margin:16px 0 10px;}
   /* Kolo 13: návratový bonus */
   .navrat-card{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:end;gap:4px 8px;background:linear-gradient(170deg,rgba(236,252,241,.92),rgba(221,246,230,.7));}
   .navrat-card .gbz-bubble{margin-bottom:46px;}
@@ -832,8 +837,9 @@
   <div class="sheet">
     <div class="card-head"><h2 class="h2" style="font-size:19px;">Jaký pohyb zapsat?</h2><button class="link-btn" onclick="closeLogSheet();goTo('activities')">Upravit</button></div>
 
+    <div class="seg" id="sheet-mode"><button class="chip selected" data-val="log" onclick="setSheetMode('log')">Zapsat</button><button class="chip" data-val="plan" onclick="setSheetMode('plan')">Naplánovat</button></div><!-- Kolo 18 -->
     <div class="act-grid" id="sheet-grid"></div>
-    <div class="btn-row" style="margin-top:14px;">
+    <div class="btn-row" style="margin-top:14px;" id="sheet-rest-row">
       <button class="btn btn-ghost" onclick="closeLogSheet();markRestDay()">😌 Dnes odpočívám</button>
     </div>
   </div>
@@ -849,6 +855,27 @@
   <div class="glass modal-card">
     <div class="idea" id="log-confirm-head"></div>
     <div class="btn-row" id="log-confirm-actions" style="margin-top:18px;"></div>
+  </div>
+</div>
+
+<!-- Kolo 18: naplánovat aktivitu z ＋ -->
+<div class="modal-backdrop" id="plan-form-modal" style="z-index:320;" onclick="if(event.target===this)closePlanForm()">
+  <div class="glass modal-card">
+    <div class="idea" id="plan-form-head"></div>
+    <div class="chip-row" id="plan-form-day"></div>
+    <input type="date" id="plan-form-date" hidden>
+    <input type="time" id="plan-form-time">
+    <div class="btn-row" style="margin-top:6px;"><button class="btn btn-leaf" onclick="savePlanForm()">📅 Naplánovat</button><button class="btn btn-ghost btn-sm" onclick="closePlanForm()">Zrušit</button></div>
+  </div>
+</div>
+
+<!-- Kolo 18: „Proběhlo?“ — zavře se jen odpovědí -->
+<div class="modal-backdrop" id="plan-check-modal" style="z-index:330;">
+  <div class="glass modal-card">
+    <h2 class="h2" style="font-size:19px;margin-bottom:12px;">Proběhlo?</h2>
+    <div class="idea" id="plan-check-head"></div>
+    <div class="btn-row" style="margin-top:18px;"><button class="btn btn-leaf" onclick="planCheckAnswer(true)">✓ Ano, proběhlo</button><button class="btn btn-ghost" onclick="planCheckAnswer(false)">Ne</button></div>
+    <div class="pc-count" id="plan-check-count"></div>
   </div>
 </div>
 
@@ -996,8 +1023,8 @@ function radaInfo(){
   }
   return {cur, best};
 }
-function radaTydnu(){
-  let po = pondeli(todayStr()), n = aktivniDnyTydne(po)>=TYDEN_DNI ? 1 : 0, g = 0; // rozběhnutý týden řadu nepřeruší
+function radaTydnu(od){ // Kolo 18: od = pondělí týdne, ke kterému se počítá (výchozí tento)
+  let po = od || pondeli(todayStr()), n = aktivniDnyTydne(po)>=TYDEN_DNI ? 1 : 0, g = 0; // rozběhnutý týden řadu nepřeruší
   po = posunDen(po, -7);
   while(g<520 && aktivniDnyTydne(po)>=TYDEN_DNI){ n++; po = posunDen(po, -7); g++; }
   return n;
@@ -1007,7 +1034,7 @@ function odmenyZapisu(entry, before){
   const po = pondeli(entry.date), odm = {};
   if(before.tyden < TYDEN_DNI && aktivniDnyTydne(po) >= TYDEN_DNI){
     entry.tyden = true; entry.xp += TYDEN_XP; odm.tyden = true;
-    const tydnu = radaTydnu(); odm.tydnu = tydnu;
+    const tydnu = radaTydnu(po); odm.tydnu = tydnu; // Kolo 18: týden zápisu (u potvrzeného plánu i minulý)
     if(tydnu>0 && tydnu%4===0){
       const st = {id:'s'+Date.now()+Math.random().toString(36).slice(2,6), emoji:RARE_STICKERS[Math.floor(tydnu/4-1)%RARE_STICKERS.length], label:tydnu+' týdnů v pohybu'};
       state.stickers.push(st); entry.tydenNalepka = st.id; odm.nalepka = st;
@@ -1017,7 +1044,7 @@ function odmenyZapisu(entry, before){
   if(r>before.rada && r%7===0) odm.rada = r;
   return odm;
 }
-function predZapisem(){ return {tyden:aktivniDnyTydne(pondeli(todayStr())), rada:radaInfo().cur}; }
+function predZapisem(ds){ return {tyden:aktivniDnyTydne(pondeli(ds||todayStr())), rada:radaInfo().cur}; } // Kolo 18: k datu zápisu
 function odmenyTxt(o){
   const p = [];
   if(o && o.tyden) p.push('✓ Týden splněn · +'+TYDEN_XP+' XP a 🧊'+(o.nalepka?' a nálepka '+o.nalepka.emoji:''));
@@ -1039,12 +1066,13 @@ function renderTyden(){
 /* ================= Kolo 13: návratový bonus po pauze ================= */
 // Pauza = celé dny bez zápisu pohybu mezi posledním zápisem a dneškem (odpočinek i zmrazení se počítají do pauzy).
 // První zápis dne po pauze 3–13 dní = ×2 XP, po 14+ dnech ×3 XP, k tomu +1 zmrazení. Vrátit vrací i bonus (je součástí zápisu).
-function navratPauza(){
-  const today = todayStr(); let last = null;
+function navratPauza(ds){ // Kolo 18: k libovolnému dni (výchozí dnes)
+  const today = ds || todayStr(); let last = null;
   for(const l of state.logs){ if(l.date===today) return 0; if(l.date<today && (!last || l.date>last)) last = l.date; }
   return last ? daysBetween(last, today)-1 : 0;
 }
-function navratBonus(){ const p = navratPauza(); return p>=14 ? {pauza:p, nasobek:3} : p>=3 ? {pauza:p, nasobek:2} : null; }
+function navratBonusPro(ds){ const p = navratPauza(ds); return p>=14 ? {pauza:p, nasobek:3} : p>=3 ? {pauza:p, nasobek:2} : null; } // Kolo 18
+function navratBonus(){ return navratBonusPro(todayStr()); }
 function navratXP(act){ const b = navratBonus(); return act.xp * (b ? b.nasobek : 1); }
 function navratDnyTxt(n){ return n+' '+(n===1?'den':n<5?'dny':'dní'); }
 function renderNavrat(){
@@ -1161,25 +1189,28 @@ function totalXP(){return state.logs.reduce((s,l)=>s+l.xp,0);}
 function levelInfo(xp){let level=1, need=100, remaining=xp; while(remaining>=need){remaining-=need; level++; need=Math.round(need*1.25);} return {level, into:remaining, need, progress:remaining/need};}
 
 /* ================= LOGGING (with undo support) ================= */
-function logActivity(activityId){
+function logActivity(activityId, z){ // Kolo 18: z = {date, time, plan} → potvrzený plán se zapíše k datu plánu
   const act = state.activities.find(a=>a.id===activityId);
   if(!act) return;
   const oldXP = totalXP();
-  const date=todayStr(), time=nowTimeStr(), logId='l'+Date.now();
-  const nb = navratBonus(); // Kolo 13
-  const pred = predZapisem(); // Kolo 14
+  const date=z?z.date:todayStr(), time=z?z.time:nowTimeStr(), logId='l'+Date.now();
+  const nb = navratBonusPro(date); // Kolo 13 · Kolo 18: k datu zápisu
+  const pred = predZapisem(date); // Kolo 14
   const entry = {id:logId, activityId, date, time, xp:act.xp*(nb?nb.nasobek:1)};
   if(nb){ entry.navrat = nb.pauza; entry.nasobek = nb.nasobek; }
+  if(z){ entry.zPlanu = true; // Kolo 18: den, který mezitím spotřeboval zmrazení, ho vrátí
+    if(state.frozenDays.includes(date)){ state.frozenDays = state.frozenDays.filter(d=>d!==date); state.freezesUsed = Math.max(0, state.freezesUsed-1); entry.zmrazVracen = true; } }
   state.logs.push(entry);
   const odm = odmenyZapisu(entry, pred); // Kolo 14: splněný týden, řada
-  if(state.plans) state.plans = state.plans.filter(p=>!(p.activityId===activityId && p.date===date)); // Kolo 5: splněný plán zmizí
-  state.lastAction = {type:'log', logId, date, label:act.icon+' '+act.name};
+  const splnene = (state.plans||[]).filter(p=>z ? p.id===z.plan.id : (p.activityId===activityId && p.date===date));
+  if(state.plans) state.plans = state.plans.filter(p=>!splnene.includes(p)); // Kolo 5: splněný plán zmizí
+  state.lastAction = {type:'log', logId, date, label:act.icon+' '+act.name, plany:splnene}; // Kolo 18: Vrátit vrátí i plán
   checkLevelStickers(oldXP, totalXP());
   saveState();
   gbCelebrate(act, oldXP, nb ? {xp:entry.xp, pauza:nb.pauza, nasobek:nb.nasobek} : null, odm); // Kolo 7: oslava s GymBrem · Kolo 13: návrat · Kolo 14: týden, řada
   haptic(levelInfo(totalXP()).level > levelInfo(oldXP).level || nb || odm.tyden || odm.rada ? 'level' : 'log'); // Kolo 12 · Kolo 13–14: velké odměny = fanfára
   sendDiscordWebhook(act.icon+' **'+act.name+'** — +'+entry.xp+' XP'+(nb?' (🌱 návrat po '+navratDnyTxt(nb.pauza)+')':'')+' (level '+levelInfo(totalXP()).level+')');
-  showUndoToast('✓ '+act.name+'  +'+entry.xp+' XP');
+  showUndoToast('✓ '+act.name+(z?' · '+planDayText(date):'')+'  +'+entry.xp+' XP'); // Kolo 18
   renderAll();
 }
 function markRestDay(){
@@ -1231,7 +1262,9 @@ function logGymbroToPohyb(env, gbLogId){
   if(nb){ entry.navrat = nb.pauza; entry.nasobek = nb.nasobek; }
   state.logs.push(entry);
   const odm = odmenyZapisu(entry, pred); // Kolo 14
-  state.lastAction = {type:'log', logId, date:todayStr(), label:act.icon+' '+act.name, gbLogId};
+  const splnene = (state.plans||[]).filter(p=>p.activityId===act.id && p.date===todayStr()); // Kolo 18: trénink splní dnešní plán (jinak by se ptalo „Proběhlo?“)
+  state.plans = (state.plans||[]).filter(p=>!splnene.includes(p));
+  state.lastAction = {type:'log', logId, date:todayStr(), label:act.icon+' '+act.name, gbLogId, plany:splnene};
   checkLevelStickers(oldXP, totalXP());
   sendDiscordWebhook(act.icon+' **'+act.name+'** (GymBro) — +'+entry.xp+' XP'+(nb?' (🌱 návrat po '+navratDnyTxt(nb.pauza)+')':'')+' (level '+levelInfo(totalXP()).level+')');
   return {logId, act, xp:entry.xp, navrat:nb, odm};
@@ -1243,7 +1276,9 @@ function undoLast(){
   if(a.type==='log'){
     const zl = state.logs.find(l=>l.id===a.logId); // Kolo 14: s zápisem zmizí i nálepka za splněný týden
     if(zl && zl.tydenNalepka) state.stickers = state.stickers.filter(s=>s.id!==zl.tydenNalepka);
+    if(zl && zl.zmrazVracen && !state.frozenDays.includes(zl.date)){ state.frozenDays.push(zl.date); state.freezesUsed++; } // Kolo 18
     state.logs=state.logs.filter(l=>l.id!==a.logId);
+    if(a.plany && a.plany.length) state.plans = (state.plans||[]).concat(a.plany.filter(p=>!(state.plans||[]).some(x=>x.id===p.id))).sort((x,y)=>(x.date+x.time).localeCompare(y.date+y.time)); // Kolo 18: plán zpátky
     if(a.gbLogId){ state.gymbroLog = state.gymbroLog.filter(l=>l.id!==a.gbLogId); renderGbLastWorkoutInfo(); } // Kolo 2: vrátí i záznam v GymBro
   }
   else if(a.type==='rest'){ state.restDays=state.restDays.filter(d=>d!==a.date); }
@@ -1979,33 +2014,30 @@ async function runPlanSuggest(){
 function planActivity(activityId, dateStr, timeVal){
   const act = state.activities.find(a=>a.id===activityId);
   if(!act) return;
-  downloadICS(act, dateStr, timeVal);
-  // Kolo 5: aplikace si plán pamatuje (karta na Domů)
-  state.plans = (state.plans||[]).filter(p=>!(p.activityId===activityId && p.date===dateStr));
-  state.plans.push({id:'p'+Date.now()+Math.random().toString(36).slice(2,6), activityId, date:dateStr, time:timeVal});
-  state.plans.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
-  saveState(); renderPlans();
-  showToast('📅 Naplánováno · otevři stažený soubor v kalendáři');
+  savePlan(activityId, dateStr, timeVal); // Kolo 5: aplikace si plán pamatuje · Kolo 18: do kalendáře až tlačítkem 🗓️ u plánu
+  showToast('📅 Naplánováno · '+planDayText(dateStr)+' '+timeVal);
 }
 /* ---- Kolo 5: naplánované aktivity na Domů ---- */
 function prunePlans(){
   const before = (state.plans||[]).length;
-  state.plans = (state.plans||[]).filter(p=>p.date>=todayStr() && state.activities.some(a=>a.id===p.activityId));
+  state.plans = (state.plans||[]).filter(p=>state.activities.some(a=>a.id===p.activityId)); // Kolo 18: proběhlé plány čekají na „Proběhlo?“
   if(state.plans.length!==before) saveState();
 }
-function planDayText(ds){ const d = daysBetween(todayStr(), ds); return d===0 ? 'Dnes' : d===1 ? 'Zítra' : new Date(ds+'T00:00:00').toLocaleDateString('cs-CZ', {weekday:'short', day:'numeric', month:'numeric'}); }
+function planDayText(ds){ const d = daysBetween(todayStr(), ds); return d===0 ? 'Dnes' : d===1 ? 'Zítra' : d===-1 ? 'Včera' : new Date(ds+'T00:00:00').toLocaleDateString('cs-CZ', {weekday:'short', day:'numeric', month:'numeric'}); }
 function renderPlans(){
   const el = document.getElementById('plans-card');
   if(!el) return;
   prunePlans();
-  const plans = state.plans.slice(0, 3);
+  planCheck(); // Kolo 18
+  const ted = new Date(), plans = state.plans.filter(p=>planEnd(p)>ted).slice(0, 3); // Kolo 18: proběhlé řeší „Proběhlo?“
   if(!plans.length){ el.innerHTML = ''; return; }
   el.innerHTML = `<div class="glass small">${plans.map(p=>{
     const a = state.activities.find(x=>x.id===p.activityId);
     const today = p.date===todayStr();
     return `<div class="list-row"><div class="lr-ic">${a.icon}</div>
-      <div class="lr-main"><div class="lr-title">${escapeHTML(a.name)}</div><div class="lr-sub">📅 ${planDayText(p.date)} ${p.time}</div></div>
+      <div class="lr-main"><div class="lr-title">${escapeHTML(a.name)}</div><div class="lr-sub">📅 ${planDayText(p.date)} ${p.time}${planCasTxt(p)?` · <span class="plan-soon">${planCasTxt(p)}</span>`:''}</div></div>
       ${today ? `<button class="sugg-go" onclick="askLog('${a.id}')">Beru</button>` : ''}
+      <button class="icon-btn" style="width:34px;height:34px;font-size:15px;" onclick="planDoKalendare('${p.id}')" aria-label="Přidat do kalendáře">🗓️</button><!-- Kolo 18 -->
       <button class="icon-btn" style="width:34px;height:34px;font-size:14px;" onclick="removePlan('${p.id}')" aria-label="Zrušit plán">✕</button></div>`;
   }).join('')}</div>`;
 }
@@ -2017,6 +2049,81 @@ function removePlan(id){
   window._removedPlan = p;
   t.classList.add('show'); clearTimeout(window._toastTimer); window._toastTimer = setTimeout(()=>t.classList.remove('show'), 4200);
 }
+/* ================= Kolo 18: plánování z ＋, připomínky v aplikaci, „Proběhlo?“ ================= */
+// Plán se ptá „Proběhlo?“ po skončení (čas plánu + minimální délka aktivity). Okno zavře jen odpověď.
+// Ano = zápis k datu plánu (řada, týden, návrat k tomu dni; zmrazení toho dne se vrací). Ne = plán pryč (s Vrátit).
+let planFormAct = null, planFormDay = 'dnes', planCheckId = null;
+function planStart(p){ return new Date(p.date+'T'+p.time+':00'); }
+function planEnd(p){ const a = state.activities.find(x=>x.id===p.activityId); return new Date(planStart(p).getTime() + ((a&&a.minMinutes)||30)*60000); }
+function planCasTxt(p){ const m = Math.round((planStart(p)-new Date())/60000); return m>0 && m<=120 ? 'za '+m+' min' : ''; }
+function savePlan(activityId, dateStr, timeVal){
+  state.plans = (state.plans||[]).filter(p=>!(p.activityId===activityId && p.date===dateStr));
+  state.plans.push({id:'p'+Date.now()+Math.random().toString(36).slice(2,6), activityId, date:dateStr, time:timeVal});
+  state.plans.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+  saveState(); renderPlans();
+}
+function openPlanForm(activityId){
+  const act = state.activities.find(a=>a.id===activityId); if(!act) return;
+  planFormAct = activityId;
+  document.getElementById('plan-form-head').innerHTML = `<div class="sugg-icon" style="width:64px;height:64px;font-size:34px;border-radius:20px;">${act.icon}</div>
+    <div class="sugg-info"><div class="name" style="font-size:19px;">${escapeHTML(act.name)}</div><div class="meta">📅 +${act.xp} XP</div></div>`;
+  const h = new Date().getHours();
+  document.getElementById('plan-form-time').value = h<21 ? pad(h+1)+':00' : '18:00';
+  document.getElementById('plan-form-date').value = posunDen(todayStr(), 2);
+  setPlanFormDay(h<21 ? 'dnes' : 'zitra');
+  document.getElementById('plan-form-modal').classList.add('show');
+}
+function setPlanFormDay(d){
+  planFormDay = d;
+  document.getElementById('plan-form-day').innerHTML = [['dnes','Dnes'],['zitra','Zítra'],['jiny','Jiný den']].map(([v,t])=>`<button class="chip${v===d?' selected':''}" data-val="${v}" onclick="setPlanFormDay('${v}')">${t}</button>`).join('');
+  document.getElementById('plan-form-date').hidden = d!=='jiny';
+}
+function closePlanForm(){ document.getElementById('plan-form-modal').classList.remove('show'); planFormAct = null; }
+function savePlanForm(){
+  const act = state.activities.find(a=>a.id===planFormAct); if(!act) return;
+  const ds = planFormDay==='dnes' ? todayStr() : planFormDay==='zitra' ? posunDen(todayStr(),1) : document.getElementById('plan-form-date').value;
+  const tv = document.getElementById('plan-form-time').value;
+  if(!ds || !tv){ showToast('📅 Vyber den a čas'); return; }
+  if(new Date(ds+'T'+tv+':00') <= new Date()){ showToast('⏰ Ten čas už je pryč'); return; }
+  savePlan(act.id, ds, tv);
+  closePlanForm(); closeLogSheet();
+  showToast('📅 '+act.icon+' '+escapeHTML(act.name)+' · '+planDayText(ds)+' '+tv);
+}
+function planDoKalendare(id){
+  const p = (state.plans||[]).find(x=>x.id===id), a = p && state.activities.find(x=>x.id===p.activityId); if(!a) return;
+  downloadICS(a, p.date, p.time);
+  showToast('🗓️ Otevři stažený soubor v kalendáři');
+}
+// připomínka v aplikaci 30 min předem (jen když je aplikace otevřená) + kontrola „Proběhlo?“
+function planTick(){
+  const ted = new Date(); let zmena = false;
+  (state.plans||[]).forEach(p=>{ const m = (planStart(p)-ted)/60000;
+    if(m>0 && m<=30 && !p.upozorneno){ p.upozorneno = true; zmena = true;
+      const a = state.activities.find(x=>x.id===p.activityId); if(a) showToast('⏰ Za '+Math.max(1,Math.round(m))+' min: '+a.icon+' '+escapeHTML(a.name)); } });
+  if(zmena) saveState();
+  renderPlans();
+}
+function planyKPotvrzeni(){ const ted = new Date(); return (state.plans||[]).filter(p=>planEnd(p)<=ted).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)); }
+function planCheck(){
+  const m = document.getElementById('plan-check-modal'); if(!m) return;
+  const q = planyKPotvrzeni();
+  if(!q.length){ m.classList.remove('show'); planCheckId = null; return; }
+  const p = q[0], a = state.activities.find(x=>x.id===p.activityId);
+  const nb = navratBonusPro(p.date), xp = a.xp*(nb?nb.nasobek:1);
+  planCheckId = p.id;
+  document.getElementById('plan-check-head').innerHTML = `<div class="sugg-icon" style="width:64px;height:64px;font-size:34px;border-radius:20px;">${a.icon}</div>
+    <div class="sugg-info"><div class="name" style="font-size:19px;">${escapeHTML(a.name)}</div><div class="meta">📅 ${planDayText(p.date)} ${p.time} · ${nb?`<b class="navrat-meta">🌱 +${xp} XP (×${nb.nasobek})</b>`:'+'+xp+' XP'}</div></div>`;
+  document.getElementById('plan-check-count').textContent = q.length>1 ? '1 z '+q.length : '';
+  m.classList.add('show');
+}
+function planCheckAnswer(ano){
+  const p = (state.plans||[]).find(x=>x.id===planCheckId);
+  document.getElementById('plan-check-modal').classList.remove('show');
+  if(!p){ planCheck(); return; }
+  if(ano) logActivity(p.activityId, {date:p.date, time:p.time, plan:p});
+  else removePlan(p.id);
+}
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible' && typeof state!=='undefined') planTick(); }); // Kolo 18
 function restorePlan(){
   const p = window._removedPlan; if(!p) return;
   state.plans = (state.plans||[]).concat(p).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
@@ -2056,12 +2163,19 @@ function goTo(view, fromBack){
 }
 
 /* ---- Kolo 1: zápis jedním klepnutím — spodní panel (zelené + v liště) ---- */
+let sheetMode = 'log'; // Kolo 18: Zapsat | Naplánovat
+function setSheetMode(m){
+  sheetMode = m;
+  document.querySelectorAll('#sheet-mode .chip').forEach(c=>c.classList.toggle('selected', c.dataset.val===m));
+  const r = document.getElementById('sheet-rest-row'); if(r) r.style.display = m==='plan' ? 'none' : '';
+}
 function openLogSheet(){
+  setSheetMode('log'); // Kolo 18: vždy začíná na Zapsat
   renderSheetGrid();
   document.getElementById('log-sheet').classList.add('show');
 }
 function closeLogSheet(){ document.getElementById('log-sheet').classList.remove('show'); }
-function logFromSheet(activityId){ askLog(activityId); } // Kolo 2: panel zůstane otevřený pod potvrzením
+function logFromSheet(activityId){ if(sheetMode==='plan') openPlanForm(activityId); else askLog(activityId); } // Kolo 2: panel zůstane otevřený pod potvrzením · Kolo 18: režim Naplánovat
 function lastDoneText(d){ return d===999 ? 'ještě nikdy' : (d===0 ? 'dnes' : (d===1 ? 'včera' : 'před '+d+' dny')); }
 function renderSheetGrid(){
   const grid = document.getElementById('sheet-grid');
@@ -3892,6 +4006,8 @@ function gbTickWithWeight(exId){
 let viewCurrent = 'dashboard', viewStack = [];
 function navBackStep(){
   const shown = id=>{ const el = document.getElementById(id); return el && el.classList.contains('show'); };
+  if(shown('plan-check-modal')) return true; // Kolo 18: „Proběhlo?“ zavře jen odpověď
+  if(shown('plan-form-modal')){ closePlanForm(); return true; } // Kolo 18
   if(shown('log-confirm-modal')){ closeLogConfirm(); return true; }
   if(shown('gb-weight-modal')){ closeGbWeight(); return true; }
   if(shown('gb-exercise-modal')){ closeGbExerciseModal(); return true; }
@@ -4957,7 +5073,7 @@ function renderHapticSetting(){
   const on = hapticZap(); b.textContent = on ? 'Zapnuto' : 'Vypnuto'; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false');
 }
 function renderAll(){ renderHapticSetting(); /* Kolo 12 */ renderNavrat(); /* Kolo 13 */ renderDashboard(); renderTyden(); /* Kolo 14 */ renderPlans(); renderActivityGrid(); renderSheetGrid(); renderHistory(); renderStickerTray(); renderJournalList(); updateBackupStatus(); renderFavoritesList(); diskUkaz(); /* Kolo 10 */ }
-function init(){ reconcileFreezes(); initBubbles(); initSuggestChips(); initGymbroChips(); renderAll(); renderGymbroWorkout(); initBackNav(); /* Kolo 8 */ diskOnSave(); /* Kolo 10 */ autoWeatherChip(); refreshWeather(); } // Kolo 3: cíl · Kolo 4: počasí
+function init(){ reconcileFreezes(); initBubbles(); initSuggestChips(); initGymbroChips(); renderAll(); renderGymbroWorkout(); initBackNav(); /* Kolo 8 */ planTick(); setInterval(planTick, 30000); /* Kolo 18 */ diskOnSave(); /* Kolo 10 */ autoWeatherChip(); refreshWeather(); } // Kolo 3: cíl · Kolo 4: počasí
 document.addEventListener('DOMContentLoaded', init);
 
 if('serviceWorker' in navigator){
