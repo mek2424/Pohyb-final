@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pohyb-cache-v23'; // Kolo 21: Posilovna a Kalistenika jen přes GymBro
+const CACHE_NAME = 'pohyb-cache-v24'; // Kolo 22: kalendář v Deníku
 const APP_SHELL = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {

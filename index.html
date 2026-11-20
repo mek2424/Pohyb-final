@@ -134,6 +134,33 @@
   .plan-soon{color:var(--sun-deep);font-weight:800;}
   .pc-count{font-size:12.5px;font-weight:700;color:var(--ink-2);text-align:center;margin-top:10px;}
   #plan-form-day{margin:16px 0 10px;}
+  /* Kolo 22: kalendář v Deníku – den = emoji aktivit (plán poloprůhledně), bublina pluje nad kalendářem */
+  .kal-nav{display:flex;align-items:center;gap:4px;}
+  .kal-nav .icon-btn{width:36px;height:36px;font-size:18px;font-weight:800;color:var(--aqua-deep);}
+  .kal-mes{font-weight:800;font-size:14.5px;min-width:104px;text-align:center;}
+  .kal-wrap{position:relative;}
+  .kal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;}
+  .kal-wd{font-size:11.5px;font-weight:700;color:var(--ink-2);text-align:center;padding-bottom:2px;}
+  .kal-d{all:unset;box-sizing:border-box;cursor:pointer;min-height:58px;border-radius:12px;padding:4px 3px;background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.9);display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0;}
+  .kal-d:focus-visible{outline:2.5px solid var(--aqua-deep);outline-offset:1px;}
+  .kal-n{font-size:11.5px;font-weight:700;color:var(--ink-2);line-height:1.2;}
+  .kal-ic{display:flex;flex-wrap:wrap;justify-content:center;gap:0 1px;font-size:14px;line-height:1.25;max-width:100%;}
+  .kal-ic .pl{opacity:.5;}
+  .kal-ic .vic{font-size:10.5px;font-weight:800;color:var(--ink-2);align-self:center;}
+  .kal-d.akt{background:var(--leaf-soft);border-color:rgba(30,138,79,.22);} .kal-d.akt .kal-n{color:var(--leaf-deep);}
+  .kal-d.plan{border:1.5px dashed rgba(10,120,198,.45);background:rgba(255,255,255,.7);}
+  .kal-d.rest{background:#EAF6FF;} .kal-d.frozen{background:linear-gradient(160deg,#fff,#CFF1FD);}
+  .kal-d.today{box-shadow:0 0 0 2px #fff,0 0 0 3.5px var(--aqua);} .kal-d.today .kal-n{color:var(--aqua-deep);}
+  .kal-d.sel{background:var(--gloss-aqua);border-color:rgba(255,255,255,.5);} .kal-d.sel .kal-n{color:#fff;} .kal-d.sel .pl{opacity:.8;}
+  .kal-d.prazdny{visibility:hidden;}
+  .kal-pop{position:absolute;left:0;right:0;z-index:6;background:#fff;border-radius:16px;padding:10px 12px 6px;box-shadow:0 10px 26px -8px rgba(6,60,100,.4);animation:fadeIn .15s ease;}
+  .kal-pop::before{content:'';position:absolute;top:-7px;left:calc(var(--cx) - 7px);width:14px;height:14px;background:#fff;transform:rotate(45deg);border-radius:3px;}
+  .kal-pop.nad::before{top:auto;bottom:-7px;}
+  .kal-pop h3{font-size:14.5px;font-weight:800;margin:0 0 2px;}
+  .kal-pop .list-row{padding:8px 0;} .kal-pop .lr-ic{width:34px;height:34px;font-size:18px;}
+  .kal-pop .pl-tag{color:var(--aqua-deep);font-weight:700;}
+  .kal-pop .empty-note{padding:6px 0 8px;text-align:left;}
+  .plan-zamek{display:inline-flex;align-items:center;gap:6px;cursor:default;user-select:none;-webkit-user-select:none;}
   /* Kolo 13: návratový bonus */
   .navrat-card{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:end;gap:4px 8px;background:linear-gradient(170deg,rgba(236,252,241,.92),rgba(221,246,230,.7));}
   .navrat-card .gbz-bubble{margin-bottom:calc(var(--gbh-s)*.695 - 20px);}
@@ -588,7 +615,7 @@
     <header class="topbar"><h1 class="view-title">Deník</h1></header>
 
     <div class="glass">
-      <div class="card-head"><h2 class="h2">Poslední pohyb</h2><span class="muted" id="history-summary"></span></div>
+      <div class="card-head"><h2 class="h2">Kalendář</h2><div class="kal-nav" id="kal-nav"></div></div><!-- Kolo 22: kalendář místo „Poslední pohyb“ -->
       <div id="history-list"></div>
     </div>
 
@@ -1942,8 +1969,16 @@ function renderPlans(){
       <div class="lr-main"><div class="lr-title">${escapeHTML(a.name)}</div><div class="lr-sub">📅 ${planDayText(p.date)} ${p.time}${planCasTxt(p)?` · <span class="plan-soon">${planCasTxt(p)}</span>`:''}</div></div>
       ${today ? `<button class="sugg-go" onclick="askLog('${a.id}')">${GB_ACTIVITY_ENV[a.id] ? '💪 Cvičit' : 'Beru'}</button>` : ''}<!-- Kolo 21 -->
       <button class="icon-btn" style="width:34px;height:34px;font-size:15px;" onclick="planDoKalendare('${p.id}')" aria-label="Přidat do kalendáře">🗓️</button><!-- Kolo 18 -->
-      <button class="icon-btn" style="width:34px;height:34px;font-size:14px;" onclick="removePlan('${p.id}')" aria-label="Zrušit plán">✕</button></div>`;
+      <button class="icon-btn" style="width:34px;height:34px;font-size:14px;" onclick="askRemovePlan('${p.id}')" aria-label="Zrušit plán">✕</button></div>`; // Kolo 22: nejdřív se zeptá
   }).join('')}</div>`;
+}
+function askRemovePlan(id){ // Kolo 22: potvrzení zrušení plánu (proti ukliknutí)
+  const p = (state.plans||[]).find(x=>x.id===id), a = p && state.activities.find(x=>x.id===p.activityId); if(!a) return;
+  document.getElementById('log-confirm-head').innerHTML = `<div class="sugg-icon" style="width:64px;height:64px;font-size:34px;border-radius:20px;">${a.icon}</div>
+    <div class="sugg-info"><div class="name" style="font-size:19px;">${escapeHTML(a.name)}</div><div class="meta">📅 ${planDayText(p.date)} ${p.time}</div></div>`;
+  document.getElementById('log-confirm-actions').innerHTML = `<button class="btn btn-danger" onclick="closeLogConfirm();removePlan('${id}')">✕ Zrušit plán</button>
+       <button class="btn btn-ghost btn-sm" onclick="closeLogConfirm()">Nechat</button>`;
+  document.getElementById('log-confirm-modal').classList.add('show');
 }
 function removePlan(id){
   const p = (state.plans||[]).find(x=>x.id===id); if(!p) return;
@@ -1975,6 +2010,12 @@ function openPlanForm(activityId){
   document.getElementById('plan-form-time').value = h<21 ? pad(h+1)+':00' : '18:00';
   document.getElementById('plan-form-date').value = posunDen(todayStr(), 2);
   setPlanFormDay(h<21 ? 'dnes' : 'zitra');
+  if(kalPlanDen){ // Kolo 22: den z kalendáře je předvyplněný a zamčený
+    document.getElementById('plan-form-date').value = kalPlanDen; setPlanFormDay('jiny');
+    document.getElementById('plan-form-date').hidden = true;
+    document.getElementById('plan-form-day').innerHTML = `<span class="chip selected plan-zamek" aria-label="Den je daný z kalendáře">🔒 ${kalDenNazev(kalPlanDen)}</span>`;
+    if(kalPlanDen!==todayStr()) document.getElementById('plan-form-time').value = '17:30';
+  }
   document.getElementById('plan-form-modal').classList.add('show');
 }
 function setPlanFormDay(d){
@@ -1991,6 +2032,7 @@ function savePlanForm(){
   if(new Date(ds+'T'+tv+':00') <= new Date()){ showToast('⏰ Ten čas už je pryč'); return; }
   savePlan(act.id, ds, tv);
   closePlanForm(); closeLogSheet();
+  if(kalPlanDen){ kalPlanDen = null; renderHistory(); } // Kolo 22
   showToast('📅 '+act.icon+' '+escapeHTML(act.name)+' · '+planDayText(ds)+' '+tv);
 }
 function planDoKalendare(id){
@@ -2064,6 +2106,7 @@ function goTo(view, fromBack){
   window.scrollTo(0,0);
   if(view==='gymbro') renderGbLastWorkoutInfo();
   else gbEnvZnamy = false; // Kolo 21
+  if(view==='journal' && !fromBack){ kalDnes(); renderHistory(); } // Kolo 22: Deník začíná na tomto měsíci
   if(view==='suggest') autoWeatherChip(); // Kolo 4
 }
 
@@ -2075,7 +2118,11 @@ function setSheetMode(m){
   const r = document.getElementById('sheet-rest-row'); if(r) r.style.display = m==='plan' ? 'none' : '';
 }
 function openLogSheet(){
-  setSheetMode('log'); // Kolo 18: vždy začíná na Zapsat
+  if(!kalOtevira) kalPlanDen = null; kalOtevira = false; // Kolo 22
+  setSheetMode(kalPlanDen ? 'plan' : 'log'); // Kolo 18: vždy začíná na Zapsat · Kolo 22: z kalendáře jen Naplánovat
+  const m = document.getElementById('sheet-mode'), h = document.querySelector('#log-sheet .card-head .h2');
+  if(m) m.style.display = kalPlanDen ? 'none' : '';
+  if(h) h.textContent = kalPlanDen ? 'Co naplánovat na '+planDayText(kalPlanDen).replace(/^Dnes$/,'dnešek').replace(/^Zítra$/,'zítřek').replace(/ /g,'\u00a0')+'?' : 'Jaký pohyb zapsat?';
   renderSheetGrid();
   document.getElementById('log-sheet').classList.add('show');
 }
@@ -2135,20 +2182,72 @@ function niceDate(ds){
   const d = new Date(ds+'T00:00:00');
   return d.toLocaleDateString('cs-CZ', {weekday:'short', day:'numeric', month:'numeric'});
 }
+/* ---- Kolo 22: kalendář v Deníku (místo „Poslední pohyb“) ---- */
+// Den ukáže emoji zápisů (plně) a plánů (poloprůhledně); klepnutí otevře bublinu s podrobnostmi, která pluje nad kalendářem.
+// Z dneška a budoucích dnů jde „＋ Naplánovat“: panel ＋ jen v režimu Naplánovat, den je ve formuláři zamčený.
+const KAL_MES = ['Leden','Únor','Březen','Duben','Květen','Červen','Červenec','Srpen','Září','Říjen','Listopad','Prosinec'];
+const KAL_DNY = ['Neděle','Pondělí','Úterý','Středa','Čtvrtek','Pátek','Sobota'];
+let kalY = new Date().getFullYear(), kalM = new Date().getMonth(), kalSel = null, kalPlanDen = null, kalOtevira = false;
+function kalDs(y,m,d){ return y+'-'+pad(m+1)+'-'+pad(d); }
+function kalPosun(o){ kalM += o; if(kalM<0){ kalM=11; kalY--; } if(kalM>11){ kalM=0; kalY++; } kalSel = null; renderHistory(); }
+function kalDnes(){ const d = new Date(); kalY = d.getFullYear(); kalM = d.getMonth(); kalSel = null; }
+function kalKlik(ds){ kalSel = kalSel===ds ? null : ds; renderHistory(); }
+function kalAkt(id){ return state.activities.find(a=>a.id===id) || {icon:'⭐', name:'Aktivita'}; }
+function kalDen(ds){
+  return { logs: state.logs.filter(l=>l.date===ds).sort((a,b)=>(a.time||'').localeCompare(b.time||'')),
+           plans: (state.plans||[]).filter(p=>p.date===ds).sort((a,b)=>a.time.localeCompare(b.time)),
+           rest: state.restDays.includes(ds), frozen: state.frozenDays.includes(ds) };
+}
+function kalDenNazev(ds){ const dt = new Date(ds+'T12:00:00'), dnes = todayStr();
+  return (ds===dnes ? 'Dnes' : ds===posunDen(dnes,1) ? 'Zítra' : KAL_DNY[dt.getDay()])+' '+dt.getDate()+'. '+(dt.getMonth()+1)+'.'; }
+function kalPopHTML(ds){
+  const d = kalDen(ds), dnes = todayStr(), rows = [];
+  d.logs.forEach(l=>{ const a = kalAkt(l.activityId), g = l.gbLogId && state.gymbroLog.find(x=>x.id===l.gbLogId);
+    rows.push(`<div class="list-row"><div class="lr-ic">${a.icon}</div><div class="lr-main"><div class="lr-title">${escapeHTML(a.name)}</div>
+      <div class="lr-sub">${l.time||''}${g ? ' · 💪 '+(GB_CAT_SHORT[g.cat]||'trénink')+' · '+(g.exercises||[]).length+' cviků' : ''}</div></div>
+      <div class="lr-end">${l.navrat?'<span class="navrat-tag" title="návrat po pauze" role="button" onclick="openNapoveda(\'navrat\')">🌱</span> ':''}+${l.xp} XP</div></div>`); }); // Kolo 13: 🌱 návrat
+  d.plans.forEach(p=>{ const a = kalAkt(p.activityId);
+    rows.push(`<div class="list-row"><div class="lr-ic" style="opacity:.6">${a.icon}</div><div class="lr-main"><div class="lr-title">${escapeHTML(a.name)}</div>
+      <div class="lr-sub"><span class="pl-tag">📅 v plánu ${p.time}</span></div></div>
+      ${p.date===dnes ? `<button class="sugg-go" onclick="askLog('${p.activityId}')">${GB_ACTIVITY_ENV[p.activityId] ? '💪 Cvičit' : 'Beru'}</button>` : ''}
+      <button class="icon-btn" style="width:34px;height:34px;font-size:15px;" onclick="planDoKalendare('${p.id}')" aria-label="Přidat do kalendáře">🗓️</button></div>`); }); // do kalendáře v telefonu jako na Domů
+  if(d.rest) rows.push('<div class="list-row"><div class="lr-ic">😌</div><div class="lr-main"><div class="lr-title">Odpočinek</div></div></div>');
+  if(d.frozen) rows.push('<div class="list-row"><div class="lr-ic">🧊</div><div class="lr-main"><div class="lr-title">Zmrazení podrželo řadu</div></div></div>');
+  if(!rows.length) rows.push(`<p class="empty-note">${ds<dnes ? 'Nic zapsáno' : 'Zatím nic v plánu'}</p>`);
+  if(ds>=dnes) rows.push(`<div class="btn-row" style="margin:6px 0;"><button class="btn btn-ghost btn-sm" style="flex:1 1 100%;" onclick="kalNaplanovat('${ds}')">＋ Naplánovat</button></div>`);
+  return `<h3>${kalDenNazev(ds)}</h3>${rows.join('')}`;
+}
 function renderHistory(){
   const wrap = document.getElementById('history-list');
   if(!wrap) return;
-  const logs = state.logs.slice().sort((a,b)=> (b.date+(b.time||'')).localeCompare(a.date+(a.time||''))).slice(0,8);
-  const sumEl = document.getElementById('history-summary');
-  if(sumEl) sumEl.textContent = state.logs.length ? countActiveDaysTotal()+' dní v pohybu celkem' : '';
-  if(!logs.length){ wrap.innerHTML = '<p class="empty-note">Tady se objeví všechno, co zapíšeš.</p>'; return; }
-  wrap.innerHTML = logs.map(l=>{
-    const a = state.activities.find(x=>x.id===l.activityId);
-    return `<div class="list-row"><div class="lr-ic">${a?a.icon:'⭐'}</div>
-      <div class="lr-main"><div class="lr-title">${escapeHTML(a?a.name:'Aktivita')}</div><div class="lr-sub">${niceDate(l.date)}${l.time?' · '+l.time:''}</div></div>
-      <div class="lr-end">${l.navrat?'<span class="navrat-tag" title="návrat po pauze" role="button" onclick="openNapoveda(\'navrat\')">🌱</span> ':''}+${l.xp} XP</div></div>`; // Kolo 13
-  }).join('');
+  const nav = document.getElementById('kal-nav');
+  if(nav) nav.innerHTML = `<button class="icon-btn" onclick="kalPosun(-1)" aria-label="Předchozí měsíc">‹</button><span class="kal-mes">${KAL_MES[kalM]} ${kalY}</span><button class="icon-btn" onclick="kalPosun(1)" aria-label="Další měsíc">›</button>`;
+  const prvni = (new Date(kalY,kalM,1).getDay()+6)%7, dnu = new Date(kalY,kalM+1,0).getDate(), dnes = todayStr();
+  const cells = []; for(let i=0;i<prvni;i++) cells.push('<span class="kal-d prazdny"></span>');
+  let dniAkt = 0, xp = 0;
+  for(let d=1; d<=dnu; d++){
+    const ds = kalDs(kalY,kalM,d), k = kalDen(ds);
+    const ic = k.logs.map(l=>`<span>${kalAkt(l.activityId).icon}</span>`).concat(k.plans.map(p=>`<span class="pl">${kalAkt(p.activityId).icon}</span>`));
+    if(!ic.length && k.rest) ic.push('<span>😌</span>');
+    if(!ic.length && k.frozen) ic.push('<span>🧊</span>');
+    const vid = ic.length>3 ? ic.slice(0,2).concat(`<span class="vic">+${ic.length-2}</span>`) : ic;
+    if(k.logs.length){ dniAkt++; xp += k.logs.reduce((s,l)=>s+l.xp,0); }
+    const cls = ['kal-d', k.logs.length?'akt':k.plans.length?'plan':k.rest?'rest':k.frozen?'frozen':'', ds===dnes?'today':'', ds===kalSel?'sel':''].join(' ');
+    cells.push(`<button class="${cls}" onclick="kalKlik('${ds}')" aria-label="${d}. ${kalM+1}."><span class="kal-n">${d}</span><span class="kal-ic">${vid.join('')}</span></button>`);
+  }
+  const vMesici = kalSel && kalSel.slice(0,7)===kalDs(kalY,kalM,1).slice(0,7);
+  wrap.innerHTML = `<div class="kal-wrap"><div class="kal-grid">${['Po','Út','St','Čt','Pá','So','Ne'].map(x=>`<span class="kal-wd">${x}</span>`).join('')}${cells.join('')}</div>${vMesici ? `<div class="kal-pop">${kalPopHTML(kalSel)}</div>` : ''}</div>
+    <p class="muted" style="margin-top:8px;">${KAL_MES[kalM]}: ${dniAkt} ${dniAkt===1?'den':dniAkt>1&&dniAkt<5?'dny':'dní'} v pohybu · ${xp} XP</p>`;
+  if(vMesici){ // pod vybraným dnem, u spodních řádků nad ním; nic neposouvá
+    const kw = wrap.querySelector('.kal-wrap'), pop = wrap.querySelector('.kal-pop'), cel = wrap.querySelector('.kal-d.sel');
+    const dole = cel.offsetTop+cel.offsetHeight+8, nahore = cel.offsetTop-pop.offsetHeight-8;
+    const nad = dole+pop.offsetHeight > kw.offsetHeight && nahore>=0;
+    pop.style.top = (nad ? nahore : dole)+'px'; pop.classList.toggle('nad', nad);
+    pop.style.setProperty('--cx', (cel.offsetLeft+cel.offsetWidth/2)+'px');
+  }
 }
+document.addEventListener('click', e=>{ if(kalSel && e.target.closest && !e.target.closest('.kal-pop,.kal-d,.kal-nav')){ kalSel = null; renderHistory(); } }); // klepnutí jinam bublinu zavře
+function kalNaplanovat(ds){ kalSel = null; renderHistory(); kalPlanDen = ds; kalOtevira = true; openLogSheet(); }
 function showToast(msg){
   const t=document.getElementById('toast'); t.innerHTML=msg;
   t.classList.add('show'); clearTimeout(window._toastTimer);
