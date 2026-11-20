@@ -126,7 +126,7 @@
   .chips-14 .freeze-chip,.week-row,.navrat-card,.navrat-tag{cursor:pointer;-webkit-tap-highlight-color:transparent;}
   .chips-14 .freeze-chip:active,.week-row:active,.navrat-card:active{transform:scale(.97);}
   .nap-head{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:end;gap:4px 8px;margin:4px 0 6px;}
-  .nap-head .gbz-bubble{margin-bottom:46px;font-size:15px;}
+  .nap-head .gbz-bubble{margin-bottom:calc(var(--gbh-s)*.695 - 20px);font-size:15px;}
   .nap-head .pose{opacity:0;transition:opacity .15s ease;} .nap-head .pose.on{opacity:1;}
   #nap-rows .list-row:last-child{border-bottom:none;}
   /* Kolo 18: plánování z ＋, připomínka, „Proběhlo?“ */
@@ -136,7 +136,7 @@
   #plan-form-day{margin:16px 0 10px;}
   /* Kolo 13: návratový bonus */
   .navrat-card{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:end;gap:4px 8px;background:linear-gradient(170deg,rgba(236,252,241,.92),rgba(221,246,230,.7));}
-  .navrat-card .gbz-bubble{margin-bottom:46px;}
+  .navrat-card .gbz-bubble{margin-bottom:calc(var(--gbh-s)*.695 - 20px);}
   .navrat-card .pose{opacity:0;transition:opacity .15s ease;} .navrat-card .pose.on{opacity:1;}
   .quick.bonus{border-color:rgba(47,174,102,.45);}
   .q-bonus{font-size:11.5px;font-weight:800;color:var(--leaf-deep);background:var(--leaf-soft);padding:1px 7px;border-radius:99px;}
@@ -290,15 +290,16 @@
   .gbz-dots i{width:8px;height:8px;border-radius:50%;background:rgba(10,120,198,.18);transition:all .25s ease;}
   .gbz-dots i.on{width:22px;border-radius:99px;background:var(--aqua);}
   .gbz-dots i.done{background:var(--leaf);}
-  .gbz-stage{display:flex;align-items:flex-end;gap:4px;min-height:190px;}
-  .gbz-bro{width:150px;height:190px;flex-shrink:0;animation:gbzBob 3.2s ease-in-out infinite;transform-origin:50% 100%;}
-  .gbz-bro.small{width:96px;height:122px;}
+  .gbz-stage{display:flex;align-items:flex-end;gap:4px;min-height:var(--gbh);}
+  .gbz-bro{width:auto;height:var(--gbh);flex-shrink:0;animation:gbzBob 3.2s ease-in-out infinite;transform-origin:50% 100%;}
+  .gbz-bro.small{height:var(--gbh-s);} /* Kolo 19 */
+  :root{--gbh:clamp(118px,38vw,164px);--gbh-s:clamp(96px,30vw,124px);} /* Kolo 19: výška GymBra; bublina míří na hlavu (70 % výšky) */
   .gbz-bro.hop{animation:gbzHop .5s cubic-bezier(.3,1.6,.5,1);}
   @keyframes gbzBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
   @keyframes gbzHop{0%{transform:translateY(0) scale(1,1)}30%{transform:translateY(-14px) scale(.97,1.04)}100%{transform:translateY(0) scale(1,1)}}
   .gbz .pose,.gbz-start .pose{opacity:0;transition:opacity .15s ease;}
   .gbz .pose.on,.gbz-start .pose.on{opacity:1;}
-  .gbz-bubble{position:relative;flex:1;min-width:0;margin-bottom:96px;background:linear-gradient(180deg,#fff,#F2FBFF);border:1px solid #fff;border-radius:20px 20px 20px 6px;padding:12px 14px;font-weight:800;font-size:15.5px;line-height:1.35;box-shadow:0 8px 20px -8px rgba(6,60,100,.35), inset 0 1px 0 #fff;}
+  .gbz-bubble{position:relative;flex:1;min-width:0;margin-bottom:calc(var(--gbh)*.695 - 20px);background:linear-gradient(180deg,#fff,#F2FBFF);border:1px solid #fff;border-radius:20px 20px 20px 6px;padding:12px 14px;font-weight:800;font-size:15.5px;line-height:1.35;box-shadow:0 8px 20px -8px rgba(6,60,100,.35), inset 0 1px 0 #fff;}
   .gbz-bubble::after{content:'';position:absolute;left:-8px;bottom:12px;width:16px;height:16px;background:#fff;transform:rotate(45deg);border-radius:3px;}
   .gbz-bubble small{display:block;font-weight:600;color:var(--ink-2);font-size:13px;margin-top:3px;}
   .gbz-q{font-size:24px;font-weight:800;letter-spacing:-.02em;margin:4px 2px 14px;}
@@ -317,7 +318,8 @@
   .grid3 .gbz-choice .ic{width:auto;}
   .grid3 .gbz-choice .tag{margin:0;}
   .gbz-start{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:end;gap:4px 8px;}
-  .gbz-start .gbz-bubble{margin-bottom:56px;}
+  .gbz-start .gbz-bubble{margin-bottom:calc(var(--gbh)*.695 - 20px);}
+  .gbz-start .gbz-bro.small{height:var(--gbh);} /* Kolo 19: na startu velký */
   .gbz-start .btn{grid-column:1 / -1;}
   .gbw-head{display:flex;align-items:center;gap:10px;margin:0 2px 10px;}
   .gbw-head > div{flex:1;min-width:0;}
@@ -334,8 +336,8 @@
   .gbw-row .gb-weight{margin-top:0;}
   .gbw-dock{position:sticky;bottom:calc(84px + env(safe-area-inset-bottom));z-index:5;display:flex;align-items:flex-end;gap:10px;padding:10px 0 4px;margin-top:6px;}
   .gbw-dock .btn{flex:1;}
-  .gbw-bro{width:58px;height:74px;flex-shrink:0;}
-  .gbw-say{position:absolute;left:62px;bottom:62px;background:#fff;border-radius:14px 14px 14px 4px;padding:6px 10px;font-size:13px;font-weight:800;box-shadow:0 6px 14px -6px rgba(6,60,100,.35);white-space:nowrap;}
+  .gbw-bro{width:auto;height:62px;flex-shrink:0;} /* Kolo 19 */
+  .gbw-say{position:absolute;left:44px;bottom:54px;background:#fff;border-radius:14px 14px 14px 4px;padding:6px 10px;font-size:13px;font-weight:800;box-shadow:0 6px 14px -6px rgba(6,60,100,.35);white-space:nowrap;}
   .gbz-praise{overflow:hidden;}
   .gbz-confetti{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
   .gbz-confetti i{position:absolute;top:-20px;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff,rgba(255,255,255,.2) 60%,transparent 72%);border:1px solid rgba(255,255,255,.7);animation:gbzFall linear forwards;}
@@ -432,115 +434,10 @@
   <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
 </svg>
 
-<!-- Kolo 6: postavička GymBro -->
+<!-- Kolo 19: nový GymBro – kresba kamaráda z vrstev (pózy skládá gbBroKresli) -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <defs>
-    <linearGradient id="g-skin" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#A9ECFF"/><stop offset=".5" stop-color="#39B4EC"/><stop offset="1" stop-color="#0D74B8"/></linearGradient>
-    <radialGradient id="g-head" cx=".38" cy=".3" r=".8"><stop offset="0" stop-color="#E6FAFF"/><stop offset=".5" stop-color="#5CC6F2"/><stop offset="1" stop-color="#0D74B8"/></radialGradient>
-    <linearGradient id="g-top" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9BEAAE"/><stop offset=".45" stop-color="#3CBF6E"/><stop offset=".55" stop-color="#26A157"/><stop offset="1" stop-color="#1C8A4A"/></linearGradient>
-    <linearGradient id="g-shorts" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3A5F86"/><stop offset="1" stop-color="#16324F"/></linearGradient>
-    <linearGradient id="g-band" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE29A"/><stop offset="1" stop-color="#F09A12"/></linearGradient>
-    <linearGradient id="g-iron" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B7C7D3"/><stop offset=".5" stop-color="#4E6577"/><stop offset="1" stop-color="#22323F"/></linearGradient>
-  </defs>
-  <symbol id="bro" viewBox="0 0 150 190">
-    <ellipse cx="75" cy="184" rx="34" ry="5" fill="#0A5A8C" opacity=".18"/>
-    <!-- nohy -->
-    <path d="M66 138 L63 176" stroke="url(#g-skin)" stroke-width="15" stroke-linecap="round"/>
-    <path d="M84 138 L87 176" stroke="url(#g-skin)" stroke-width="15" stroke-linecap="round"/>
-    <ellipse cx="60" cy="180" rx="11" ry="5.5" fill="#fff"/><ellipse cx="90" cy="180" rx="11" ry="5.5" fill="#fff"/>
-    <path d="M52 181 h16 M82 181 h16" stroke="#1AA3E8" stroke-width="2" stroke-linecap="round"/>
-    <!-- kraťasy -->
-    <path d="M55 112 L95 112 L99 146 L79 148 L75 132 L71 148 L51 146 Z" fill="url(#g-shorts)"/>
-    <path d="M57 116 L93 116" stroke="#fff" stroke-opacity=".35" stroke-width="2"/>
-    <!-- trup (V-tvar) -->
-    <rect x="69" y="42" width="12" height="14" rx="4" fill="url(#g-skin)"/>
-    <path d="M42 62 Q75 48 108 62 Q113 68 107 76 L95 114 Q75 120 55 114 L43 76 Q37 68 42 62 Z" fill="url(#g-skin)"/>
-    <!-- tílko -->
-    <path d="M55 60 Q60 57 65 58 Q75 74 85 58 Q90 57 95 60 L93 114 Q75 119 57 114 Z" fill="url(#g-top)"/>
-    <path d="M61 82 Q75 88 89 82" stroke="#0E5A33" stroke-opacity=".35" stroke-width="2" fill="none" stroke-linecap="round"/>
-    <path d="M75 92 L75 108" stroke="#0E5A33" stroke-opacity=".25" stroke-width="2" stroke-linecap="round"/>
-    <path d="M58 64 Q60 90 59 110" stroke="#fff" stroke-opacity=".45" stroke-width="3" fill="none" stroke-linecap="round"/>
-    <ellipse cx="48" cy="64" rx="7" ry="4" fill="#fff" opacity=".45"/><ellipse cx="102" cy="64" rx="7" ry="4" fill="#fff" opacity=".35"/>
-    <!-- ruce: podél těla -->
-    <g class="pose arms-down on">
-      <path d="M46 66 Q38 90 39 114" stroke="url(#g-skin)" stroke-width="12" stroke-linecap="round" fill="none"/>
-      <path d="M104 66 Q112 90 111 114" stroke="url(#g-skin)" stroke-width="12" stroke-linecap="round" fill="none"/>
-      <circle cx="39" cy="117" r="6" fill="url(#g-skin)"/><circle cx="111" cy="117" r="6" fill="url(#g-skin)"/>
-    </g>
-    <!-- ruce: biceps -->
-    <g class="pose arms-flex">
-      <path d="M46 66 L22 68 L24 40" stroke="url(#g-skin)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-      <path d="M104 66 L128 68 L126 40" stroke="url(#g-skin)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-      <ellipse cx="33" cy="61" rx="8" ry="6.5" fill="url(#g-skin)"/><ellipse cx="117" cy="61" rx="8" ry="6.5" fill="url(#g-skin)"/>
-      <ellipse cx="31" cy="59" rx="3.5" ry="2" fill="#fff" opacity=".6"/><ellipse cx="115" cy="59" rx="3.5" ry="2" fill="#fff" opacity=".5"/>
-      <circle cx="24" cy="37" r="6.5" fill="url(#g-skin)"/><circle cx="126" cy="37" r="6.5" fill="url(#g-skin)"/>
-    </g>
-    <!-- ruce: velká činka nad hlavou -->
-    <g class="pose arms-lift">
-      <path d="M46 66 L30 42 L30 14" stroke="url(#g-skin)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-      <path d="M104 66 L120 42 L120 14" stroke="url(#g-skin)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-      <rect x="4" y="9" width="142" height="5" rx="2.5" fill="url(#g-iron)"/>
-      <rect x="4" y="0" width="10" height="23" rx="3" fill="url(#g-iron)"/><rect x="15" y="3" width="6" height="17" rx="2" fill="url(#g-iron)"/>
-      <rect x="136" y="0" width="10" height="23" rx="3" fill="url(#g-iron)"/><rect x="129" y="3" width="6" height="17" rx="2" fill="url(#g-iron)"/>
-      <circle cx="30" cy="12" r="6" fill="url(#g-skin)"/><circle cx="120" cy="12" r="6" fill="url(#g-skin)"/>
-    </g>
-    <!-- ruce: v bok -->
-    <g class="pose arms-hips">
-      <path d="M46 66 L31 88 L55 102" stroke="url(#g-skin)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-      <path d="M104 66 L119 88 L95 102" stroke="url(#g-skin)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-    </g>
-    <!-- ruce: zaťatá pěst nahoru (vítězné gesto) -->
-    <g class="pose arms-thumb">
-      <path d="M46 66 Q38 90 39 114" stroke="url(#g-skin)" stroke-width="12" stroke-linecap="round" fill="none"/>
-      <circle cx="39" cy="117" r="6" fill="url(#g-skin)"/>
-      <path d="M104 66 L127 74 L129 48" stroke="url(#g-skin)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-      <ellipse cx="116" cy="68" rx="7" ry="5.5" fill="url(#g-skin)"/>
-      <circle cx="129" cy="40" r="8.5" fill="url(#g-skin)"/>
-      <ellipse cx="121.5" cy="41" rx="3.2" ry="4" fill="url(#g-skin)"/>
-      <ellipse cx="126.5" cy="36.5" rx="3.2" ry="1.8" fill="#fff" opacity=".55"/>
-    </g>
-    <!-- ruce: počítá na prstech, kolik otázek zbývá (prsty doplní JS) -->
-    <g class="pose arms-count">
-      <path d="M46 66 Q38 90 39 114" stroke="url(#g-skin)" stroke-width="12" stroke-linecap="round" fill="none"/>
-      <circle cx="39" cy="117" r="6" fill="url(#g-skin)"/>
-      <path d="M104 66 L126 72 L128 48" stroke="url(#g-skin)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-      <g class="fingers"></g>
-    </g>
-    <!-- hlava -->
-    <circle cx="75" cy="30" r="16" fill="url(#g-head)"/>
-    <path d="M59.5 24 Q60 10 75 10 Q90 10 90.5 24 Q84 17 75 17 Q66 17 59.5 24 Z" fill="#12324D"/>
-    <path d="M59 25 Q75 18 91 25 L91 21 Q75 14 59 21 Z" fill="url(#g-band)"/>
-    <ellipse cx="69" cy="19" rx="6" ry="2.2" fill="#fff" opacity=".5"/>
-    <!-- obličeje -->
-    <g class="pose face-happy on">
-      <path d="M66 27.5 L72 27" stroke="#12324D" stroke-width="1.8" stroke-linecap="round"/><path d="M78 27 L84 27.5" stroke="#12324D" stroke-width="1.8" stroke-linecap="round"/>
-      <ellipse cx="69" cy="31.5" rx="1.9" ry="2.4" fill="#0A2236"/><ellipse cx="81" cy="31.5" rx="1.9" ry="2.4" fill="#0A2236"/>
-      <path d="M69.5 37 Q75 41.5 80.5 37" stroke="#0A2236" stroke-width="2" fill="none" stroke-linecap="round"/>
-    </g>
-    <!-- soustředěný: jen u „těžkých“ voleb (Síla, 60+ min), pusa rovná -->
-    <g class="pose face-focus">
-      <path d="M66 26.5 L72 28.5" stroke="#12324D" stroke-width="2" stroke-linecap="round"/><path d="M78 28.5 L84 26.5" stroke="#12324D" stroke-width="2" stroke-linecap="round"/>
-      <ellipse cx="69" cy="32" rx="1.9" ry="2.1" fill="#0A2236"/><ellipse cx="81" cy="32" rx="1.9" ry="2.1" fill="#0A2236"/>
-      <path d="M71 38.3 L79 38.3" stroke="#0A2236" stroke-width="2" fill="none" stroke-linecap="round"/>
-    </g>
-    <g class="pose face-wow">
-      <path d="M66 26 Q69 24 72 25.5" stroke="#12324D" stroke-width="1.8" fill="none" stroke-linecap="round"/><path d="M78 25.5 Q81 24 84 26" stroke="#12324D" stroke-width="1.8" fill="none" stroke-linecap="round"/>
-      <ellipse cx="69" cy="31" rx="2.2" ry="2.8" fill="#0A2236"/><ellipse cx="81" cy="31" rx="2.2" ry="2.8" fill="#0A2236"/>
-      <path d="M69 36.5 Q75 43 81 36.5 Z" fill="#0A2236"/>
-    </g>
-    <g class="pose face-tired">
-      <path d="M66 28 L72 26.5" stroke="#12324D" stroke-width="1.8" stroke-linecap="round"/><path d="M78 26.5 L84 28" stroke="#12324D" stroke-width="1.8" stroke-linecap="round"/>
-      <path d="M67 32 L71.5 32" stroke="#0A2236" stroke-width="2" stroke-linecap="round"/><path d="M78.5 32 L83 32" stroke="#0A2236" stroke-width="2" stroke-linecap="round"/>
-      <path d="M71 39 Q75 37.5 79 39" stroke="#0A2236" stroke-width="2" fill="none" stroke-linecap="round"/>
-      <path d="M93 25 Q96 30 93 32 Q90 30 93 25 Z" fill="#BFF0FF" stroke="#1AA3E8" stroke-width="1"/>
-    </g>
-    <g class="pose face-cool">
-      <path d="M63 28 h11 v4 q-5.5 3.5 -11 0 Z" fill="#0E3550"/><path d="M76 28 h11 v4 q-5.5 3.5 -11 0 Z" fill="#0E3550"/>
-      <path d="M74 29 h2" stroke="#0E3550" stroke-width="2"/>
-      <path d="M65 29.5 h4" stroke="#7FD8FA" stroke-width="1.4" stroke-linecap="round"/><path d="M78 29.5 h4" stroke="#7FD8FA" stroke-width="1.4" stroke-linecap="round"/>
-      <path d="M70 37.5 Q76 41 81 36.5" stroke="#0A2236" stroke-width="2" fill="none" stroke-linecap="round"/>
-    </g>
-  </symbol>
+  <defs><image id="_Image1" width="60px" height="46px" xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAAuCAYAAAB04nriAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAEf0lEQVRoge2aO2wcRRjHfzN763s6tmLndREoQAIESCR00FBAA4iKhg5oKCkIokmRMhICIYQURAUFDTTpUEBYEKEUAYvAIgShQUGKwdbawbIdX5x7zO4MxZ7te+ycH7l1zsY/aSXPft/MfX/P7LwFa1ByuQcoASeAk8DDQH6tfFvEHHAV+B34DfjZU8x3yyBshobQs8AzvYwwYRRwHnjXUyzFOXQILrkI4GXgDJBNNLzkmAJOe4rxdoPTnCi55IGPgdcAd2tiS4Q9wEtFh6yvudxsaBFcdPgEeHorI0uYUtFB+5oryy/kisXlFXaW2GVOlVweXU4IWOmgxrB8s0IIhveNks3nGchkSaXTaGPQRqO1afzd9HS8i/GLTet1+ER+xhhSYYirQzJaUzBhN9F/Ai96iroDUHQ4BxyN88zl8xx58BhDIyMMZLNIJ4WBxmMwhqZ04+l4F+MXmzbr8Fn1CxBUhaQsJBUEOWNWm2wrI0DN1/wkG7UbO/Tk8nkeeOQ46Wz/d9ZLQjIhUmi7y6sQfcOlOKuQknuP3o8Q1qG671AIplv74WYOlFwOS6IZVAej+/eR2QY1284Ckqp9PnVCEk0XO8gXCokFlTS37YJPSqK5cQe5Qr9MlzdOxVhNxyWWhcB2bM7L1O01PGjpxbc39grGNmztXHYF73R2Be90dgXvdP6XgmtxhjAItjiU3mFdL0FFAjfiLKquEgoneVz7XGtGAjNxlrqqJxZQ0qTsS/gbVsG1ajWpeBJnYI0anoyzLM4vJBZQkghg0C54UgLfx1kWby6iw647gX1JDmPrtALgigR+BMrtVqM1N7dhLe+xb+ONe4qy9BQKuBTnMTM1hTHdVpf9hYth2C74W1ideIzFeVQrVeZnZxMILRlGTWjf64CLsCr4IpbOa3pyimAbTEKyRjNkr90vPcU0NAQ3mvX7cZ6BUvxz7VpfN+0UhqK2VkpAk7bmufQF4I+4HEvlW/gTf/cswF4igEOhwrEPRZ97ipXgVwR7CgO8bcu1MDuLf32ir2raMYZiUCNtrE25DHzUkqc54Wsmiw5p4Im43LVKhUq5TH5oCCHlXT1Mc7XmYFDF7V4Bb3iqtdV2jNFFh3HgMeC+uBICpSjPzSGlxM1moF1swoKFMQyqGntVba217Xue4nz7yw7BvsYUHb4DniU6ZuzAaM3tcpmlhQWElDiuC0IkKlhqTU7VGa5XyOiuww/AF56K/zy73eI5CHwKPNS97IiBXI50oYBwXYR0ECkHI2TLgbhpPzg3Bm1oORA3xmDCEBOGEIbIMMBVipRe9zT3a+AtTxG73Ov6j2pccvkAeG69v3aXOQd82OiAY+myOQC+RhUdviK60fNkj4PrJVXgTU/xmd/lRBzWEAzga/A1PxQdLgPHgEM9CbF3XABe9xS/rMd5w8f7JZcXgNPAkY3m7THjwDue4upGMm3qPkPJxSG6F/I8UW++dzPlbILrwDfAmKf4dTMF3PEFjpKLBB4HngIOA/sbzwEgs8libwHTRNtP/xIJveQp/rrTeP8DfEhl9xkhcBkAAAAASUVORK5CYII="/><filter id="gbRozost" x="-0.02" y="-0.02" width="1.04" height="1.04" style="color-interpolation-filters:sRGB"><feGaussianBlur stdDeviation="0.71338224"/></filter></defs>
+  <symbol id="bro" viewBox="600 290 720 480"><g class="gbx-down">        <g transform="matrix(0.321356,-0.946958,-0.946958,-0.321356,1092.808794,1584.230971)"> <g transform="matrix(-0.087698,-0.773624,-0.61431,0.073185,2499.465668,1661.475921)"> <path d="M1681.34,2328.384C1704.102,2328.384 1722.581,2351.641 1722.581,2380.287L1722.581,2506.299C1722.581,2534.945 1704.102,2558.202 1681.34,2558.202C1658.578,2558.202 1640.099,2534.945 1640.099,2506.299L1640.099,2380.287C1640.099,2351.641 1658.578,2328.384 1681.34,2328.384Z" style="fill:rgb(224,172,146);"/> </g> <g transform="matrix(-0.620055,0.123394,0.13719,0.669436,1493.925144,-1344.922683)"> <path d="M1681.34,2328.384C1704.102,2328.384 1722.581,2345.481 1722.581,2366.54L1722.581,2520.046C1722.581,2541.105 1704.102,2558.202 1681.34,2558.202C1658.578,2558.202 1640.099,2541.105 1640.099,2520.046L1640.099,2366.54C1640.099,2345.481 1658.578,2328.384 1681.34,2328.384Z" style="fill:rgb(224,172,146);"/> </g> </g> <g transform="matrix(-0.258819,-0.965926,0.965926,-0.258819,753.189391,1569.972482)"> <g transform="matrix(-0.632214,0,0.003972,0.697292,1854.183954,-1223.724789)"> <path d="M1681.34,2328.384C1704.102,2328.384 1722.581,2345.139 1722.581,2365.776L1722.581,2520.81C1722.581,2541.447 1704.102,2558.202 1681.34,2558.202C1658.578,2558.202 1640.099,2541.447 1640.099,2520.81L1640.099,2365.776C1640.099,2345.139 1658.578,2328.384 1681.34,2328.384Z" style="fill:rgb(224,172,146);"/> </g> <g transform="matrix(-0,-0.778579,-0.618644,0.003524,2365.7649,1831.660845)"> <path d="M1681.34,2328.384C1704.102,2328.384 1722.581,2351.641 1722.581,2380.287L1722.581,2506.299C1722.581,2534.945 1704.102,2558.202 1681.34,2558.202C1658.578,2558.202 1640.099,2534.945 1640.099,2506.299L1640.099,2380.287C1640.099,2351.641 1658.578,2328.384 1681.34,2328.384Z" style="fill:rgb(224,172,146);"/> </g> </g></g><g class="gbx-palA" style="display:none">        <g transform="matrix(0.321356,-0.946958,-0.946958,-0.321356,1092.808794,1584.230971)"> <g transform="matrix(-0.087698,-0.773624,-0.61431,0.073185,2499.465668,1661.475921)"> <path d="M1681.34,2328.384C1704.102,2328.384 1722.581,2351.641 1722.581,2380.287L1722.581,2506.299C1722.581,2534.945 1704.102,2558.202 1681.34,2558.202C1658.578,2558.202 1640.099,2534.945 1640.099,2506.299L1640.099,2380.287C1640.099,2351.641 1658.578,2328.384 1681.34,2328.384Z" style="fill:rgb(224,172,146);"/> </g> <g transform="matrix(-0.620055,0.123394,0.13719,0.669436,1493.925144,-1344.922683)"> <path d="M1681.34,2328.384C1704.102,2328.384 1722.581,2345.481 1722.581,2366.54L1722.581,2520.046C1722.581,2541.105 1704.102,2558.202 1681.34,2558.202C1658.578,2558.202 1640.099,2541.105 1640.099,2520.046L1640.099,2366.54C1640.099,2345.481 1658.578,2328.384 1681.34,2328.384Z" style="fill:rgb(224,172,146);"/> </g> </g>        <g transform="translate(1661873.92 378566.87)"><g transform="matrix(-1,0,0,1,-1659947.7,-378533.92)"> <g transform="matrix(-0.087698,-0.773624,-0.61431,0.073185,2499.4657,1661.4759)" style="display:inline"> <path d="m 1693.2393,2310.318 c 22.762,0 31.2359,41.436 29.3417,69.969 l -3.4891,52.5574 c -1.8941,28.5331 -27.9078,15.4582 -50.2252,20.9351 -21.4002,5.2519 -39.7142,22.932 -44.174,-5.1906 l -7.9704,-50.2596 c -4.4598,-28.1228 53.755,-88.0113 76.517,-88.0113 z" style="fill:#e0ac92" /> </g> </g></g></g><g class="gbx-up" style="display:none"><g class="gbx-uL"><g><g transform="matrix(1,0,0,1,-23.623417,32.953804)">        <g transform="matrix(-0.087698,-0.773624,-0.61431,0.073185,2499.465668,1661.475921)"> <path d="M1681.34,2328.384C1704.102,2328.384 1722.581,2351.641 1722.581,2380.287L1722.581,2506.299C1722.581,2534.945 1704.102,2558.202 1681.34,2558.202C1658.578,2558.202 1640.099,2534.945 1640.099,2506.299L1640.099,2380.287C1640.099,2351.641 1658.578,2328.384 1681.34,2328.384Z" style="fill:rgb(224,172,146);"/> </g></g></g><g class="gbx-fL"><g transform="matrix(1,0,0,1,-23.623417,32.953804)">        <g transform="matrix(-0.547513,0.316107,0.352086,0.601886,842.588089,-1498.427026)"> <path d="M1681.34,2328.384C1704.102,2328.384 1722.581,2345.139 1722.581,2365.776L1722.581,2520.81C1722.581,2541.447 1704.102,2558.202 1681.34,2558.202C1658.578,2558.202 1640.099,2541.447 1640.099,2520.81L1640.099,2365.776C1640.099,2345.139 1658.578,2328.384 1681.34,2328.384Z" style="fill:rgb(224,172,146);"/> </g></g></g></g><g class="gbx-uR"><g><g transform="matrix(-1,0,0,1,1926.18689,32.953804)">        <g transform="matrix(-0.087698,-0.773624,-0.61431,0.073185,2499.465668,1661.475921)"> <path d="M1681.34,2328.384C1704.102,2328.384 1722.581,2351.641 1722.581,2380.287L1722.581,2506.299C1722.581,2534.945 1704.102,2558.202 1681.34,2558.202C1658.578,2558.202 1640.099,2534.945 1640.099,2506.299L1640.099,2380.287C1640.099,2351.641 1658.578,2328.384 1681.34,2328.384Z" style="fill:rgb(224,172,146);"/> </g></g></g><g class="gbx-fR"><g transform="matrix(-1,0,0,1,1926.18689,32.953804)">        <g transform="matrix(-0.547513,0.316107,0.352086,0.601886,842.588089,-1498.427026)"> <path d="M1681.34,2328.384C1704.102,2328.384 1722.581,2345.139 1722.581,2365.776L1722.581,2520.81C1722.581,2541.447 1704.102,2558.202 1681.34,2558.202C1658.578,2558.202 1640.099,2541.447 1640.099,2520.81L1640.099,2365.776C1640.099,2345.139 1658.578,2328.384 1681.34,2328.384Z" style="fill:rgb(224,172,146);"/> </g></g></g></g></g><g class="gbx-body">    <g transform="matrix(1,0,0,1,-819.58492,-1801.059209)"> <g transform="matrix(1.061428,0,0,0.677061,-107.504669,833.689529)"> <path d="M1690.523,2278.885C1690.518,2278.472 1690.516,2278.059 1690.516,2277.645C1690.516,2232.308 1716.156,2195.501 1747.737,2195.501L1797.585,2195.501C1829.165,2195.501 1854.805,2232.308 1854.805,2277.645C1854.805,2278.059 1854.803,2278.472 1854.799,2278.885C1854.803,2279.172 1854.805,2279.46 1854.805,2279.749L1854.805,2506.201C1854.805,2528.215 1842.355,2546.087 1827.021,2546.087L1718.3,2546.087C1702.966,2546.087 1690.516,2528.215 1690.516,2506.201L1690.516,2279.749C1690.516,2279.46 1690.518,2279.172 1690.523,2278.885Z" style="fill:rgb(224,172,146);"/> </g> <g transform="matrix(1,0,0,1.085562,0,-218.829205)"> <path d="M1836.675,2410.295C1838.84,2422.143 1849.002,2431.239 1861.321,2431.775C1861.4,2432.545 1861.443,2433.325 1861.448,2434.115L1862.015,2533.726C1862.09,2546.873 1851.477,2557.546 1838.331,2557.546L1711.442,2557.546C1698.295,2557.546 1687.561,2546.873 1687.486,2533.726L1686.919,2434.115C1686.914,2433.333 1686.948,2432.561 1687.017,2431.799C1687.116,2431.8 1687.215,2431.8 1687.314,2431.8C1700.146,2431.8 1710.772,2422.51 1712.865,2410.295L1836.675,2410.295Z" style="fill:rgb(98,200,127);"/> </g> <g transform="matrix(1.571833,0,-0.006669,1.032854,-849.8204,-84.702302)"> <path d="M1711.858,2328.384C1717.777,2328.384 1722.581,2335.696 1722.581,2344.702L1722.581,2551.926C1722.581,2555.39 1720.733,2558.202 1718.457,2558.202L1644.223,2558.202C1641.946,2558.202 1640.099,2555.39 1640.099,2551.926L1640.099,2344.074C1640.099,2335.415 1644.718,2328.384 1650.409,2328.384L1711.858,2328.384Z" style="fill:rgb(98,200,127);"/> </g> <g transform="matrix(4.538722,0,0,2.164378,-6390.025378,-2591.064452)"> <path d="M1801.529,2258.947C1807.412,2258.947 1812.188,2268.963 1812.188,2281.299C1812.188,2293.636 1807.412,2303.652 1801.529,2303.652L1798.266,2303.652C1792.383,2303.652 1787.607,2293.636 1787.607,2281.299C1787.607,2268.963 1792.383,2258.947 1798.266,2258.947L1801.529,2258.947Z" style="fill:rgb(51,145,98);"/> </g> <g transform="matrix(3.605015,0,0,1.719121,-4709.446913,-1574.273129)"> <path d="M1801.529,2258.947C1807.412,2258.947 1812.188,2268.963 1812.188,2281.299C1812.188,2293.636 1807.412,2303.652 1801.529,2303.652L1798.266,2303.652C1792.383,2303.652 1787.607,2293.636 1787.607,2281.299C1787.607,2268.963 1792.383,2258.947 1798.266,2258.947L1801.529,2258.947Z" style="fill:rgb(224,172,146);"/> </g> <g transform="matrix(1.743015,-0.016865,0.016654,1.721269,-1337.324017,-1664.999849)"> <g> <path d="M1799.898,2258.947C1806.681,2258.947 1812.188,2264.524 1812.188,2271.393L1812.188,2291.206C1812.188,2298.075 1806.681,2303.652 1799.898,2303.652C1793.114,2303.652 1787.607,2298.075 1787.607,2291.206L1787.607,2271.393C1787.607,2264.524 1793.114,2258.947 1799.898,2258.947Z" style="fill:rgb(68,33,23);"/> </g> </g> <g transform="matrix(0.694604,0,0,0.911086,551.93046,214.904665)"> <path d="M1791.989,2195.501C1826.658,2195.501 1854.805,2216.96 1854.805,2243.391L1854.805,2311.899C1854.805,2338.33 1826.658,2359.789 1791.989,2359.789L1753.333,2359.789C1718.663,2359.789 1690.516,2338.33 1690.516,2311.899L1690.516,2243.391C1690.516,2216.96 1718.663,2195.501 1753.333,2195.501L1791.989,2195.501Z" style="fill:rgb(120,14,0);fill-opacity:0.17;"/> </g> <g transform="matrix(0.805923,0,0,0.911086,356.751041,196.420197)"> <path d="M1791.989,2195.501C1826.658,2195.501 1854.805,2220.399 1854.805,2251.066L1854.805,2304.224C1854.805,2334.891 1826.658,2359.789 1791.989,2359.789L1753.333,2359.789C1718.663,2359.789 1690.516,2334.891 1690.516,2304.224L1690.516,2251.066C1690.516,2220.399 1718.663,2195.501 1753.333,2195.501L1791.989,2195.501Z" style="fill:rgb(224,172,146);"/> </g> <g transform="matrix(0.845004,0,0,0.651162,283.22577,759.078823)"> <path d="M1816.825,2195.501C1837.787,2195.501 1854.805,2217.585 1854.805,2244.787L1854.805,2310.503C1854.805,2337.705 1837.787,2359.789 1816.825,2359.789L1728.497,2359.789C1707.535,2359.789 1690.516,2337.705 1690.516,2310.503L1690.516,2244.787C1690.516,2217.585 1707.535,2195.501 1728.497,2195.501L1816.825,2195.501Z" style="fill:rgb(224,172,146);"/> </g> <g transform="matrix(5.229015,-0,-0.002986,1.048823,-7617.670739,-173.927481)"> <path d="M1809.199,2258.947C1810.849,2258.947 1812.188,2265.624 1812.188,2273.849L1812.188,2303.652L1787.607,2303.652L1787.607,2273.849C1787.607,2265.624 1788.946,2258.947 1790.596,2258.947L1809.199,2258.947Z" style="fill:rgb(223,137,0);"/> </g> <g> <g transform="matrix(1.259267,-0.014573,0.048377,1.506797,-664.344133,-1175.119949)"> <path d="M1799.898,2258.947C1806.681,2258.947 1812.188,2263.549 1812.188,2269.216L1812.188,2293.382C1812.188,2299.05 1806.681,2303.652 1799.898,2303.652C1793.114,2303.652 1787.607,2299.05 1787.607,2293.382L1787.607,2269.216C1787.607,2263.549 1793.114,2258.947 1799.898,2258.947Z" style="fill:rgb(68,33,23);"/> </g> <g transform="matrix(0.870812,0,0,1,230.3982,7.223975)"> <path d="M1707.478,2193.048C1706.434,2176.509 1718.358,2161.684 1735.025,2159.39L1777.121,2153.598C1786.642,2152.288 1795.753,2155.337 1802.443,2161.216L1824.342,2158.203C1837.16,2156.439 1848.969,2165.418 1850.697,2178.241C1852.424,2191.064 1843.419,2202.907 1830.601,2204.67L1803.094,2208.455C1798.433,2212.823 1792.426,2215.842 1785.631,2216.777L1743.534,2222.569C1733.119,2224.002 1723.195,2220.219 1716.392,2213.221C1711.755,2209.595 1708.475,2204.224 1707.626,2197.926C1707.404,2196.278 1707.36,2194.645 1707.478,2193.048Z" style="fill:rgb(68,33,23);fill-opacity:0.21;"/> </g> <g transform="matrix(4.281748,-0.589136,0.190355,1.413251,-6380.634854,24.418203)"> <path d="M1804.813,2258.947C1808.884,2258.947 1812.188,2268.963 1812.188,2281.299C1812.188,2293.636 1808.884,2303.652 1804.813,2303.652L1794.982,2303.652C1790.911,2303.652 1787.607,2293.636 1787.607,2281.299C1787.607,2268.963 1790.911,2258.947 1794.982,2258.947L1804.813,2258.947Z" style="fill:rgb(68,33,23);"/> </g> <g transform="matrix(5.820334,-0.800833,0.140005,1.039441,-9016.237092,1258.22667)"> <path d="M1808.198,2258.947C1810.4,2258.947 1812.188,2268.963 1812.188,2281.299C1812.188,2293.636 1810.4,2303.652 1808.198,2303.652L1791.597,2303.652C1789.395,2303.652 1787.607,2293.636 1787.607,2281.299C1787.607,2268.963 1789.395,2258.947 1791.597,2258.947L1808.198,2258.947Z" style="fill:rgb(68,33,23);"/> </g> </g> <g transform="matrix(-0.830761,0,-0,-0.770548,3019.599213,3943.726841)"> <path d="M1531.279,2182.761C1534.54,2182.761 1537.187,2185.615 1537.187,2189.131C1537.187,2192.646 1534.54,2195.501 1531.279,2195.501L1493.983,2195.501C1490.722,2195.501 1488.075,2192.646 1488.075,2189.131C1488.075,2185.615 1490.722,2182.761 1493.983,2182.761L1531.279,2182.761Z" style="fill:rgb(201,116,92);"/> </g> <g transform="matrix(-0.741415,0,-0,-0.770548,2953.824317,3943.726841)"> <path d="M1530.567,2182.761C1534.221,2182.761 1537.187,2185.615 1537.187,2189.131C1537.187,2192.646 1534.221,2195.501 1530.567,2195.501L1494.695,2195.501C1491.041,2195.501 1488.075,2192.646 1488.075,2189.131C1488.075,2185.615 1491.041,2182.761 1494.695,2182.761L1530.567,2182.761Z" style="fill:rgb(201,116,92);"/> </g><g class="gbx-brows"><g class="gbx-brow"><g transform="matrix(-0.638851,0,-0,-0.770548,2796.164458,3938.818551)"> <path d="M1529.504,2182.761C1533.744,2182.761 1537.187,2185.615 1537.187,2189.131C1537.187,2192.646 1533.744,2195.501 1529.504,2195.501L1495.758,2195.501C1491.518,2195.501 1488.075,2192.646 1488.075,2189.131C1488.075,2185.615 1491.518,2182.761 1495.758,2182.761L1529.504,2182.761Z" style="fill:rgb(68,33,23);"/> </g></g><g class="gbx-brow"><g transform="matrix(-0.638851,0,-0,-0.770548,2739.497068,3938.818551)"> <path d="M1529.504,2182.761C1533.744,2182.761 1537.187,2185.615 1537.187,2189.131C1537.187,2192.646 1533.744,2195.501 1529.504,2195.501L1495.758,2195.501C1491.518,2195.501 1488.075,2192.646 1488.075,2189.131C1488.075,2185.615 1491.518,2182.761 1495.758,2182.761L1529.504,2182.761Z" style="fill:rgb(68,33,23);"/> </g></g></g>        <g transform="matrix(0.627692,0,0,1,818.174558,76.186322)"> <path d="M1527.039,2182.761C1532.64,2182.761 1537.187,2185.615 1537.187,2189.131C1537.187,2192.646 1532.64,2195.501 1527.039,2195.501L1498.223,2195.501C1492.622,2195.501 1488.075,2192.646 1488.075,2189.131C1488.075,2185.615 1492.622,2182.761 1498.223,2182.761L1527.039,2182.761Z" style="fill:rgb(120,14,0);"/> </g> <g transform="matrix(0.573333,0,0,1,960.96794,76.186322)"> <path d="M1526.077,2182.761C1532.209,2182.761 1537.187,2185.615 1537.187,2189.131C1537.187,2192.646 1532.209,2195.501 1526.077,2195.501L1499.185,2195.501C1493.053,2195.501 1488.075,2192.646 1488.075,2189.131C1488.075,2185.615 1493.053,2182.761 1499.185,2182.761L1526.077,2182.761Z" style="fill:rgb(120,14,0);"/> </g><g class="gbx-m-smile">        <g transform="matrix(1,0,0,1,795.961504,1834.013013)"> <path d="M983.402,477.53C992.129,490.067 1016.751,481.584 1016.323,480.299" style="fill:none;stroke:rgb(201,116,92);stroke-width:7.5px;"/> </g></g><g class="gbx-m-flat" style="display:none" transform="matrix(1,0,0,1,795.961504,1834.013013)"><path d="M986,482.5 L1015,482.5" style="fill:none;stroke:rgb(201,116,92);stroke-width:7.5px;"/></g><g class="gbx-m-wow" style="display:none" transform="matrix(1,0,0,1,795.961504,1834.013013)"><ellipse cx="1000" cy="485" rx="8.5" ry="11" style="fill:rgb(120,14,0);"/></g>        <g transform="matrix(0.991495,-0.130142,0.119584,0.911059,-255.557356,438.189199)"> <path d="M1799.898,2258.947C1806.681,2258.947 1812.188,2264.941 1812.188,2272.323L1812.188,2290.276C1812.188,2297.658 1806.681,2303.652 1799.898,2303.652C1793.114,2303.652 1787.607,2297.658 1787.607,2290.276L1787.607,2272.323C1787.607,2264.941 1793.114,2258.947 1799.898,2258.947Z" style="fill:rgb(201,116,92);"/> </g> <g transform="matrix(1.082472,-0.286538,0.286538,1.082472,-892.914517,325.416485)"> <path d="M1799.898,2258.947C1806.681,2258.947 1812.188,2264.454 1812.188,2271.238L1812.188,2291.361C1812.188,2298.144 1806.681,2303.652 1799.898,2303.652C1793.114,2303.652 1787.607,2298.144 1787.607,2291.361L1787.607,2271.238C1787.607,2264.454 1793.114,2258.947 1799.898,2258.947Z" style="fill:rgb(201,116,92);"/> </g> </g><g class="gbx-brejle" style="display:none">    <g transform="matrix(1,0,0,1,-27.019378,34.387678)"> <g transform="matrix(1.146012,0,0,1,-979.457969,-1838.270412)"> <g transform="matrix(0.872591,-0,-0,1,878.243188,1803.882734)"> <use xlink:href="#_Image1" x="985.374" y="442.719" width="60px" height="46px"/> </g> </g> <g transform="matrix(1.146012,0,0,1,-1050.05556,-1838.270412)"> <g transform="matrix(0.872591,-0,-0,1,939.846019,1803.882734)"> <use xlink:href="#_Image1" x="914.777" y="442.719" width="60px" height="46px"/> </g> </g> </g></g><g class="gbx-kapka" style="display:none">    <g transform="matrix(1,0,0,1,82.141932,208.661469)"> <g transform="matrix(1,0,0,1,-131.746855,52.286702)"> <path d="M1091.747,122.698C1091.747,122.698 1110.218,148.756 1110.218,159.924C1110.218,170.118 1101.941,178.394 1091.747,178.394C1081.553,178.394 1073.276,170.118 1073.276,159.924C1073.276,148.756 1091.747,122.698 1091.747,122.698Z" style="fill:rgb(92,201,184);"/> </g> <circle cx="953.269" cy="216.952" r="6.731" style="fill:rgb(169,226,217);"/> <g transform="matrix(0.425719,0,0,0.425719,544.578466,113.337648)"> <circle cx="953.269" cy="216.952" r="6.731" style="fill:rgb(169,226,217);"/> </g> </g></g></g><g class="gbx-bar" style="display:none">    <g> <g transform="matrix(1.200918,0,0,1,-80.707931,223.739662)"> <path d="M601.466,119.293L1131.721,119.293" style="fill:none;stroke:rgb(55,55,55);stroke-width:17.38px;"/> </g> <g transform="matrix(1,0,0,1.357143,38.729386,191.547729)"> <path d="M659.338,43.989C667.928,43.989 674.902,49.128 674.902,55.457L674.902,167.784C674.902,174.113 667.928,179.252 659.338,179.252L628.209,179.252C619.618,179.252 612.644,174.113 612.644,167.784L612.644,55.457C612.644,49.128 619.618,43.989 628.209,43.989L659.338,43.989Z" style="fill:rgb(102,98,97);"/> </g> <g transform="matrix(1,0,0,1.357143,593.422854,191.547729)"> <path d="M659.338,43.989C667.928,43.989 674.902,49.128 674.902,55.457L674.902,167.784C674.902,174.113 667.928,179.252 659.338,179.252L628.209,179.252C619.618,179.252 612.644,174.113 612.644,167.784L612.644,55.457C612.644,49.128 619.618,43.989 628.209,43.989L659.338,43.989Z" style="fill:rgb(102,98,97);"/> </g> </g></g><g class="gbx-up" style="display:none"><g class="gbx-uL"><g class="gbx-fL">    <g transform="matrix(0.334711,0,-0.000134,0.343197,146.965141,-287.796839)"> <path d="M1772.661,2195.501C1817.997,2195.501 1854.805,2231.398 1854.805,2275.614L1854.805,2279.676C1854.805,2323.892 1817.997,2359.789 1772.661,2359.789C1727.324,2359.789 1690.516,2323.892 1690.516,2279.676L1690.516,2275.614C1690.516,2231.398 1727.324,2195.501 1772.661,2195.501Z" style="fill:rgb(120,14,0);fill-opacity:0.17;"/> </g>    <g transform="matrix(1,0,0,1,-23.623417,32.953804)"> <g> <g transform="matrix(-0.717471,-0.192246,-0.077965,0.297743,2158.453516,42.37793)"> <path d="M1681.34,2328.384C1704.102,2328.384 1722.581,2372.982 1722.581,2427.915L1722.581,2458.671C1722.581,2513.604 1704.102,2558.202 1681.34,2558.202C1658.578,2558.202 1640.099,2513.604 1640.099,2458.671L1640.099,2427.915C1640.099,2372.982 1658.578,2328.384 1681.34,2328.384Z" style="fill:rgb(224,172,146);"/> </g> <g transform="matrix(-0.21045,-0.150873,-0.093844,0.132489,1367.028769,390.889236)"> <path d="M1681.34,2328.384C1704.102,2328.384 1722.581,2357.857 1722.581,2394.161L1722.581,2492.425C1722.581,2528.728 1704.102,2558.202 1681.34,2558.202C1658.578,2558.202 1640.099,2528.728 1640.099,2492.425L1640.099,2394.161C1640.099,2357.857 1658.578,2328.384 1681.34,2328.384Z" style="fill:rgb(224,172,146);"/> </g> </g> </g></g></g><g class="gbx-uR"><g class="gbx-fR"><g class="gbx-hf">    <g transform="matrix(0.334711,0,-0.000134,0.343197,570.691405,-287.796839)"> <path d="M1772.661,2195.501C1817.997,2195.501 1854.805,2231.398 1854.805,2275.614L1854.805,2279.676C1854.805,2323.892 1817.997,2359.789 1772.661,2359.789C1727.324,2359.789 1690.516,2323.892 1690.516,2279.676L1690.516,2275.614C1690.516,2231.398 1727.324,2195.501 1772.661,2195.501Z" style="fill:rgb(120,14,0);fill-opacity:0.17;"/> </g>    <g transform="matrix(-1,0,0,1,1926.743937,27.983945)"> <g> <g transform="matrix(-0.717471,-0.192246,-0.077965,0.297743,2158.453516,42.37793)"> <path d="M1681.34,2328.384C1704.102,2328.384 1722.581,2372.982 1722.581,2427.915L1722.581,2458.671C1722.581,2513.604 1704.102,2558.202 1681.34,2558.202C1658.578,2558.202 1640.099,2513.604 1640.099,2458.671L1640.099,2427.915C1640.099,2372.982 1658.578,2328.384 1681.34,2328.384Z" style="fill:rgb(224,172,146);"/> </g> <g transform="matrix(-0.233098,-0.11277,-0.069873,0.146553,1345.918448,287.315117)"> <path d="M1681.34,2328.384C1704.102,2328.384 1722.581,2357.857 1722.581,2394.161L1722.581,2492.425C1722.581,2528.728 1704.102,2558.202 1681.34,2558.202C1658.578,2558.202 1640.099,2528.728 1640.099,2492.425L1640.099,2394.161C1640.099,2357.857 1658.578,2328.384 1681.34,2328.384Z" style="fill:rgb(224,172,146);"/> </g> </g> </g></g><g class="gbx-ht" style="display:none">    <g transform="matrix(0.334711,0,-0.000134,0.343197,570.691405,-287.796839)"> <path d="M1772.661,2195.501C1817.997,2195.501 1854.805,2231.398 1854.805,2275.614L1854.805,2279.676C1854.805,2323.892 1817.997,2359.789 1772.661,2359.789C1727.324,2359.789 1690.516,2323.892 1690.516,2279.676L1690.516,2275.614C1690.516,2231.398 1727.324,2195.501 1772.661,2195.501Z" style="fill:rgb(120,14,0);fill-opacity:0.17;"/> </g>    <g transform="matrix(-1,0,0,1,1926.743937,27.983945)"> <g> <g transform="matrix(-0.717471,-0.192246,-0.077965,0.297743,2158.453516,42.37793)"> <path d="M1681.34,2328.384C1704.102,2328.384 1722.581,2372.982 1722.581,2427.915L1722.581,2458.671C1722.581,2513.604 1704.102,2558.202 1681.34,2558.202C1658.578,2558.202 1640.099,2513.604 1640.099,2458.671L1640.099,2427.915C1640.099,2372.982 1658.578,2328.384 1681.34,2328.384Z" style="fill:rgb(224,172,146);"/> </g> <g transform="matrix(-0.233098,-0.11277,-0.069873,0.146553,1345.918448,287.315117)"> <path d="M1681.34,2328.384C1704.102,2328.384 1722.581,2357.857 1722.581,2394.161L1722.581,2492.425C1722.581,2528.728 1704.102,2558.202 1681.34,2558.202C1658.578,2558.202 1640.099,2528.728 1640.099,2492.425L1640.099,2394.161C1640.099,2357.857 1658.578,2328.384 1681.34,2328.384Z" style="fill:rgb(224,172,146);"/> </g> </g> </g><g class="gbx-thumb"><rect x="1134" y="428" width="27" height="52" rx="13.5" transform="rotate(-20 1147 476)" style="fill:rgb(224,172,146);"/><rect x="1138" y="466" width="19" height="9" rx="4.5" transform="rotate(-20 1147 476)" style="fill:rgb(201,116,92);fill-opacity:.5"/></g></g><g class="gbx-ho" style="display:none">    <g transform="matrix(0.334711,0,-0.000134,0.343197,570.691405,-287.796839)"> <path d="M1772.661,2195.501C1817.997,2195.501 1854.805,2231.398 1854.805,2275.614L1854.805,2279.676C1854.805,2323.892 1817.997,2359.789 1772.661,2359.789C1727.324,2359.789 1690.516,2323.892 1690.516,2279.676L1690.516,2275.614C1690.516,2231.398 1727.324,2195.501 1772.661,2195.501Z" style="fill:rgb(120,14,0);fill-opacity:0.17;"/> </g>    <g transform="matrix(-1,0,0,1,1927.192178,32.953804)"> <g>            <g transform="matrix(-0.717471,-0.192246,-0.074997,0.286408,2150.860692,71.374447)"> <path d="M1681.34,2328.384C1704.102,2328.384 1722.581,2374.747 1722.581,2431.854L1722.581,2454.732C1722.581,2511.839 1704.102,2558.202 1681.34,2558.202C1658.578,2558.202 1640.099,2511.839 1640.099,2454.732L1640.099,2431.854C1640.099,2374.747 1658.578,2328.384 1681.34,2328.384Z" style="fill:rgb(224,172,146);"/> </g><g class="gbx-d">            <g transform="matrix(-0.161349,-0.20253,-0.163437,0.131735,1466.308501,463.892756)"> <path d="M1681.34,2328.384C1704.102,2328.384 1722.581,2351.18 1722.581,2379.258L1722.581,2507.328C1722.581,2535.406 1704.102,2558.202 1681.34,2558.202C1658.578,2558.202 1640.099,2535.406 1640.099,2507.328L1640.099,2379.258C1640.099,2351.18 1658.578,2328.384 1681.34,2328.384Z" style="fill:rgb(224,172,146);"/> </g></g><g class="gbx-d">            <g transform="matrix(-0.25647,0.035703,0.037147,0.256152,1117.938039,-276.159722)"> <path d="M1681.34,2328.384C1704.102,2328.384 1722.581,2346.872 1722.581,2369.644L1722.581,2516.942C1722.581,2539.714 1704.102,2558.202 1681.34,2558.202C1658.578,2558.202 1640.099,2539.714 1640.099,2516.942L1640.099,2369.644C1640.099,2346.872 1658.578,2328.384 1681.34,2328.384Z" style="fill:rgb(224,172,146);"/> </g></g><g class="gbx-d">            <g transform="matrix(-0.247613,0.075761,0.077137,0.247071,982.037962,-323.644358)"> <path d="M1681.34,2328.384C1704.102,2328.384 1722.581,2346.872 1722.581,2369.644L1722.581,2516.942C1722.581,2539.714 1704.102,2558.202 1681.34,2558.202C1658.578,2558.202 1640.099,2539.714 1640.099,2516.942L1640.099,2369.644C1640.099,2346.872 1658.578,2328.384 1681.34,2328.384Z" style="fill:rgb(224,172,146);"/> </g></g><g class="gbx-d">            <g transform="matrix(-0.227917,0.122905,0.124148,0.227115,815.681724,-338.613933)"> <path d="M1681.34,2328.384C1704.102,2328.384 1722.581,2346.872 1722.581,2369.644L1722.581,2516.942C1722.581,2539.714 1704.102,2558.202 1681.34,2558.202C1658.578,2558.202 1640.099,2539.714 1640.099,2516.942L1640.099,2369.644C1640.099,2346.872 1658.578,2328.384 1681.34,2328.384Z" style="fill:rgb(224,172,146);"/> </g></g><g class="gbx-d">            <g transform="matrix(-0.157529,0.144326,0.163329,0.176244,594.371525,-228.955661)"> <path d="M1681.34,2328.384C1704.102,2328.384 1722.581,2344.815 1722.581,2365.053L1722.581,2521.532C1722.581,2541.771 1704.102,2558.202 1681.34,2558.202C1658.578,2558.202 1640.099,2541.771 1640.099,2521.532L1640.099,2365.053C1640.099,2344.815 1658.578,2328.384 1681.34,2328.384Z" style="fill:rgb(224,172,146);"/> </g></g>        </g> </g></g></g></g></g><g class="gbx-palF" style="display:none"><g transform="translate(1661873.92 378566.87)"><path d="m -1660775.9,-378074.15 c 15,2.71 24.9,17.06 22.1,32.02 l -12.8,68.24 c -2.8,14.96 -17.2,24.91 -32.2,22.19 -15,-2.71 -24.9,-17.06 -22.1,-32.02 l 12.8,-68.24 c 2.8,-14.96 17.2,-24.91 32.2,-22.19 z" style="clip-rule:evenodd;fill:#e0ac92;fill-rule:evenodd;stroke:#ce9179;stroke-width:0.602;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;stroke-dasharray:none;stroke-opacity:1" /><g transform="matrix(0.18310424,0.25154447,-0.34916291,0.13861428,-1660426.1,-378816.4)" style="clip-rule:evenodd;fill:#ce9179;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;stroke-opacity:1"> <path d="m 2017.0033,2091.8721 c 42.2226,-36.8538 111.548,-35.2901 144.971,7.8885 l 8.7405,11.2917 c 27.7794,35.8877 19.6553,82.3094 -5.2262,102.4138 -19.775,15.9784 -67.7571,45.4522 -88.3359,30.037 l -76.2038,-57.0828 c -46.5796,-34.8919 -26.1691,-57.6937 16.0544,-94.5482 z" style="fill:#ce9179;fill-opacity:1;stroke:none;stroke-width:1.25009;stroke-opacity:1" /> </g><path d="m -1660756.7,-378104.75 c 9.1,1.64 15.1,10.35 13.4,19.42 l -7.7,41.4 c -1.7,9.08 -10.5,15.11 -19.6,13.46 -9,-1.64 -15,-10.35 -13.3,-19.42 l 7.7,-41.4 c 1.7,-9.08 10.5,-15.11 19.5,-13.46 z" style="clip-rule:evenodd;fill:#e0ac92;fill-rule:evenodd;stroke:#ce9179;stroke-width:0.36522;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;stroke-opacity:1" /><path d="m -1660771.1,-378072.7 c 8.8,2.72 21.9,13.98 21.2,23.45 l -13.3,40.01 c -3,9.27 -14.7,15.76 -27.4,14.05 -12.8,-1.72 -21.2,-10.8 -18.8,-20.27 l 10.8,-43.2 c 2.4,-9.47 15.2,-17.87 27.5,-14.04 z" style="clip-rule:evenodd;opacity:1;fill:#ce9179;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:0.442272;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;stroke-opacity:1" /><g transform="matrix(-1.1782125,-0.42674275,-0.42674275,1.1782125,-1659823.3,-378300.37)" style="clip-rule:evenodd;fill:#ce9179;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;stroke-opacity:1"> <g style="fill:#ce9179;fill-opacity:1;stroke:none;stroke-opacity:1"> <g transform="matrix(-0.717471,-0.192246,-0.077965,0.297743,2158.4535,42.37793)" style="fill:#ce9179;fill-opacity:1;stroke:none;stroke-opacity:1"> <path d="m 1813.6155,2477.9979 c 28.4545,0 51.5548,55.7514 51.5548,124.4224 v 38.4477 c 0,68.671 -23.1003,124.4223 -51.5548,124.4223 -28.4545,0 -51.5548,-55.7513 -51.5548,-124.4223 v -38.4477 c 0,-68.671 23.1003,-124.4224 51.5548,-124.4224 z" style="display:inline;fill:#ce9179;fill-opacity:1;stroke:none;stroke-width:1.25009;stroke-opacity:1" /> </g> <g transform="matrix(-0.233098,-0.11277,-0.069873,0.146553,1345.9184,287.31512)" style="display:none;fill:#ce9179;fill-opacity:1;stroke:none;stroke-opacity:1"> <path d="m 1681.34,2328.384 c 22.762,0 41.241,29.473 41.241,65.777 v 98.264 c 0,36.303 -18.479,65.777 -41.241,65.777 -22.762,0 -41.241,-29.474 -41.241,-65.777 v -98.264 c 0,-36.304 18.479,-65.777 41.241,-65.777 z" style="display:none;fill:#ce9179;fill-opacity:1;stroke:none;stroke-opacity:1" /> </g> </g> </g><g transform="matrix(-1.1782125,-0.42674275,-0.42674275,1.1782125,-1659822.8,-378301.68)" style="clip-rule:evenodd;fill-rule:evenodd;stroke:none;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;stroke-opacity:1"> <g style="stroke:none;stroke-opacity:1"> <g transform="matrix(-0.717471,-0.192246,-0.077965,0.297743,2158.4535,42.37793)" style="stroke:none;stroke-opacity:1"> <path d="m 1813.6155,2477.9979 c 28.4545,0 51.5548,55.7514 51.5548,124.4224 v 38.4477 c 0,68.671 -23.1003,124.4223 -51.5548,124.4223 -28.4545,0 -51.5548,-55.7513 -51.5548,-124.4223 v -38.4477 c 0,-68.671 23.1003,-124.4224 51.5548,-124.4224 z" style="display:inline;fill:#e0ac92;stroke:none;stroke-width:1.25009;stroke-opacity:1" /> </g> <g transform="matrix(-0.233098,-0.11277,-0.069873,0.146553,1345.9184,287.31512)" style="display:none;stroke:none;stroke-opacity:1"> <path d="m 1681.34,2328.384 c 22.762,0 41.241,29.473 41.241,65.777 v 98.264 c 0,36.303 -18.479,65.777 -41.241,65.777 -22.762,0 -41.241,-29.474 -41.241,-65.777 v -98.264 c 0,-36.304 18.479,-65.777 41.241,-65.777 z" style="display:none;fill:#e0ac92;stroke:none;stroke-opacity:1" /> </g> </g> </g><path d="m -1660838.4,-378044.74 c 0.4,-0.96 4.8,-1.66 9.9,-1.59 l 22.9,0.36 c 5.1,0.1 8.8,0.92 8.5,1.87 -0.4,0.95 -4.8,1.66 -9.9,1.58 l -23,-0.36 c -5,-0.1 -8.8,-0.91 -8.4,-1.86 z" style="clip-rule:evenodd;fill:#ce9179;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:0.0868726;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;stroke-opacity:1" /><path d="m -1660842.2,-378020.79 c 0.4,-0.83 4.8,-1.45 9.8,-1.38 l 23,0.31 c 5.1,0.1 8.8,0.81 8.4,1.64 -0.3,0.83 -4.7,1.45 -9.8,1.38 l -23,-0.31 c -5,-0.1 -8.8,-0.8 -8.4,-1.64 z" style="clip-rule:evenodd;fill:#ce9179;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:0.081312;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;stroke-opacity:1" /><path d="m -1660840.3,-377997.18 c 0.4,-0.89 4.8,-1.55 9.9,-1.48 l 23,0.34 c 5,0.1 8.8,0.86 8.4,1.75 -0.4,0.89 -4.8,1.56 -9.8,1.48 l -23,-0.33 c -5.1,-0.1 -8.8,-0.86 -8.5,-1.76 z" style="clip-rule:evenodd;fill:#ce9179;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:0.0841383;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;stroke-opacity:1" /></g></g></symbol>
 </svg>
 <div class="bg-bubbles" id="bubbles"></div>
 
@@ -4058,7 +3955,7 @@ function gbCelebrate(act, oldXP, navrat, odm){
   host.addEventListener('click', ()=>host.remove());
   document.body.appendChild(host);
   gbBroPose(host.querySelector('.gbz-bro'), pose);
-  setTimeout(()=>{ host.classList.add('out'); setTimeout(()=>host.remove(), 300); }, velka ? 2600 : 1800);
+  setTimeout(()=>{ host.classList.add('out'); setTimeout(()=>host.remove(), 300); }, velka ? 4000 : 3000); // Kolo 19: oslava o 1,2–1,4 s déle, aby GymBro stihl 3–4 opakování
 }
 
 // Kolo 7: trénink jde zahodit bez započítání (s možností Vrátit v hlášce)
@@ -4084,25 +3981,85 @@ let gbWiz = null;         // {step, ans:{}, skipEnv}
 let gbPraise = null;      // údaje pro pochvalnou obrazovku
 const GB_MUSCLES_TXT = {push:'Hrudník, ramena, triceps.', pull:'Záda, biceps, zadní ramena.', legs_core:'Nohy, hýždě a střed těla.'};
 const GB_CAT_SHORT = {push:'přední vršek', pull:'zadní vršek', legs_core:'nohy + core'};
-function gbBro(cls){ const s = document.getElementById('bro'); return `<svg class="${cls}" viewBox="0 0 150 190" role="img" aria-label="GymBro">${s ? s.innerHTML : ''}</svg>`; }
+/* ================= Kolo 19: nový GymBro z kamarádových vrstev ================= */
+// Pózy se skládají z vrstev (ruce dolů, pěsti, dlaň, palec, činka, brýle, kapka); ruce se otáčejí v ramenou a činka jede s pěstmi.
+// Pohyb (napínání, tlak s činkou, stékající kapka) běží jen u GymBra, který je na obrazovce, a vůbec ne při „omezit pohyb“.
+const GB_VBS = {down:'777 342 326 420', palec:'777 342 388 420', up:'687 342 543 420', zveda:'636 277 648 485'}; // výřez těsně kolem postavy podle pózy (změřeno)
+const GB_VB = GB_VBS.down;
+const GB_SL=[882,588], GB_EL=[780,588], GB_FL=[739,480], GB_SR=[1020.6,588], GB_ER=[1122.6,588];
+const GB_ARMS = {'arms-down':'down','arms-hips':'down','arms-flex':'sila','arms-lift':'zveda','arms-thumb':'palec','arms-count':'pocita'};
+const gbBroAnim = new Set(); let gbBroRaf = 0;
+const gbKlidne = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+function gbBro(cls){ const s = document.getElementById('bro'); return `<svg class="${cls}" viewBox="${GB_VB}" data-vb="down" role="img" aria-label="GymBro" style="aspect-ratio:326 / 420;fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5">${s ? s.innerHTML : ''}</svg>`; }
+function gbBroStav(svg){
+  if(svg._gb) return svg._gb;
+  const q = c=>[...svg.querySelectorAll('.gbx-'+c)];
+  return svg._gb = {arms:'down', face:'happy', prsty:5, t0:performance.now(), bw:null,
+    down:q('down')[0], palA:q('palA')[0], palF:q('palF')[0], up:q('up'), uL:q('uL'), fL:q('fL'), uR:q('uR'), fR:q('fR'), bar:q('bar')[0],
+    hf:q('hf')[0], ht:q('ht')[0], ho:q('ho')[0], body:q('body')[0], brejle:q('brejle')[0], kapka:q('kapka')[0], brows:q('brows')[0], brow:q('brow'),
+    ms:q('m-smile')[0], mf:q('m-flat')[0], mw:q('m-wow')[0], d:q('d')};
+}
+const gbVlna = (t,per)=>(1-Math.cos(2*Math.PI*t/per))/2;
+const gbRot = (p,c,a)=>{ const r=a*Math.PI/180, s=Math.sin(r), k=Math.cos(r), x=p[0]-c[0], y=p[1]-c[1]; return [c[0]+x*k-y*s, c[1]+x*s+y*k]; };
+function gbBroParam(st, t){
+  const o = {arms:'up', a1:0, a2:0, hand:'fist', bar:false, mouth:'smile', brows:0, bA:0, brejle:false, kapka:false, kdy:0, kop:1, blur:false, anim:false};
+  if(st.arms==='down') o.arms='down';
+  if(st.arms==='sila'){ o.a1=7*gbVlna(t,.7); o.bA=13; o.anim=true; }
+  if(st.arms==='zveda'){ const w=gbVlna(t,1); o.bar=true; o.a1=32+42*w; o.a2=-20-34*w; o.anim=true; }
+  if(st.arms==='palec'){ o.arms='palec'; o.blur=true; }
+  if(st.arms==='pocita') o.hand='open';
+  if(st.face==='wow') o.mouth='wow';
+  if(st.face==='focus'){ o.mouth='flat'; o.brows=4; o.bA=7; }
+  if(st.face==='tired'){ const k=(t%1.6)/1.6; o.mouth='flat'; o.bA=-13; o.kapka=true; o.anim=true; o.kdy=k*55; o.kop=k<.7?1:1-(k-.7)/.3; }
+  if(st.face==='cool') o.brejle=true;
+  return o;
+}
+function gbBroKresli(svg, t){
+  const st = gbBroStav(svg), o = gbBroParam(st, t), ukaz = (e,v)=>{ if(e) e.style.display = v ? '' : 'none'; }, up = o.arms==='up';
+  const vb = o.bar ? 'zveda' : o.arms==='down' ? 'down' : o.arms==='palec' ? 'palec' : 'up';
+  if(svg.dataset.vb!==vb){ const v = GB_VBS[vb], c = v.split(' '); svg.dataset.vb = vb; svg.setAttribute('viewBox', v); svg.style.aspectRatio = c[2]+' / '+c[3]; }
+  st.up.forEach(e=>ukaz(e, up)); ukaz(st.down, o.arms==='down'); ukaz(st.palA, o.arms==='palec'); ukaz(st.palF, o.arms==='palec');
+  [st.body, st.palA && st.palA.firstElementChild].forEach(e=>{ if(e){ if(o.blur) e.setAttribute('filter','url(#gbRozost)'); else e.removeAttribute('filter'); } }); // palec: tělo lehce rozostřené
+  st.uL.forEach(e=>e.setAttribute('transform',`rotate(${o.a1.toFixed(2)} ${GB_SL})`)); st.fL.forEach(e=>e.setAttribute('transform',`rotate(${o.a2.toFixed(2)} ${GB_EL})`));
+  st.uR.forEach(e=>e.setAttribute('transform',`rotate(${(-o.a1).toFixed(2)} ${GB_SR})`)); st.fR.forEach(e=>e.setAttribute('transform',`rotate(${(-o.a2).toFixed(2)} ${GB_ER})`));
+  ukaz(st.hf, o.hand==='fist'); ukaz(st.ht, false); ukaz(st.ho, o.hand==='open');
+  st.d.forEach((d,i)=>ukaz(d, i<st.prsty));
+  ukaz(st.bar, o.bar && up);
+  if(o.bar){ const f = gbRot(gbRot(GB_FL,GB_EL,o.a2),GB_SL,o.a1), s = Math.max(247, 960-f[0]+48)/247;
+    st.bar.setAttribute('transform',`translate(960 ${f[1].toFixed(1)}) scale(${s.toFixed(3)} 1) translate(-960 -343)`); }
+  ukaz(st.brejle, o.brejle); ukaz(st.kapka, o.kapka);
+  if(o.kapka){ st.kapka.setAttribute('transform',`translate(0 ${o.kdy.toFixed(1)})`); st.kapka.setAttribute('opacity',o.kop.toFixed(2)); }
+  ukaz(st.ms, o.mouth==='smile'); ukaz(st.mf, o.mouth==='flat'); ukaz(st.mw, o.mouth==='wow');
+  if(st.brows) st.brows.setAttribute('transform',`translate(0 ${o.brows})`);
+  if(!st.bw && svg.isConnected){ try{ const b = st.brow.map(e=>{ const r=e.getBBox(); return {el:e, x:r.x+r.width/2, c:[r.x+r.width/2, r.y+r.height/2], ok:r.width>0}; }); if(b.length && b.every(x=>x.ok)) st.bw = b.sort((a,c)=>a.x-c.x); }catch(e){} }
+  if(st.bw) st.bw.forEach((w,i)=>w.el.setAttribute('transform',`rotate(${i?-o.bA:o.bA} ${w.c})`));
+  return o.anim;
+}
+function gbBroSmycka(){
+  if(gbBroRaf || gbKlidne) return;
+  const krok = now=>{
+    gbBroRaf = 0;
+    gbBroAnim.forEach(svg=>{
+      if(!svg.isConnected){ gbBroAnim.delete(svg); return; }
+      if(document.hidden) return;
+      const r = svg.getBoundingClientRect();
+      if(!r.width || r.bottom<0 || r.top>window.innerHeight) return; // není vidět → nekreslí
+      if(!gbBroKresli(svg, (now-svg._gb.t0)/1000)) gbBroAnim.delete(svg);
+    });
+    if(gbBroAnim.size) gbBroRaf = requestAnimationFrame(krok);
+  };
+  gbBroRaf = requestAnimationFrame(krok);
+}
 function gbBroPose(svg, pose, hop=true){
   if(!svg) return;
-  svg.querySelectorAll('.pose').forEach(g=>g.classList.remove('on'));
-  pose.forEach(p=>{ const g = svg.querySelector('.'+p); if(g) g.classList.add('on'); });
+  const st = gbBroStav(svg);
+  pose.forEach(p=>{ if(GB_ARMS[p]) st.arms = GB_ARMS[p]; else if(p.indexOf('face-')===0) st.face = p.slice(5); });
+  svg.dataset.arms = st.arms; svg.dataset.face = st.face; st.t0 = performance.now();
+  if(gbBroKresli(svg, 0)){ gbBroAnim.add(svg); gbBroSmycka(); } else gbBroAnim.delete(svg);
   if(hop){ svg.classList.remove('hop'); void svg.getBoundingClientRect(); svg.classList.add('hop'); }
 }
-// GymBro ukazuje na prstech, kolik otázek ještě zbývá (hravá „rukavicová“ ruka)
-function gbBroFingers(svg, n){
-  const g = svg && svg.querySelector('.arms-count .fingers'); if(!g) return;
-  const F = [[122,22.5], [127.5,20.5], [133,22], [137.5,26.5]], skin = 'url(#g-skin)';
-  let h = '';
-  F.forEach((f,i)=>{ if(i < Math.min(n,4)) h += `<path d="M${f[0]-.5} 37 L${f[0]} ${f[1]}" stroke="${skin}" stroke-width="6.2" stroke-linecap="round"/>`; });
-  if(n>=5) h += `<path d="M121 41 L113.5 33.5" stroke="${skin}" stroke-width="6.2" stroke-linecap="round"/>`;
-  h += `<circle cx="129" cy="39" r="9" fill="${skin}"/>`;
-  if(n<5) h += `<ellipse cx="121.5" cy="41.5" rx="3.3" ry="4" fill="${skin}"/>`;
-  h += `<ellipse cx="126" cy="35" rx="3.4" ry="1.8" fill="#fff" opacity=".55"/>`;
-  g.innerHTML = h;
-}
+// GymBro ukazuje na prstech otevřené dlaně, kolik otázek ještě zbývá
+function gbBroFingers(svg, n){ if(!svg) return; const st = gbBroStav(svg); st.prsty = Math.max(0, Math.min(5, n)); svg.dataset.prsty = st.prsty; gbBroKresli(svg, 0); }
 function gbCatDays(cat){
   const l = state.gymbroLog.filter(x=>x.cat===cat);
   if(!l.length) return 999;
@@ -4166,7 +4123,7 @@ function gbWizPick(i){
     if(!gbWiz || gbWiz.step!==stepNow) return;
     if(gbWiz.step < steps.length-1){ gbWiz.step++; renderGymbroWorkout(); }
     else gbWizFinish();
-  }, 800);
+  }, !gbKlidne && gbBroAnim.has(wrap.querySelector('.gbz-bro')) ? 2000 : 800); // Kolo 19: když se GymBro hýbe (činka, napínání), dostane 2 s – stihne 2 opakování a je poznat, co dělá
 }
 function gbWizBack(){
   if(!gbWiz) return;
@@ -4335,7 +4292,7 @@ function renderGymbroWorkout(){
     return;
   }
   wrap.innerHTML = gbStartHTML();
-  gbBroPose(wrap.querySelector('.gbz-bro'), ['arms-thumb','face-happy'], false);
+  gbBroPose(wrap.querySelector('.gbz-bro'), ['arms-hips','face-cool'], false); // Kolo 19: start GymBra = Pohoda (ruce dolů, brýle)
 }
 
 /* ---- Vyrovnání (counter): volitelná záložka se 3 lehkými cviky pro protilehlé svaly ---- */
